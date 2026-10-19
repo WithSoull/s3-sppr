@@ -126,8 +126,8 @@ Default ниже относится к коду, а не к development `.env`.
 | `GRPC_PORT` | задать явно | [grpc.go](internal/config/env/grpc.go) |
 | `REFRESH_TOKEN_SECRET` | задать явно | [jwt.go](internal/config/env/jwt.go) |
 | `ACCESS_TOKEN_SECRET` | задать явно | [jwt.go](internal/config/env/jwt.go) |
-| `REFRESH_TOKEN_TTL` | задать явно | [jwt.go](internal/config/env/jwt.go) |
-| `ACCESS_TOKEN_TTL` | задать явно | [jwt.go](internal/config/env/jwt.go) |
+| `REFRESH_TOKEN_TTL` | `1h` | [jwt.go](internal/config/env/jwt.go) |
+| `ACCESS_TOKEN_TTL` | `15m` | [jwt.go](internal/config/env/jwt.go) |
 | `LOGGER_LEVEL` | задать явно | [logger.go](internal/config/env/logger.go) |
 | `LOGGER_AS_JSON` | задать явно | [logger.go](internal/config/env/logger.go) |
 | `LOGGER_ENABLE_OLTP` | задать явно | [logger.go](internal/config/env/logger.go) |
@@ -148,8 +148,6 @@ Default ниже относится к коду, а не к development `.env`.
 | `SECURITY_LOGIN_ATTEMPTS_WINDOW` | `15m` | [security.go](internal/config/env/security.go) |
 | `USER_SERVER_GRPC_HOST` | задать явно | [user_grpc.go](internal/config/env/user_grpc.go) |
 | `USER_SERVER_GRPC_PORT` | задать явно | [user_grpc.go](internal/config/env/user_grpc.go) |
-
-JWT TTL задавайте явно: struct tags в `jwt.go` имеют некорректное оформление; указанные там defaults нельзя считать проверенным контрактом.
 
 Основные значения находятся в `services/auth/.env`:
 

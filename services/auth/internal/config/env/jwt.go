@@ -9,8 +9,8 @@ import (
 type jwtEnvConfig struct {
 	RefreshSecret string        `env:"REFRESH_TOKEN_SECRET,notEmpty"`
 	AccessSecret  string        `env:"ACCESS_TOKEN_SECRET,notEmpty"`
-	RefreshTTL    time.Duration `env:"REFRESH_TOKEN_TTL",envDefault:"5m"`
-	AccessTTL     time.Duration `env:"ACCESS_TOKEN_TTL",envDefault:"2m`
+	RefreshTTL    time.Duration `env:"REFRESH_TOKEN_TTL" envDefault:"1h"`
+	AccessTTL     time.Duration `env:"ACCESS_TOKEN_TTL" envDefault:"15m"`
 }
 
 type jwtConfig struct {
