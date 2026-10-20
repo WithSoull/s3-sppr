@@ -31,7 +31,7 @@ docker compose ps
 - PostgreSQL для Users и Metadata, Redis, Neo4j, ZooKeeper и Kafka.
 
 Для минимального стенда с одним Storage node и Gateway используйте
-`make up-gateway-mvp`. Команда также поднимет зависимости Metadata.
+`make up-gateway`. Команда также поднимет зависимости Metadata.
 Kafka ожидает успешной проверки готовности ZooKeeper перед запуском.
 Автоматическая проверка PUT/GET: `make smoke-gateway` (создаёт свой тестовый bucket). Перед ручным PUT
 создайте тестовый bucket по [инструкции Gateway](services/gateway/README.md#примеры-использования).
@@ -98,7 +98,7 @@ docker compose --profile services down -v
 
 ```bash
 make up-services
-make up-gateway-mvp
+make up-gateway
 make down
 make down-volumes
 make rebuild

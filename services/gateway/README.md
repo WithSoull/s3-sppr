@@ -136,7 +136,7 @@ Compose публикует HTTP-порт только на `127.0.0.1:8080`, п�
 Из корня репозитория:
 
 ```bash
-make up-gateway-mvp
+make up-gateway
 docker compose --profile services ps gateway metadata storage
 ```
 

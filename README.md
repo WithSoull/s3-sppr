@@ -50,7 +50,7 @@ docker compose ps
 
 ```bash
 make up-services
-make up-gateway-mvp
+make up-gateway
 make smoke-gateway  # автоматическая проверка PUT/GET на поднятом стенде
 make up-e2e
 make test-metadata-integration

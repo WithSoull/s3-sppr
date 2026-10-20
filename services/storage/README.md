@@ -130,7 +130,7 @@ Default ниже относится к коду, а не к development `.env`.
 чанка Storage. Для локального Compose значение можно переопределить один раз:
 
 ```bash
-STORAGE_RETRIEVE_CHUNK_SIZE_BYTES=524288 make up-gateway-mvp
+STORAGE_RETRIEVE_CHUNK_SIZE_BYTES=524288 make up-gateway
 ```
 
 Основные значения находятся в `services/storage/.env`:

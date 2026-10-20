@@ -157,7 +157,7 @@ test-storage:
 smoke-gateway:
 	go run ./services/gateway/cmd/smoke
 
-smoke-gateway-local: up-gateway-mvp
+smoke-gateway-local: up-gateway
 	$(MAKE) smoke-gateway
 
 test-gateway:
@@ -177,7 +177,7 @@ test-metadata-integration-local: up-e2e
 up-services:
 	docker compose --profile services up -d
 
-up-gateway-mvp:
+up-gateway:
 	docker compose --profile services up --build -d gateway metadata storage
 
 up-e2e:
