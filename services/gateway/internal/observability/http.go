@@ -27,8 +27,9 @@ func NewHTTPHandler(next http.Handler) (http.Handler, error) {
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		route := routeName(r.URL.Path)
+		method := methodLabel(r.Method)
 		ctx := otel.GetTextMapPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
-		ctx, span := tracer.Start(ctx, r.Method+" "+route, trace.WithSpanKind(trace.SpanKindServer))
+		ctx, span := tracer.Start(ctx, method+" "+route, trace.WithSpanKind(trace.SpanKindServer))
 		defer span.End()
 
 		start := time.Now()
@@ -39,7 +40,7 @@ func NewHTTPHandler(next http.Handler) (http.Handler, error) {
 				status = http.StatusOK
 			}
 			attrs := []attribute.KeyValue{
-				attribute.String("http.request.method", r.Method),
+				attribute.String("http.request.method", method),
 				attribute.String("http.route", route),
 				attribute.Int("http.response.status_code", status),
 			}
@@ -57,6 +58,15 @@ func NewHTTPHandler(next http.Handler) (http.Handler, error) {
 
 		next.ServeHTTP(tracked, r.WithContext(ctx))
 	}), nil
+}
+
+func methodLabel(method string) string {
+	switch method {
+	case http.MethodGet, http.MethodHead, http.MethodPost, http.MethodPut, http.MethodPatch,
+		http.MethodDelete, http.MethodConnect, http.MethodOptions, http.MethodTrace:
+		return method
+	}
+	return "_OTHER"
 }
 
 func routeName(path string) string {
