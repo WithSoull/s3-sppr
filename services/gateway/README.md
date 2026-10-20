@@ -68,8 +68,10 @@ Bucket `swagger` доступен как `/objects/swagger/{key}`. Health
 PUT проверяет существование bucket через Metadata `HeadBucket`, отправляет тело
 потоком в Storage `StoreObject`, затем вызывает Metadata `CreateObjectVersion` с
 полученным `blob_id`, размером и MD5. HTTP-успех возвращается после ответа
-Metadata. GET получает текущий `blob_id` через `GetObjectMeta` и передаёт ответ
-Storage `RetrieveObject` клиенту потоком. Последний байт удерживается до
+Metadata. Регистрация версии после записи blob не отменяется разрывом
+HTTP-соединения; её ограничивает только `METADATA_RPC_TIMEOUT`. GET получает
+текущий `blob_id` через `GetObjectMeta` и передаёт ответ Storage
+`RetrieveObject` клиенту потоком. Последний байт удерживается до
 успешного завершения потока Storage; при ошибке или неверном размере HTTP-ответ
 обрывается до передачи полного Content-Length. Для пустого объекта EOF
 проверяется до отправки успешного ответа.

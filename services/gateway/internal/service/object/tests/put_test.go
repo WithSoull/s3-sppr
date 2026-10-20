@@ -56,7 +56,14 @@ func TestPut(t *testing.T) {
 				meta, storage := mocks.NewMetadataClientMock(mc), mocks.NewStorageClientMock(mc)
 				meta.HeadBucketMock.Expect(a.ctx, a.bucket).Return(true, nil)
 				storage.StoreMock.Expect(a.ctx, a.body, a.size, a.contentType).Return(stored, nil)
-				meta.CreateVersionMock.Expect(a.ctx, a.bucket, a.key, stored.BlobID, stored.Size, stored.ETag, a.contentType).Return("version", nil)
+				meta.CreateVersionMock.
+					ExpectBucketParam2(a.bucket).
+					ExpectKeyParam3(a.key).
+					ExpectBlobIDParam4(stored.BlobID).
+					ExpectSizeParam5(stored.Size).
+					ExpectEtagParam6(stored.ETag).
+					ExpectContentTypeParam7(a.contentType).
+					Return("version", nil)
 				return meta, storage
 			},
 		},
@@ -114,7 +121,14 @@ func TestPut(t *testing.T) {
 				meta, storage := mocks.NewMetadataClientMock(mc), mocks.NewStorageClientMock(mc)
 				meta.HeadBucketMock.Expect(a.ctx, a.bucket).Return(true, nil)
 				storage.StoreMock.Expect(a.ctx, a.body, a.size, a.contentType).Return(stored, nil)
-				meta.CreateVersionMock.Expect(a.ctx, a.bucket, a.key, stored.BlobID, stored.Size, stored.ETag, a.contentType).Return("", upstreamErr)
+				meta.CreateVersionMock.
+					ExpectBucketParam2(a.bucket).
+					ExpectKeyParam3(a.key).
+					ExpectBlobIDParam4(stored.BlobID).
+					ExpectSizeParam5(stored.Size).
+					ExpectEtagParam6(stored.ETag).
+					ExpectContentTypeParam7(a.contentType).
+					Return("", upstreamErr)
 				return meta, storage
 			},
 		},
@@ -130,4 +144,27 @@ func TestPut(t *testing.T) {
 			require.Equal(t, tt.wantCreateCalls, meta.CreateVersionAfterCounter())
 		})
 	}
+}
+
+func TestPutRegistersVersionAfterRequestCancel(t *testing.T) {
+	logger.SetNopLogger()
+	mc := minimock.NewController(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	size := int64(4)
+	stored := model.StoredObject{BlobID: "blob", Size: 4, ETag: "etag"}
+	meta, storage := mocks.NewMetadataClientMock(mc), mocks.NewStorageClientMock(mc)
+	meta.HeadBucketMock.Expect(ctx, "bucket").Return(true, nil)
+	storage.StoreMock.Set(func(context.Context, io.Reader, *int64, string) (model.StoredObject, error) {
+		cancel()
+		return stored, nil
+	})
+	meta.CreateVersionMock.Set(func(ctx context.Context, _, _, blobID string, _ int64, _, _ string) (string, error) {
+		require.NoError(t, ctx.Err())
+		require.Equal(t, "blob", blobID)
+		return "version", nil
+	})
+	result, err := objectservice.NewService(meta, storage).Put(ctx, "bucket", "key", strings.NewReader("data"), &size, "text/plain")
+	require.NoError(t, err)
+	require.Equal(t, model.PutResult{ETag: "etag", VersionID: "version"}, result)
 }

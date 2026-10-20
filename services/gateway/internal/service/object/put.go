@@ -23,7 +23,8 @@ func (s *objectService) Put(ctx context.Context, bucket, key string, body io.Rea
 	if err != nil {
 		return model.PutResult{}, err
 	}
-	versionID, err := s.metadata.CreateVersion(ctx, bucket, key, stored.BlobID, stored.Size, stored.ETag, contentType)
+	// The blob is already committed; a client disconnect must not leave it without a catalog entry.
+	versionID, err := s.metadata.CreateVersion(context.WithoutCancel(ctx), bucket, key, stored.BlobID, stored.Size, stored.ETag, contentType)
 	if err != nil {
 		logger.Error(ctx, "metadata registration failed after blob commit",
 			zap.String("blob_id", stored.BlobID), zap.String("bucket", bucket), zap.String("key", key), zap.Error(err))
