@@ -33,7 +33,7 @@ func TestMain(m *testing.M) {
 	svc := storageService.NewService(repo)
 	h := storageHandler.NewHandler(svc, 1<<20)
 
-	const maxMsgSize = 16 * 1024 * 1024 // 16 MB — must exceed handler's 8 MB chunk size
+	const maxMsgSize = 16 * 1024 * 1024 // 16 MB — must exceed the handler's 1 MiB retrieve chunk
 
 	nopLog := &logger.NoopLogger{}
 	srv := grpc.NewServer(

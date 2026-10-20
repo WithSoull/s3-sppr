@@ -23,6 +23,9 @@ on:
       - 'Makefile'
       - '.github/workflows/gateway-ci.yml'
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
