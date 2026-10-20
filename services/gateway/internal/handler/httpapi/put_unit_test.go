@@ -12,6 +12,7 @@ import (
 	"github.com/alesplll/opens3-rebac/services/gateway/internal/handler/httpapi"
 	"github.com/alesplll/opens3-rebac/services/gateway/internal/model"
 	"github.com/alesplll/opens3-rebac/services/gateway/pkg/mocks"
+	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/logger"
 	"github.com/gojuno/minimock/v3"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -19,6 +20,7 @@ import (
 )
 
 func TestPutObject(t *testing.T) {
+	logger.SetNopLogger()
 	type args struct {
 		path, contentType string
 		length            int64

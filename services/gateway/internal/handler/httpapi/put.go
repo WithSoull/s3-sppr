@@ -37,7 +37,7 @@ func (h *Handler) PutObject(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := h.objects.Put(r.Context(), bucket, key, r.Body, size, contentType)
 	if err != nil {
-		writeServiceError(w, err)
+		writeServiceError(w, r, err)
 		return
 	}
 	w.Header().Set("ETag", strconv.Quote(result.ETag))

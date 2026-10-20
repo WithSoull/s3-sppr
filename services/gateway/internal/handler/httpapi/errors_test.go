@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -9,15 +10,18 @@ import (
 	"testing"
 
 	domainerrors "github.com/alesplll/opens3-rebac/services/gateway/internal/errors/domain_errors"
+	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/logger"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 func TestWriteServiceError(t *testing.T) {
+	logger.SetNopLogger()
 	type testCase struct {
 		name       string
 		err        error
+		canceled   bool
 		wantStatus int
 		wantBody   string
 	}
@@ -25,6 +29,7 @@ func TestWriteServiceError(t *testing.T) {
 		{name: "missing bucket", err: fmt.Errorf("wrapped: %w", domainerrors.ErrBucketNotFound), wantStatus: http.StatusNotFound, wantBody: "bucket not found\n"},
 		{name: "body read", err: &domainerrors.BodyReadError{Err: io.ErrUnexpectedEOF}, wantStatus: http.StatusBadRequest, wantBody: "could not read request body\n"},
 		{name: "empty stream", err: domainerrors.ErrEmptyStorageStream, wantStatus: http.StatusBadGateway, wantBody: "storage returned an empty stream\n"},
+		{name: "client gone", err: status.Error(codes.Canceled, "x"), canceled: true, wantStatus: 499, wantBody: "client closed request\n"},
 		{name: "non grpc error", err: errors.New("private detail"), wantStatus: http.StatusBadGateway, wantBody: "Bad Gateway\n"},
 		{name: "insufficient storage", err: fmt.Errorf("%w: %w", domainerrors.ErrInsufficientStorage, status.Error(codes.ResourceExhausted, "x")), wantStatus: http.StatusInsufficientStorage, wantBody: "Insufficient Storage\n"},
 		{name: "metadata overloaded", err: fmt.Errorf("%w: %w", domainerrors.ErrMetadataOverloaded, status.Error(codes.ResourceExhausted, "x")), wantStatus: http.StatusServiceUnavailable, wantBody: "Service Unavailable\n"},
@@ -58,7 +63,13 @@ func TestWriteServiceError(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			response := httptest.NewRecorder()
-			writeServiceError(response, tt.err)
+			request := httptest.NewRequest(http.MethodGet, "/objects/bucket/key", nil)
+			if tt.canceled {
+				ctx, cancel := context.WithCancel(request.Context())
+				cancel()
+				request = request.WithContext(ctx)
+			}
+			writeServiceError(response, request, tt.err)
 			require.Equal(t, tt.wantStatus, response.Code)
 			require.Equal(t, tt.wantBody, response.Body.String())
 		})

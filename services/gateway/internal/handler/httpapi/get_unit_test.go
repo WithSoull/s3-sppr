@@ -11,6 +11,7 @@ import (
 	"github.com/alesplll/opens3-rebac/services/gateway/internal/handler/httpapi"
 	"github.com/alesplll/opens3-rebac/services/gateway/internal/model"
 	"github.com/alesplll/opens3-rebac/services/gateway/pkg/mocks"
+	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/logger"
 	"github.com/gojuno/minimock/v3"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -26,6 +27,7 @@ type trackedBody struct {
 func (b *trackedBody) Close() error { b.closes++; return nil }
 
 func TestGetObject(t *testing.T) {
+	logger.SetNopLogger()
 	type args struct{ path string }
 	type mockBuilder func(*minimock.Controller, *http.Request, *trackedBody) *mocks.ObjectServiceMock
 	tests := []struct {

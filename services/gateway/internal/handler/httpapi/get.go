@@ -32,18 +32,18 @@ func (h *Handler) GetObject(w http.ResponseWriter, r *http.Request) {
 	}
 	result, err := h.objects.Get(r.Context(), bucket, key)
 	if err != nil {
-		writeServiceError(w, err)
+		writeServiceError(w, r, err)
 		return
 	}
 	defer result.Body.Close()
 	if result.Size < 0 {
-		writeServiceError(w, errors.New("invalid object size"))
+		writeServiceError(w, r, errors.New("invalid object size"))
 		return
 	}
 	// With Content-Length: 0, HTTP clients complete as soon as headers arrive.
 	if result.Size == 0 {
 		if err := verifyStreamEnd(result.Body); err != nil {
-			writeServiceError(w, err)
+			writeServiceError(w, r, err)
 			return
 		}
 	}

@@ -5,30 +5,47 @@ import (
 	"net/http"
 
 	domainerrors "github.com/alesplll/opens3-rebac/services/gateway/internal/errors/domain_errors"
+	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/logger"
+	"go.opentelemetry.io/otel/trace"
+	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
-func writeServiceError(w http.ResponseWriter, err error) {
+// nginx convention: a client that went away is not an upstream failure.
+const statusClientClosedRequest = 499
+
+func writeServiceError(w http.ResponseWriter, r *http.Request, err error) {
+	code, body := classifyServiceError(err)
+	if r.Context().Err() != nil {
+		code, body = statusClientClosedRequest, "client closed request"
+	}
+	if code >= http.StatusInternalServerError {
+		logger.Error(r.Context(), "request failed",
+			zap.String("method", r.Method),
+			zap.String("path", r.URL.Path),
+			zap.Int("status", code),
+			zap.Error(err),
+		)
+		trace.SpanFromContext(r.Context()).RecordError(err)
+	}
+	http.Error(w, body, code)
+}
+
+func classifyServiceError(err error) (int, string) {
 	switch {
 	case errors.Is(err, domainerrors.ErrBucketNotFound):
-		http.Error(w, "bucket not found", http.StatusNotFound)
-		return
+		return http.StatusNotFound, "bucket not found"
 	case errors.Is(err, domainerrors.ErrBodyRead):
-		http.Error(w, "could not read request body", http.StatusBadRequest)
-		return
+		return http.StatusBadRequest, "could not read request body"
 	case errors.Is(err, domainerrors.ErrEmptyStorageStream):
-		http.Error(w, err.Error(), http.StatusBadGateway)
-		return
+		return http.StatusBadGateway, err.Error()
 	case errors.Is(err, domainerrors.ErrInsufficientStorage):
-		http.Error(w, http.StatusText(http.StatusInsufficientStorage), http.StatusInsufficientStorage)
-		return
+		return http.StatusInsufficientStorage, http.StatusText(http.StatusInsufficientStorage)
 	case errors.Is(err, domainerrors.ErrMetadataOverloaded):
-		http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
-		return
+		return http.StatusServiceUnavailable, http.StatusText(http.StatusServiceUnavailable)
 	case errors.Is(err, domainerrors.ErrBlobMissing):
-		http.Error(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
-		return
+		return http.StatusBadGateway, http.StatusText(http.StatusBadGateway)
 	}
 	code := http.StatusBadGateway
 	switch status.Code(err) {
@@ -41,5 +58,5 @@ func writeServiceError(w http.ResponseWriter, err error) {
 	case codes.DeadlineExceeded:
 		code = http.StatusGatewayTimeout
 	}
-	http.Error(w, http.StatusText(code), code)
+	return code, http.StatusText(code)
 }
