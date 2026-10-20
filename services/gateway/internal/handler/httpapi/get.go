@@ -48,9 +48,12 @@ func (h *Handler) GetObject(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	if result.ContentType != "" {
-		w.Header().Set("Content-Type", result.ContentType)
+	contentType := result.ContentType
+	if contentType == "" {
+		contentType = "application/octet-stream"
 	}
+	w.Header().Set("Content-Type", contentType)
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Content-Length", strconv.FormatInt(result.Size, 10))
 	w.Header().Set("ETag", strconv.Quote(result.ETag))
 	w.Header().Set("X-Object-Version-Id", result.VersionID)

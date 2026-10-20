@@ -31,24 +31,40 @@ func TestGetObject(t *testing.T) {
 	type args struct{ path string }
 	type mockBuilder func(*minimock.Controller, *http.Request, *trackedBody) *mocks.ObjectServiceMock
 	tests := []struct {
-		name       string
-		args       args
-		wantStatus int
-		wantBody   string
-		wantCloses int
-		wantCalls  uint64
-		buildMock  mockBuilder
+		name            string
+		args            args
+		wantStatus      int
+		wantBody        string
+		wantCloses      int
+		wantCalls       uint64
+		buildMock       mockBuilder
+		wantContentType string
 	}{
 		{
-			name:       "success",
-			wantCalls:  1,
-			args:       args{"/objects/bucket/nested/key"},
-			wantStatus: http.StatusOK,
-			wantBody:   "data",
-			wantCloses: 1,
+			name:            "success",
+			wantCalls:       1,
+			args:            args{"/objects/bucket/nested/key"},
+			wantStatus:      http.StatusOK,
+			wantBody:        "data",
+			wantCloses:      1,
+			wantContentType: "text/plain",
 			buildMock: func(mc *minimock.Controller, r *http.Request, body *trackedBody) *mocks.ObjectServiceMock {
 				objects := mocks.NewObjectServiceMock(mc)
 				objects.GetMock.Expect(r.Context(), "bucket", "nested/key").Return(model.GetResult{Body: body, Size: 4, ETag: "etag", VersionID: "version", ContentType: "text/plain"}, nil)
+				return objects
+			},
+		},
+		{
+			name:            "empty content type",
+			wantCalls:       1,
+			args:            args{"/objects/bucket/nested/key"},
+			wantStatus:      http.StatusOK,
+			wantBody:        "data",
+			wantCloses:      1,
+			wantContentType: "application/octet-stream",
+			buildMock: func(mc *minimock.Controller, r *http.Request, body *trackedBody) *mocks.ObjectServiceMock {
+				objects := mocks.NewObjectServiceMock(mc)
+				objects.GetMock.Expect(r.Context(), "bucket", "nested/key").Return(model.GetResult{Body: body, Size: 4, ETag: "etag", VersionID: "version", ContentType: ""}, nil)
 				return objects
 			},
 		},
@@ -112,7 +128,8 @@ func TestGetObject(t *testing.T) {
 			require.Zero(t, objects.PutAfterCounter())
 			if tt.wantStatus == http.StatusOK {
 				require.Equal(t, "4", response.Header().Get("Content-Length"))
-				require.Equal(t, "text/plain", response.Header().Get("Content-Type"))
+				require.Equal(t, tt.wantContentType, response.Header().Get("Content-Type"))
+				require.Equal(t, "nosniff", response.Header().Get("X-Content-Type-Options"))
 				require.Equal(t, "\"etag\"", response.Header().Get("ETag"))
 				require.Equal(t, "version", response.Header().Get("X-Object-Version-Id"))
 			}
