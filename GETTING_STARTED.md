@@ -35,6 +35,7 @@ docker compose ps
 Kafka ожидает успешной проверки готовности ZooKeeper перед запуском.
 Автоматическая проверка PUT/GET: `make smoke-gateway` (создаёт свой тестовый bucket). Перед ручным PUT
 создайте тестовый bucket по [инструкции Gateway](services/gateway/README.md#примеры-использования).
+Объекты доступны по `/objects/{bucket}/{key}`; Swagger расположен отдельно под `/swagger/`.
 
 Миграторы в норме завершаются с кодом 0. Долгоживущие контейнеры должны быть в
 состоянии Up/healthy согласно их Compose healthcheck.

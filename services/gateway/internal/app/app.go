@@ -69,10 +69,10 @@ func (a *App) initCloser() {
 }
 
 func (a *App) initTracing() error {
-	if !a.config.Telemetry.Enabled() {
+	if !a.config.Tracing.Enabled() {
 		return nil
 	}
-	if err := tracing.InitTracer(context.Background(), a.config.Telemetry); err != nil {
+	if err := tracing.InitTracer(context.Background(), a.config.Tracing); err != nil {
 		return err
 	}
 	a.closer.AddNamed("tracer", tracing.ShutdownTracer)
@@ -80,10 +80,10 @@ func (a *App) initTracing() error {
 }
 
 func (a *App) initMetrics() error {
-	if !a.config.Telemetry.Enabled() {
+	if !a.config.Metrics.Enabled() {
 		return nil
 	}
-	provider, err := metric.InitOTELMetrics(a.config.Telemetry)
+	provider, err := metric.InitOTELMetrics(a.config.Metrics)
 	if err != nil {
 		return err
 	}

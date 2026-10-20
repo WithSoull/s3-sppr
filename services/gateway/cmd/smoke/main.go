@@ -84,7 +84,7 @@ func run(ctx context.Context, gateway, metadata string) error {
 		{"chunked", 256*1024 + 13, 19, true},
 		{"nested/binary", 128*1024 + 1, 31, false},
 	} {
-		if err := roundTrip(ctx, httpClient, gateway+"/"+bucket+"/"+tc.key, tc.size, tc.seed, tc.chunked); err != nil {
+		if err := roundTrip(ctx, httpClient, gateway+"/objects/"+bucket+"/"+tc.key, tc.size, tc.seed, tc.chunked); err != nil {
 			return fmt.Errorf("%s (%d bytes): %w", tc.key, tc.size, err)
 		}
 		fmt.Printf("PASS %s: %d bytes, chunked=%v\n", tc.key, tc.size, tc.chunked)

@@ -65,8 +65,8 @@ func routeName(path string) string {
 		return "/healthz"
 	case strings.HasPrefix(path, "/swagger/"):
 		return "/swagger/*"
-	case strings.Contains(strings.TrimPrefix(path, "/"), "/"):
-		return "/{bucket}/{key}"
+	case strings.HasPrefix(path, "/objects/") && strings.Contains(strings.TrimPrefix(path, "/objects/"), "/"):
+		return "/objects/{bucket}/{key}"
 	default:
 		return "unmatched"
 	}

@@ -110,7 +110,7 @@ Storage записывает blob во временный файл, синхро
 
 ### Gateway
 
-Gateway предоставляет локальные PUT/GET по `/{bucket}/{key}` и `/healthz`.
+Gateway предоставляет локальные PUT/GET по `/objects/{bucket}/{key}` и `/healthz`.
 Он вызывает Storage и Metadata последовательно и возвращает успех записи только
 после регистрации текущей версии. Подробнее: [Gateway README](services/gateway/README.md).
 

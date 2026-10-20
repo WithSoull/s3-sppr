@@ -9,11 +9,12 @@ import (
 )
 
 type Config struct {
-	HTTP      HTTPConfig
-	Metadata  GRPCClientConfig
-	Storage   StorageClientConfig
-	Logger    LoggerConfig
-	Telemetry TelemetryConfig
+	HTTP     HTTPConfig
+	Metadata MetadataClientConfig
+	Storage  StorageClientConfig
+	Logger   LoggerConfig
+	Tracing  TracingConfig
+	Metrics  MetricsConfig
 }
 
 // Load uses the process environment and, when present, a local .env file.
@@ -33,12 +34,24 @@ func Load(path ...string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	telemetryConfig, err := env.NewTelemetryConfig()
+	loggerConfig, err := env.NewLoggerConfig()
+	if err != nil {
+		return nil, err
+	}
+	tracingConfig, err := env.NewTracingConfig()
+	if err != nil {
+		return nil, err
+	}
+	metricsConfig, err := env.NewMetricsConfig()
 	if err != nil {
 		return nil, err
 	}
 	return &Config{
-		HTTP: httpConfig, Metadata: metadataConfig, Storage: storageConfig,
-		Logger: telemetryConfig, Telemetry: telemetryConfig,
+		HTTP:     httpConfig,
+		Metadata: metadataConfig,
+		Storage:  storageConfig,
+		Logger:   loggerConfig,
+		Tracing:  tracingConfig,
+		Metrics:  metricsConfig,
 	}, nil
 }

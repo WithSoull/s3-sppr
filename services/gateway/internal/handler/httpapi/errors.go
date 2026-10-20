@@ -4,20 +4,20 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/alesplll/opens3-rebac/services/gateway/internal/service"
+	domainerrors "github.com/alesplll/opens3-rebac/services/gateway/internal/errors/domain_errors"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
 
 func writeServiceError(w http.ResponseWriter, err error) {
 	switch {
-	case errors.Is(err, service.ErrBucketNotFound):
+	case errors.Is(err, domainerrors.ErrBucketNotFound):
 		http.Error(w, "bucket not found", http.StatusNotFound)
 		return
-	case errors.Is(err, service.ErrBodyRead):
+	case errors.Is(err, domainerrors.ErrBodyRead):
 		http.Error(w, "could not read request body", http.StatusBadRequest)
 		return
-	case errors.Is(err, service.ErrEmptyStorageStream):
+	case errors.Is(err, domainerrors.ErrEmptyStorageStream):
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
 	}

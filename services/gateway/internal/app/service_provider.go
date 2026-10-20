@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/alesplll/opens3-rebac/services/gateway/internal/client"
 	metadataclient "github.com/alesplll/opens3-rebac/services/gateway/internal/client/metadata"
 	storageclient "github.com/alesplll/opens3-rebac/services/gateway/internal/client/storage"
 	"github.com/alesplll/opens3-rebac/services/gateway/internal/config"
@@ -24,8 +25,8 @@ type serviceProvider struct {
 
 	metadataConn   *grpc.ClientConn
 	storageConn    *grpc.ClientConn
-	metadataClient metadataclient.Client
-	storageClient  storageclient.Client
+	metadataClient client.MetadataClient
+	storageClient  client.StorageClient
 
 	objectService service.ObjectService
 	objectHandler http.Handler
@@ -37,7 +38,7 @@ func newServiceProvider(cfg *config.Config) *serviceProvider {
 	return &serviceProvider{config: cfg}
 }
 
-func (s *serviceProvider) MetadataClient() (metadataclient.Client, error) {
+func (s *serviceProvider) MetadataClient() (client.MetadataClient, error) {
 	if s.metadataClient == nil {
 		conn, err := grpc.NewClient(
 			s.config.Metadata.Address(),
@@ -48,12 +49,12 @@ func (s *serviceProvider) MetadataClient() (metadataclient.Client, error) {
 			return nil, fmt.Errorf("create Metadata client: %w", err)
 		}
 		s.metadataConn = conn
-		s.metadataClient = metadataclient.NewClient(metadatav1.NewMetadataServiceClient(conn))
+		s.metadataClient = metadataclient.NewClient(metadatav1.NewMetadataServiceClient(conn), s.config.Metadata.Timeout())
 	}
 	return s.metadataClient, nil
 }
 
-func (s *serviceProvider) StorageClient() (storageclient.Client, error) {
+func (s *serviceProvider) StorageClient() (client.StorageClient, error) {
 	if s.storageClient == nil {
 		conn, err := grpc.NewClient(s.config.Storage.Address(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {

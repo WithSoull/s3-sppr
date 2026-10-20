@@ -6,7 +6,7 @@ info:
   title: OpenS3 Gateway (development API)
   version: 0.1.0
 paths:
-  /{bucket}/{key}:
+  /objects/{bucket}/{key}:
     get:
       description: Development-only API. Streams object bytes; range and version selection
         are not supported.

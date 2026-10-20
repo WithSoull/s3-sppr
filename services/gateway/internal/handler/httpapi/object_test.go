@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	metadataclient "github.com/alesplll/opens3-rebac/services/gateway/internal/client/metadata"
 	storageclient "github.com/alesplll/opens3-rebac/services/gateway/internal/client/storage"
@@ -37,6 +38,7 @@ type fixture struct {
 	beforeCommit func(context.Context) error
 	onChunk      func()
 	failStore    error
+	failRetrieve error
 }
 
 const fixtureRetrieveChunkSize = 1 << 20
@@ -47,7 +49,7 @@ type metadataServer struct {
 }
 
 func (s *metadataServer) HeadBucket(_ context.Context, req *metadatav1.HeadBucketRequest) (*metadatav1.HeadBucketResponse, error) {
-	return &metadatav1.HeadBucketResponse{Exists: req.GetBucketName() == "fixture"}, nil
+	return &metadatav1.HeadBucketResponse{Exists: req.GetBucketName() == "fixture" || req.GetBucketName() == "swagger"}, nil
 }
 
 func (s *metadataServer) CreateObjectVersion(_ context.Context, req *metadatav1.CreateObjectVersionRequest) (*metadatav1.CreateObjectVersionResponse, error) {
@@ -72,7 +74,7 @@ func (s *metadataServer) CreateObjectVersion(_ context.Context, req *metadatav1.
 func (s *metadataServer) GetObjectMeta(_ context.Context, req *metadatav1.GetObjectMetaRequest) (*metadatav1.GetObjectMetaResponse, error) {
 	s.state.Lock()
 	defer s.state.Unlock()
-	if req.GetBucketName() != "fixture" || s.state.meta[req.GetKey()] == nil {
+	if (req.GetBucketName() != "fixture" && req.GetBucketName() != "swagger") || s.state.meta[req.GetKey()] == nil {
 		return nil, status.Error(codes.NotFound, "object not found")
 	}
 	return s.state.meta[req.GetKey()], nil
@@ -132,7 +134,7 @@ func (s *storageServer) RetrieveObject(req *storagev1.RetrieveObjectRequest, str
 		return status.Error(codes.NotFound, "blob not found")
 	}
 	if len(data) == 0 {
-		return nil
+		return s.state.failRetrieve
 	}
 	for offset := 0; offset < len(data); offset += fixtureRetrieveChunkSize {
 		if offset > 0 && s.state.beforeNextChunk != nil {
@@ -145,10 +147,10 @@ func (s *storageServer) RetrieveObject(req *storagev1.RetrieveObjectRequest, str
 			return err
 		}
 	}
-	return nil
+	return s.state.failRetrieve
 }
 
-func newGateway(t *testing.T) (*httptest.Server, *fixture) {
+func newGatewayHandler(t *testing.T) (http.Handler, *fixture) {
 	t.Helper()
 	state := &fixture{blobs: make(map[string][]byte), meta: make(map[string]*metadatav1.GetObjectMetaResponse)}
 	listener := bufconn.Listen(1024 * 1024)
@@ -166,10 +168,16 @@ func newGateway(t *testing.T) (*httptest.Server, *fixture) {
 	t.Cleanup(func() { _ = conn.Close() })
 	logger.SetNopLogger()
 	objects := objectservice.NewService(
-		metadataclient.NewClient(metadatav1.NewMetadataServiceClient(conn)),
+		metadataclient.NewClient(metadatav1.NewMetadataServiceClient(conn), 5*time.Second),
 		storageclient.NewClient(storagev1.NewDataStorageServiceClient(conn), 1<<20),
 	)
-	server := httptest.NewServer(httpapi.NewHandler(objects))
+	return httpapi.NewHandler(objects), state
+}
+
+func newGateway(t *testing.T) (*httptest.Server, *fixture) {
+	t.Helper()
+	handler, state := newGatewayHandler(t)
+	server := httptest.NewServer(handler)
 	t.Cleanup(server.Close)
 	return server, state
 }
@@ -186,7 +194,7 @@ func TestPutGetRoundTrip(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			key := strings.ReplaceAll(tc.name, " ", "-") + "/file.txt"
-			request, err := http.NewRequest(http.MethodPut, server.URL+"/fixture/"+key, strings.NewReader(tc.body))
+			request, err := http.NewRequest(http.MethodPut, server.URL+"/objects/fixture/"+key, strings.NewReader(tc.body))
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -200,7 +208,7 @@ func TestPutGetRoundTrip(t *testing.T) {
 				t.Fatalf("PUT response: status=%d version=%q", response.StatusCode, response.Header.Get("X-Object-Version-Id"))
 			}
 
-			got, err := server.Client().Get(server.URL + "/fixture/" + key)
+			got, err := server.Client().Get(server.URL + "/objects/fixture/" + key)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -226,7 +234,7 @@ func TestPutGetRoundTrip(t *testing.T) {
 
 func TestMissingBucketDoesNotWriteBlob(t *testing.T) {
 	server, state := newGateway(t)
-	request, err := http.NewRequest(http.MethodPut, server.URL+"/missing/key", strings.NewReader("data"))
+	request, err := http.NewRequest(http.MethodPut, server.URL+"/objects/missing/key", strings.NewReader("data"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -248,7 +256,7 @@ func TestMissingBucketDoesNotWriteBlob(t *testing.T) {
 func TestMetadataFailureDoesNotReturnSuccess(t *testing.T) {
 	server, state := newGateway(t)
 	state.failCreate = true
-	request, err := http.NewRequest(http.MethodPut, server.URL+"/fixture/key", strings.NewReader("data"))
+	request, err := http.NewRequest(http.MethodPut, server.URL+"/objects/fixture/key", strings.NewReader("data"))
 	if err != nil {
 		t.Fatal(err)
 	}

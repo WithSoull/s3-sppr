@@ -29,24 +29,38 @@ cmd/smoke/                  проверка живого HTTP → Metadata/Stor
 internal/config/env/        загрузка настроек по компонентам из окружения
 internal/app/               загрузка настроек, сборка зависимостей и жизненный цикл HTTP-сервера
 internal/client/            адаптеры Metadata и Storage, streaming и trace propagation
+internal/model/             модели объекта и результаты PUT/GET
+internal/errors/domain_errors/ ошибки сценариев и чтения тела запроса
 internal/service/object/    сценарии PUT/GET с Metadata и Storage
 internal/handler/httpapi/   HTTP-маршруты, заголовки и коды ответов
 internal/observability/     HTTP spans и метрики с нормализованными route
+pkg/mocks/                  сгенерированные minimock для клиентов и ObjectService
 docs/                       сгенерированная Swagger/OpenAPI 2.0 схема
 ```
+
+В `internal/client/storage/` загрузка и чтение разделены на `store.go` и
+`retrieve.go`; управление span и передача trace context находятся в `tracing.go`.
+В `internal/service/object/` сценарии вынесены в `put.go` и `get.go`, а
+`service.go` содержит зависимости и конструктор.
+Контракты Metadata/Storage находятся в `internal/client/client.go`, отдельно
+от gRPC-реализаций. Результат GET передаёт вызывающему коду `io.ReadCloser`;
+получатель обязан закрыть поток, в том числе при ошибке передачи ответа.
 
 ## API
 
 | Метод и путь | Результат |
 |---|---|
-| `PUT /{bucket}/{key}` | сохранить тело и зарегистрировать текущую версию; `200`, `ETag`, `X-Object-Version-Id` |
-| `GET /{bucket}/{key}` | вернуть байты текущей версии, `Content-Type`, `Content-Length`, `ETag` |
+| `PUT /objects/{bucket}/{key}` | сохранить тело и зарегистрировать текущую версию; `200`, `ETag`, `X-Object-Version-Id` |
+| `GET /objects/{bucket}/{key}` | вернуть байты текущей версии, `Content-Type`, `Content-Length`, `ETag` |
 | `GET /healthz` | `200 ok` при работающем HTTP-процессе |
 | `GET /swagger/index.html` | Swagger UI локального development API |
 | `GET /swagger/doc.json` | Swagger/OpenAPI 2.0 схема |
 
 `key` может содержать `/`. Пустые bucket/key не принимаются. GET по `version_id`,
-HTTP Range, HEAD, DELETE, multipart и S3 authentication пока отсутствуют. Health
+HTTP Range, HEAD, DELETE, multipart и S3 authentication пока отсутствуют.
+Объекты доступны только под `/objects/`; прежний путь `/{bucket}/{key}` больше
+не поддерживается. `/swagger/` и `/healthz` относятся к процессу Gateway.
+Bucket `swagger` доступен как `/objects/swagger/{key}`. Health
 проверяет сам процесс, а не готовность Metadata и Storage.
 
 ## Данные и основные сценарии
@@ -55,7 +69,10 @@ PUT проверяет существование bucket через Metadata `He
 потоком в Storage `StoreObject`, затем вызывает Metadata `CreateObjectVersion` с
 полученным `blob_id`, размером и MD5. HTTP-успех возвращается после ответа
 Metadata. GET получает текущий `blob_id` через `GetObjectMeta` и передаёт ответ
-Storage `RetrieveObject` клиенту потоком.
+Storage `RetrieveObject` клиенту потоком. Последний байт удерживается до
+успешного завершения потока Storage; при ошибке или неверном размере HTTP-ответ
+обрывается до передачи полного Content-Length. Для пустого объекта EOF
+проверяется до отправки успешного ответа.
 
 Этот путь использует существующий `CreateObjectVersion`, который сразу создаёт
 committed-версию. `pending/committed/aborted` orchestration, operation ID и
@@ -63,12 +80,19 @@ committed-версию. `pending/committed/aborted` orchestration, operation ID 
 При ошибке Metadata после успешной записи в Storage может остаться blob без
 ссылки в каталоге.
 
+Если Metadata успела зарегистрировать версию, но её ответ потерян, PUT тоже
+завершится ошибкой, хотя новая версия уже доступна. Поэтому ошибка PUT после
+записи blob не определяет итог операции. Автоматический повтор может создать
+ещё одну версию: идемпотентность и проверка результата по operation ID пока
+отсутствуют.
+
 ## Конфигурация
 
 | Переменная | Локальное значение по умолчанию | Compose |
 |---|---|---|
 | `GATEWAY_HTTP_ADDR` | `127.0.0.1:8080` | `:8080` |
 | `METADATA_GRPC_ADDR` | `localhost:50052` | `metadata:50052` |
+| `METADATA_RPC_TIMEOUT` | `5s` | `${METADATA_RPC_TIMEOUT:-5s}` |
 | `STORAGE_GRPC_ADDR` | `localhost:50053` | `storage:50053` |
 | `STORAGE_RETRIEVE_CHUNK_SIZE_BYTES` | `1048576` (1 MiB) | `${STORAGE_RETRIEVE_CHUNK_SIZE_BYTES:-1048576}` |
 | `LOGGER_LEVEL` | `info` | `info` |
@@ -81,11 +105,21 @@ committed-версию. `pending/committed/aborted` orchestration, operation ID 
 | `OTEL_ENVIRONMENT` | `local` | `${GATEWAY_ENVIRONMENT:-local}` |
 | `OTEL_METRICS_PUSH_TIMEOUT` | `30s` | `${GATEWAY_METRICS_PUSH_TIMEOUT:-30s}` |
 
+Каждый Metadata RPC ограничен `METADATA_RPC_TIMEOUT` (положительная duration).
+Более короткий deadline исходного контекста сохраняется. Таймаут действует
+отдельно на HeadBucket, CreateObjectVersion и GetObjectMeta, не на передачу
+байтов Storage; зависший Metadata возвращает HTTP 504. Таймаут регистрации
+после записи blob по-прежнему может означать неизвестный итог PUT.
+
 Gateway читает переменные окружения и при наличии файл `.env` из текущего
 каталога. Другой файл можно указать через `-config-path`. Как и в Users,
 логирование настроено через общий модуль платформы. `LOGGER_ENABLE_OLTP`
 управляет экспортом логов, а `OTEL_ENABLED` — экспортом метрик и трейсов; оба по
 умолчанию выключены.
+
+Logger, tracing и metrics загружаются отдельными конфигурациями. Они используют
+те же общие `OTEL_*` значения для имени сервиса и адреса коллектора;
+`OTEL_ENABLED` по-прежнему одновременно включает tracing и metrics.
 
 Compose публикует HTTP-порт только на `127.0.0.1:8080`, поскольку в этом срезе
 пока нет клиентской аутентификации и авторизации.
@@ -126,8 +160,8 @@ grpcurl -plaintext -d '{"name":"gateway-demo","owner_id":"11111111-1111-4111-811
 
 ```bash
 printf 'hello' | curl -i -X PUT -H 'Content-Type: text/plain' --data-binary @- \
-  http://127.0.0.1:8080/gateway-demo/example.txt
-curl -i http://127.0.0.1:8080/gateway-demo/example.txt
+  http://127.0.0.1:8080/objects/gateway-demo/example.txt
+curl -i http://127.0.0.1:8080/objects/gateway-demo/example.txt
 curl -i http://127.0.0.1:8080/healthz
 # Swagger UI: http://127.0.0.1:8080/swagger/index.html
 ```
@@ -145,6 +179,7 @@ Storage. Для логов контейнера: `docker compose logs -f gateway
 
 ```bash
 make test-gateway
+(cd services/gateway && go generate ./pkg/mocks)  # после изменения интерфейсов
 make -C services/gateway swagger  # после изменения HTTP-аннотаций
 make smoke-gateway-local  # собрать/поднять стенд и проверить PUT/GET
 # Для уже запущенного стенда: make smoke-gateway
@@ -163,12 +198,23 @@ MD5/ETag, размер, Content-Type и версия. Данные остают�
 go run ./services/gateway/cmd/smoke -gateway http://127.0.0.1:8080 -metadata 127.0.0.1:50052 -timeout 3m
 ```
 
-Тесты Gateway используют контролируемые gRPC-серверы, чтобы проверить передачу
+Unit-тесты `internal/service/object/tests/` и `internal/handler/httpapi/*_unit_test.go`
+используют minimock с отдельным controller на каждый case. Они проверяют
+аргументы вызовов, результаты, передачу ошибок и отсутствие downstream-вызовов
+при раннем отказе. Handler-тесты также проверяют закрытие GET-потока при успехе
+и обрыве ответа. Версия генератора minimock закреплена в `pkg/mocks/generate.go`.
+
+Компонентные тесты Gateway используют контролируемые gRPC-серверы, чтобы проверить передачу
 PUT до EOF, отсутствие записи Metadata до подтверждения Storage, ранний отказ
 Storage и обрыв неуспешного GET. Дополнительно проверяются отмена HTTP GET,
 передача deadline в Metadata и Storage, 404 для отсутствующего объекта, 503
 при недоступном Metadata, переиспользование клиентов и завершение активного
-запроса до закрытия gRPC-соединений при shutdown. Это дополняет smoke с настоящими сервисами.
+запроса до закрытия gRPC-соединений при shutdown. Регрессионные тесты также проверяют ошибку Storage после всех заявленных байтов
+на стороне настоящего HTTP-клиента, пустой и избыточный поток, ошибку чтения
+PUT, полный HTTP mapping ошибок и bucket `swagger`. Зависшие Metadata RPC
+проверяются через HTTP-вход приложения: deadline добавляется Gateway, клиент
+получает 504, а downstream прекращает ожидание.
+Это дополняет smoke с настоящими сервисами.
 Изменение protobuf для этого первого среза не требуется.
 
 ## Ограничения и дальнейшие работы

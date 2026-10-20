@@ -2,27 +2,35 @@ package env
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/caarlos0/env/v11"
 )
 
 const maxRetrieveChunkSizeBytes = 64 << 20
 
-type grpcClientConfig struct{ address string }
+type metadataClientConfig struct {
+	address string
+	timeout time.Duration
+}
 
 type storageClientConfig struct {
 	address                string
 	retrieveChunkSizeBytes int
 }
 
-func NewMetadataConfig() (*grpcClientConfig, error) {
+func NewMetadataConfig() (*metadataClientConfig, error) {
 	var raw struct {
-		Address string `env:"METADATA_GRPC_ADDR" envDefault:"localhost:50052"`
+		Address string        `env:"METADATA_GRPC_ADDR" envDefault:"localhost:50052"`
+		Timeout time.Duration `env:"METADATA_RPC_TIMEOUT" envDefault:"5s"`
 	}
 	if err := env.Parse(&raw); err != nil {
 		return nil, err
 	}
-	return &grpcClientConfig{address: raw.Address}, nil
+	if raw.Timeout <= 0 {
+		return nil, fmt.Errorf("METADATA_RPC_TIMEOUT must be positive")
+	}
+	return &metadataClientConfig{address: raw.Address, timeout: raw.Timeout}, nil
 }
 
 func NewStorageConfig() (*storageClientConfig, error) {
@@ -39,8 +47,10 @@ func NewStorageConfig() (*storageClientConfig, error) {
 	return &storageClientConfig{address: raw.Address, retrieveChunkSizeBytes: raw.RetrieveChunkSizeBytes}, nil
 }
 
-func (cfg *grpcClientConfig) Address() string    { return cfg.address }
-func (cfg *storageClientConfig) Address() string { return cfg.address }
+func (cfg *metadataClientConfig) Address() string { return cfg.address }
+func (cfg *storageClientConfig) Address() string  { return cfg.address }
 func (cfg *storageClientConfig) RetrieveChunkSizeBytes() int {
 	return cfg.retrieveChunkSizeBytes
 }
+
+func (cfg *metadataClientConfig) Timeout() time.Duration { return cfg.timeout }

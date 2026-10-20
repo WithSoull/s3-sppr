@@ -37,23 +37,25 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.swagger.ServeHTTP(w, r)
 		return
 	}
-	_, _, ok := objectPath(r.URL.Path)
-	if !ok {
-		http.NotFound(w, r)
-		return
-	}
 	switch r.Method {
 	case http.MethodPut:
 		h.PutObject(w, r)
 	case http.MethodGet:
 		h.GetObject(w, r)
 	default:
+		if _, _, ok := objectPath(r.URL.Path); !ok {
+			http.NotFound(w, r)
+			return
+		}
 		w.Header().Set("Allow", "GET, PUT")
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 }
 
 func objectPath(path string) (bucket, key string, ok bool) {
-	bucket, key, ok = strings.Cut(strings.TrimPrefix(path, "/"), "/")
+	if !strings.HasPrefix(path, "/objects/") {
+		return "", "", false
+	}
+	bucket, key, ok = strings.Cut(strings.TrimPrefix(path, "/objects/"), "/")
 	return bucket, key, ok && bucket != "" && key != ""
 }

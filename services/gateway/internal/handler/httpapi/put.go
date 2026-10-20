@@ -19,17 +19,13 @@ import (
 // @Failure 404 {string} string
 // @Failure 503 {string} string
 // @Failure 507 {string} string
-// @Router /{bucket}/{key} [put]
+// @Router /objects/{bucket}/{key} [put]
 func (h *Handler) PutObject(w http.ResponseWriter, r *http.Request) {
 	bucket, key, ok := objectPath(r.URL.Path)
 	if !ok {
-		http.Error(w, "bucket and key are required", http.StatusBadRequest)
+		http.NotFound(w, r)
 		return
 	}
-	h.putObject(w, r, bucket, key)
-}
-
-func (h *Handler) putObject(w http.ResponseWriter, r *http.Request, bucket, key string) {
 	contentType := r.Header.Get("Content-Type")
 	if contentType == "" {
 		contentType = "application/octet-stream"

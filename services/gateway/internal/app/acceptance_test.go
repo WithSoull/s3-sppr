@@ -66,7 +66,7 @@ func TestUnavailableMetadataDoesNotReturnHTTPSuccess(t *testing.T) {
 		t.Run(method, func(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 			defer cancel()
-			req := httptest.NewRequest(method, "/fixture/key", strings.NewReader("data")).WithContext(ctx)
+			req := httptest.NewRequest(method, "/objects/fixture/key", strings.NewReader("data")).WithContext(ctx)
 			response := httptest.NewRecorder()
 			a.httpServer.Handler.ServeHTTP(response, req)
 			if response.Code != http.StatusServiceUnavailable {

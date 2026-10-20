@@ -4,11 +4,13 @@ import (
 	"context"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -32,7 +34,7 @@ func TestPutStreamsBeforeEOFAndPublishesOnlyAfterStorageCommit(t *testing.T) {
 	reader, writer := io.Pipe()
 	defer reader.Close()
 	defer writer.Close()
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, server.URL+"/fixture/stream", reader)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, server.URL+"/objects/fixture/stream", reader)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -88,7 +90,7 @@ func TestPutStreamsBeforeEOFAndPublishesOnlyAfterStorageCommit(t *testing.T) {
 func TestStorageRejectsUploadWithoutPublishingMetadata(t *testing.T) {
 	server, state := newGateway(t)
 	state.failStore = status.Error(codes.ResourceExhausted, "disk full")
-	request, err := http.NewRequest(http.MethodPut, server.URL+"/fixture/key", strings.NewReader(strings.Repeat("x", 8*1024*1024)))
+	request, err := http.NewRequest(http.MethodPut, server.URL+"/objects/fixture/key", strings.NewReader(strings.Repeat("x", 8*1024*1024)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,4 +107,16 @@ func TestStorageRejectsUploadWithoutPublishingMetadata(t *testing.T) {
 	if len(state.meta) != 0 || state.storeCount != 0 {
 		t.Fatal("failed upload published data")
 	}
+}
+
+func TestPutBodyReadFailureDoesNotPublishMetadata(t *testing.T) {
+	handler, state := newGatewayHandler(t)
+	request := httptest.NewRequest(http.MethodPut, "/objects/fixture/key", io.MultiReader(strings.NewReader("prefix"), failedReader{}))
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, request)
+	require.Equal(t, http.StatusBadRequest, response.Code)
+	state.Lock()
+	defer state.Unlock()
+	require.Zero(t, state.storeCount)
+	require.Empty(t, state.meta)
 }

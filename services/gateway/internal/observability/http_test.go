@@ -16,14 +16,14 @@ func TestHTTPHandlerPreservesResponse(t *testing.T) {
 	}
 
 	response := httptest.NewRecorder()
-	handler.ServeHTTP(response, httptest.NewRequest(http.MethodPut, "/bucket/key", nil))
+	handler.ServeHTTP(response, httptest.NewRequest(http.MethodPut, "/objects/bucket/key", nil))
 	if response.Code != http.StatusCreated || response.Body.String() != "created" {
 		t.Fatalf("response = %d %q", response.Code, response.Body.String())
 	}
 }
 
 func TestRouteNameDoesNotExposeObjectKey(t *testing.T) {
-	if got := routeName("/private/customer-42/report.pdf"); got != "/{bucket}/{key}" {
+	if got := routeName("/objects/private/customer-42/report.pdf"); got != "/objects/{bucket}/{key}" {
 		t.Fatalf("routeName() = %q", got)
 	}
 }

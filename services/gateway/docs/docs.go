@@ -15,7 +15,7 @@ const docTemplate = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/{bucket}/{key}": {
+        "/objects/{bucket}/{key}": {
             "get": {
                 "description": "Development-only API. Streams object bytes; range and version selection are not supported.",
                 "produces": [

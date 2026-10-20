@@ -1,6 +1,8 @@
 package httpapi
 
 import (
+	"bufio"
+	"errors"
 	"io"
 	"net/http"
 	"strconv"
@@ -21,24 +23,29 @@ import (
 // @Failure 502 {string} string
 // @Failure 503 {string} string
 // @Failure 504 {string} string
-// @Router /{bucket}/{key} [get]
+// @Router /objects/{bucket}/{key} [get]
 func (h *Handler) GetObject(w http.ResponseWriter, r *http.Request) {
 	bucket, key, ok := objectPath(r.URL.Path)
 	if !ok {
-		http.Error(w, "bucket and key are required", http.StatusBadRequest)
+		http.NotFound(w, r)
 		return
 	}
-	h.getObject(w, r, bucket, key)
-}
-
-func (h *Handler) getObject(w http.ResponseWriter, r *http.Request, bucket, key string) {
 	result, err := h.objects.Get(r.Context(), bucket, key)
 	if err != nil {
 		writeServiceError(w, err)
 		return
 	}
-	if closer, ok := result.Body.(io.Closer); ok {
-		defer closer.Close()
+	defer result.Body.Close()
+	if result.Size < 0 {
+		writeServiceError(w, errors.New("invalid object size"))
+		return
+	}
+	// With Content-Length: 0, HTTP clients complete as soon as headers arrive.
+	if result.Size == 0 {
+		if err := verifyStreamEnd(result.Body); err != nil {
+			writeServiceError(w, err)
+			return
+		}
 	}
 	if result.ContentType != "" {
 		w.Header().Set("Content-Type", result.ContentType)
@@ -46,14 +53,46 @@ func (h *Handler) getObject(w http.ResponseWriter, r *http.Request, bucket, key 
 	w.Header().Set("Content-Length", strconv.FormatInt(result.Size, 10))
 	w.Header().Set("ETag", strconv.Quote(result.ETag))
 	w.Header().Set("X-Object-Version-Id", result.VersionID)
-	w.WriteHeader(http.StatusOK)
-	n, err := io.Copy(w, result.Body)
-	if err == nil && n != result.Size {
-		err = io.ErrUnexpectedEOF
+	if result.Size == 0 {
+		w.WriteHeader(http.StatusOK)
+		return
 	}
+	err = copyVerifiedObject(w, result.Body, result.Size)
 	if err != nil {
 		logger.Error(r.Context(), "object response interrupted", zap.String("bucket", bucket), zap.String("key", key), zap.Error(err))
 		// Headers may already be on the wire; abort instead of completing a successful response.
 		panic(http.ErrAbortHandler)
 	}
+}
+
+// Keep the final byte off the wire until Storage confirms EOF. Otherwise a
+// Content-Length response can look complete even if the stream ends in error.
+func copyVerifiedObject(dst io.Writer, src io.Reader, size int64) error {
+	if _, err := io.CopyN(dst, src, size-1); err != nil {
+		return err
+	}
+	tail := bufio.NewReaderSize(src, 1)
+	var last [1]byte
+	if _, err := io.ReadFull(tail, last[:]); err != nil {
+		return err
+	}
+	if err := verifyStreamEnd(tail); err != nil {
+		return err
+	}
+	n, err := dst.Write(last[:])
+	if err == nil && n != len(last) {
+		return io.ErrShortWrite
+	}
+	return err
+}
+
+func verifyStreamEnd(src io.Reader) error {
+	n, err := io.CopyN(io.Discard, src, 1)
+	if n != 0 {
+		return errors.New("storage returned more bytes than declared")
+	}
+	if errors.Is(err, io.EOF) {
+		return nil
+	}
+	return err
 }

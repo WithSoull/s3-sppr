@@ -3,7 +3,6 @@ package httpapi_test
 import (
 	"context"
 	"errors"
-	metadatav1 "github.com/alesplll/opens3-rebac/shared/pkg/go/metadata/v1"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -12,19 +11,13 @@ import (
 	"time"
 
 	"github.com/alesplll/opens3-rebac/services/gateway/internal/handler/httpapi"
-	"github.com/alesplll/opens3-rebac/services/gateway/internal/service"
+	"github.com/alesplll/opens3-rebac/services/gateway/internal/model"
+	"github.com/alesplll/opens3-rebac/services/gateway/pkg/mocks"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/logger"
+	metadatav1 "github.com/alesplll/opens3-rebac/shared/pkg/go/metadata/v1"
+	"github.com/gojuno/minimock/v3"
+	"github.com/stretchr/testify/require"
 )
-
-// The transport test supplies only Get; other operations must not be called.
-type getService struct {
-	service.ObjectService
-	result service.GetResult
-}
-
-func (s getService) Get(context.Context, string, string) (service.GetResult, error) {
-	return s.result, nil
-}
 
 type failedReader struct{}
 
@@ -41,13 +34,19 @@ func TestGetAbortsIncompleteResponse(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			logger.SetNopLogger()
-			handler := httpapi.NewHandler(getService{result: service.GetResult{Body: tc.body, Size: tc.size}})
+			mc := minimock.NewController(t)
+			req := httptest.NewRequest(http.MethodGet, "/objects/bucket/key", nil)
+			body := &trackedBody{Reader: tc.body}
+			objects := mocks.NewObjectServiceMock(mc)
+			objects.GetMock.Expect(req.Context(), "bucket", "key").Return(model.GetResult{Body: body, Size: tc.size}, nil)
+			handler := httpapi.NewHandler(objects)
 			defer func() {
+				require.Equal(t, 1, body.closes)
 				if got := recover(); got != http.ErrAbortHandler {
 					t.Fatalf("panic = %v, want http.ErrAbortHandler", got)
 				}
 			}()
-			handler.ServeHTTP(httptest.NewRecorder(), httptest.NewRequest(http.MethodGet, "/bucket/key", nil))
+			handler.ServeHTTP(httptest.NewRecorder(), req)
 		})
 	}
 }
@@ -68,7 +67,7 @@ func TestGetStreamsBeforeStorageEOF(t *testing.T) {
 	const size = 9 * 1024 * 1024
 	state.blobs["stream-blob"] = []byte(strings.Repeat("x", size))
 	state.meta["stream"] = &metadatav1.GetObjectMetaResponse{BlobId: "stream-blob", SizeBytes: size}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+"/fixture/stream", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+"/objects/fixture/stream", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,7 +102,7 @@ func TestClientCancellationStopsStorageRead(t *testing.T) {
 	}
 	state.blobs["blob"] = []byte(strings.Repeat("x", 9*1024*1024))
 	state.meta["key"] = &metadatav1.GetObjectMetaResponse{BlobId: "blob", SizeBytes: 9 * 1024 * 1024}
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+"/fixture/key", nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+"/objects/fixture/key", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -125,7 +124,7 @@ func TestClientCancellationStopsStorageRead(t *testing.T) {
 
 func TestMissingObjectReturnsNotFound(t *testing.T) {
 	server, _ := newGateway(t)
-	response, err := server.Client().Get(server.URL + "/fixture/missing")
+	response, err := server.Client().Get(server.URL + "/objects/fixture/missing")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,4 +132,60 @@ func TestMissingObjectReturnsNotFound(t *testing.T) {
 	if response.StatusCode != http.StatusNotFound {
 		t.Fatalf("GET status %d, want 404", response.StatusCode)
 	}
+}
+
+func TestGetClientRejectsFailedStorageCompletion(t *testing.T) {
+	tests := []struct {
+		name          string
+		storedSize    int
+		declaredSize  int64
+		streamErr     error
+		wantStatus    int
+		wantReadError bool
+	}{
+		{name: "failure after declared bytes", storedSize: 131072, declaredSize: 131072, streamErr: errors.New("storage failed after bytes"), wantStatus: http.StatusOK, wantReadError: true},
+		{name: "short stream", storedSize: 131072, declaredSize: 131073, wantStatus: http.StatusOK, wantReadError: true},
+		{name: "oversized stream", storedSize: 131073, declaredSize: 131072, wantStatus: http.StatusOK, wantReadError: true},
+		{name: "successful completion", storedSize: 131072, declaredSize: 131072, wantStatus: http.StatusOK},
+		{name: "empty stream for nonempty object", declaredSize: 1, wantStatus: http.StatusBadGateway},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			server, state := newGateway(t)
+			state.blobs["blob"] = []byte(strings.Repeat("x", tt.storedSize))
+			state.meta["key"] = &metadatav1.GetObjectMetaResponse{BlobId: "blob", SizeBytes: tt.declaredSize}
+			state.failRetrieve = tt.streamErr
+			response, err := server.Client().Get(server.URL + "/objects/fixture/key")
+			require.NoError(t, err)
+			defer response.Body.Close()
+			require.Equal(t, tt.wantStatus, response.StatusCode)
+			body, err := io.ReadAll(response.Body)
+			if tt.wantReadError {
+				require.Error(t, err)
+				require.Less(t, int64(len(body)), tt.declaredSize)
+			} else {
+				require.NoError(t, err)
+				if tt.wantStatus == http.StatusOK {
+					require.Len(t, body, tt.storedSize)
+				}
+			}
+		})
+	}
+}
+
+func TestEmptyObjectWaitsForStorageCompletion(t *testing.T) {
+	logger.SetNopLogger()
+	mc := minimock.NewController(t)
+	objects := mocks.NewObjectServiceMock(mc)
+	objects.GetMock.Set(func(_ context.Context, bucket, key string) (model.GetResult, error) {
+		require.Equal(t, "bucket", bucket)
+		require.Equal(t, "key", key)
+		return model.GetResult{Body: io.NopCloser(failedReader{}), Size: 0}, nil
+	})
+	server := httptest.NewServer(httpapi.NewHandler(objects))
+	defer server.Close()
+	response, err := server.Client().Get(server.URL + "/objects/bucket/key")
+	require.NoError(t, err)
+	defer response.Body.Close()
+	require.Equal(t, http.StatusBadGateway, response.StatusCode)
 }
