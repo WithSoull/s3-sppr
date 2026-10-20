@@ -41,16 +41,21 @@ Proto source: `shared/api/`. Generated stubs: `shared/pkg/go/`, `shared/pkg/py/`
 ## Architecture
 
 ```
-Client (local HTTP PUT/GET)
+Client (HTTP / S3 API)
         │
         ▼
-   Gateway :8080
-      ├── Metadata :50052 ── PostgreSQL, Kafka
-      └── Storage  :50053 ── filesystem
-
-Auth, AuthZ, Users and Quota are separate running services; Gateway integration
-with authentication, authorization and quota is still planned.
+   Gateway :8080       ← single entry point
+  /   |    |    \
+Auth AuthZ Meta Storage
+  │    │    │      │
+  │  Neo4j PostgreSQL filesystem
+  │  Redis  Kafka
+Users :50054 ── PostgreSQL
+Quota :50055 ── Redis ── Kafka
 ```
+
+Gateway → Auth and Gateway → AuthZ are not implemented yet: Gateway currently
+serves local PUT/GET and calls only Metadata and Storage.
 
 ---
 
