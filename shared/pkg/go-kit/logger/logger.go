@@ -171,10 +171,15 @@ func Shutdown(ctx context.Context) error {
 		result = errors.Join(result, otelProvider.Shutdown(ctx))
 		otelProvider = nil
 	}
-	if err := Sync(); err != nil && !errors.Is(err, syscall.EINVAL) && !errors.Is(err, syscall.EBADF) {
+	if err := Sync(); err != nil && !isUnsyncableStdout(err) {
 		result = errors.Join(result, err)
 	}
 	return result
+}
+
+// Terminals and pipes cannot be fsynced: Linux reports EINVAL, macOS ENOTTY, closed fds EBADF.
+func isUnsyncableStdout(err error) bool {
+	return errors.Is(err, syscall.EINVAL) || errors.Is(err, syscall.ENOTTY) || errors.Is(err, syscall.EBADF)
 }
 
 func With(fields ...zap.Field) *logger {
