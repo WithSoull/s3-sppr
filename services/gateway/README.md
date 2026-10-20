@@ -168,7 +168,9 @@ curl -i http://127.0.0.1:8080/healthz
 
 ## Наблюдаемость и диагностика
 
-Ошибки downstream gRPC отображаются в HTTP 400/404/503/507/504 или 502. При
+Ошибки downstream gRPC отображаются в HTTP 400/404/503/504/507 или 502:
+нехватка места в Storage при записи — 507, перегрузка Metadata — 503,
+отсутствие blob в Storage при существующей версии в Metadata — 502. При
 ошибке регистрации уже записанного blob Gateway пишет `blob_id` в лог для
 ручной диагностики. Метрики `http_server_requests_total` и
 `http_server_request_duration_seconds` содержат HTTP method, нормализованный

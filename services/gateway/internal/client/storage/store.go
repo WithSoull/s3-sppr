@@ -17,7 +17,10 @@ const uploadChunkSize = 64 * 1024
 
 func (c *client) Store(ctx context.Context, body io.Reader, size *int64, contentType string) (result model.StoredObject, resultErr error) {
 	ctx, span := otel.Tracer("gateway.storage").Start(ctx, "storage.StoreObject", trace.WithSpanKind(trace.SpanKindClient))
-	defer func() { finishSpan(span, resultErr) }()
+	defer func() {
+		resultErr = mapStoreError(resultErr)
+		finishSpan(span, resultErr)
+	}()
 
 	streamCtx, cancel := context.WithCancel(ctx)
 	defer cancel()

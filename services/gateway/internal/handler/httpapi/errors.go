@@ -20,6 +20,15 @@ func writeServiceError(w http.ResponseWriter, err error) {
 	case errors.Is(err, domainerrors.ErrEmptyStorageStream):
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
+	case errors.Is(err, domainerrors.ErrInsufficientStorage):
+		http.Error(w, http.StatusText(http.StatusInsufficientStorage), http.StatusInsufficientStorage)
+		return
+	case errors.Is(err, domainerrors.ErrMetadataOverloaded):
+		http.Error(w, http.StatusText(http.StatusServiceUnavailable), http.StatusServiceUnavailable)
+		return
+	case errors.Is(err, domainerrors.ErrBlobMissing):
+		http.Error(w, http.StatusText(http.StatusBadGateway), http.StatusBadGateway)
+		return
 	}
 	code := http.StatusBadGateway
 	switch status.Code(err) {
@@ -27,8 +36,6 @@ func writeServiceError(w http.ResponseWriter, err error) {
 		code = http.StatusBadRequest
 	case codes.NotFound:
 		code = http.StatusNotFound
-	case codes.ResourceExhausted:
-		code = http.StatusInsufficientStorage
 	case codes.Unavailable:
 		code = http.StatusServiceUnavailable
 	case codes.DeadlineExceeded:

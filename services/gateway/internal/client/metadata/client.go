@@ -24,7 +24,7 @@ func (c *client) HeadBucket(ctx context.Context, bucket string) (bool, error) {
 	defer cancel()
 	response, err := c.grpc.HeadBucket(ctx, &metadatav1.HeadBucketRequest{BucketName: bucket})
 	if err != nil {
-		return false, err
+		return false, mapError(err)
 	}
 	return response.GetExists(), nil
 }
@@ -41,7 +41,7 @@ func (c *client) CreateVersion(ctx context.Context, bucket, key, blobID string, 
 		ContentType: contentType,
 	})
 	if err != nil {
-		return "", err
+		return "", mapError(err)
 	}
 	return response.GetVersionId(), nil
 }
@@ -51,7 +51,7 @@ func (c *client) GetObject(ctx context.Context, bucket, key string) (model.Objec
 	defer cancel()
 	response, err := c.grpc.GetObjectMeta(ctx, &metadatav1.GetObjectMetaRequest{BucketName: bucket, Key: key})
 	if err != nil {
-		return model.ObjectMeta{}, err
+		return model.ObjectMeta{}, mapError(err)
 	}
 	return model.ObjectMeta{
 		BlobID:      response.GetBlobId(),

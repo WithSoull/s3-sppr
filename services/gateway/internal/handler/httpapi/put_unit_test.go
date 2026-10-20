@@ -1,6 +1,7 @@
 package httpapi_test
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -95,7 +96,7 @@ func TestPutObject(t *testing.T) {
 			wantCalls:  1,
 			buildMock: func(mc *minimock.Controller, r *http.Request) *mocks.ObjectServiceMock {
 				objects := mocks.NewObjectServiceMock(mc)
-				objects.PutMock.Expect(r.Context(), "bucket", "key", r.Body, &size, "application/octet-stream").Return(model.PutResult{}, status.Error(codes.ResourceExhausted, "private detail"))
+				objects.PutMock.Expect(r.Context(), "bucket", "key", r.Body, &size, "application/octet-stream").Return(model.PutResult{}, fmt.Errorf("%w: %w", domainerrors.ErrInsufficientStorage, status.Error(codes.ResourceExhausted, "private detail")))
 				return objects
 			},
 		},

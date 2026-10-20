@@ -26,6 +26,9 @@ func TestWriteServiceError(t *testing.T) {
 		{name: "body read", err: &domainerrors.BodyReadError{Err: io.ErrUnexpectedEOF}, wantStatus: http.StatusBadRequest, wantBody: "could not read request body\n"},
 		{name: "empty stream", err: domainerrors.ErrEmptyStorageStream, wantStatus: http.StatusBadGateway, wantBody: "storage returned an empty stream\n"},
 		{name: "non grpc error", err: errors.New("private detail"), wantStatus: http.StatusBadGateway, wantBody: "Bad Gateway\n"},
+		{name: "insufficient storage", err: fmt.Errorf("%w: %w", domainerrors.ErrInsufficientStorage, status.Error(codes.ResourceExhausted, "x")), wantStatus: http.StatusInsufficientStorage, wantBody: "Insufficient Storage\n"},
+		{name: "metadata overloaded", err: fmt.Errorf("%w: %w", domainerrors.ErrMetadataOverloaded, status.Error(codes.ResourceExhausted, "x")), wantStatus: http.StatusServiceUnavailable, wantBody: "Service Unavailable\n"},
+		{name: "blob missing", err: fmt.Errorf("%w: %w", domainerrors.ErrBlobMissing, status.Error(codes.NotFound, "x")), wantStatus: http.StatusBadGateway, wantBody: "Bad Gateway\n"},
 	}
 	for _, tc := range []struct {
 		code   codes.Code
@@ -33,7 +36,7 @@ func TestWriteServiceError(t *testing.T) {
 	}{
 		{codes.InvalidArgument, http.StatusBadRequest},
 		{codes.NotFound, http.StatusNotFound},
-		{codes.ResourceExhausted, http.StatusInsufficientStorage},
+		{codes.ResourceExhausted, http.StatusBadGateway},
 		{codes.Unavailable, http.StatusServiceUnavailable},
 		{codes.DeadlineExceeded, http.StatusGatewayTimeout},
 		{codes.Canceled, http.StatusBadGateway},

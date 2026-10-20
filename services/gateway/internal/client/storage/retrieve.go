@@ -27,12 +27,14 @@ func (c *client) Retrieve(ctx context.Context, blobID string, expectedSize int64
 	)
 	if err != nil {
 		cancel()
+		err = mapRetrieveError(err)
 		finishSpan(span, err)
 		return nil, err
 	}
 	first, err := stream.Recv()
 	if err != nil && !errors.Is(err, io.EOF) {
 		cancel()
+		err = mapRetrieveError(err)
 		finishSpan(span, err)
 		return nil, err
 	}

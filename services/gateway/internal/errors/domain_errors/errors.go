@@ -3,9 +3,12 @@ package domainerrors
 import "errors"
 
 var (
-	ErrBucketNotFound     = errors.New("bucket not found")
-	ErrBodyRead           = errors.New("could not read request body")
-	ErrEmptyStorageStream = errors.New("storage returned an empty stream")
+	ErrBucketNotFound      = errors.New("bucket not found")
+	ErrBodyRead            = errors.New("could not read request body")
+	ErrEmptyStorageStream  = errors.New("storage returned an empty stream")
+	ErrInsufficientStorage = errors.New("insufficient storage")
+	ErrMetadataOverloaded  = errors.New("metadata is overloaded")
+	ErrBlobMissing         = errors.New("object data is missing in storage")
 )
 
 type BodyReadError struct{ Err error }

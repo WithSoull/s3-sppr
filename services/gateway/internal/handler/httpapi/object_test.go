@@ -39,6 +39,7 @@ type fixture struct {
 	onChunk      func()
 	failStore    error
 	failRetrieve error
+	failMetadata error
 }
 
 const fixtureRetrieveChunkSize = 1 << 20
@@ -49,6 +50,9 @@ type metadataServer struct {
 }
 
 func (s *metadataServer) HeadBucket(_ context.Context, req *metadatav1.HeadBucketRequest) (*metadatav1.HeadBucketResponse, error) {
+	if s.state.failMetadata != nil {
+		return nil, s.state.failMetadata
+	}
 	return &metadatav1.HeadBucketResponse{Exists: req.GetBucketName() == "fixture" || req.GetBucketName() == "swagger"}, nil
 }
 
@@ -72,6 +76,9 @@ func (s *metadataServer) CreateObjectVersion(_ context.Context, req *metadatav1.
 }
 
 func (s *metadataServer) GetObjectMeta(_ context.Context, req *metadatav1.GetObjectMetaRequest) (*metadatav1.GetObjectMetaResponse, error) {
+	if s.state.failMetadata != nil {
+		return nil, s.state.failMetadata
+	}
 	s.state.Lock()
 	defer s.state.Unlock()
 	if (req.GetBucketName() != "fixture" && req.GetBucketName() != "swagger") || s.state.meta[req.GetKey()] == nil {
