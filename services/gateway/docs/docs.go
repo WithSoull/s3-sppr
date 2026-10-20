@@ -48,6 +48,12 @@ const docTemplate = `{
                             "type": "file"
                         }
                     },
+                    "400": {
+                        "description": "Bad Request",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
                     "404": {
                         "description": "Not Found",
                         "schema": {
@@ -130,8 +136,20 @@ const docTemplate = `{
                             "type": "string"
                         }
                     },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
                     "503": {
                         "description": "Service Unavailable",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "504": {
+                        "description": "Gateway Timeout",
                         "schema": {
                             "type": "string"
                         }

@@ -19,6 +19,7 @@ import (
 // @Param bucket path string true "Bucket name"
 // @Param key path string true "Object key (may contain slashes)"
 // @Success 200 {file} binary
+// @Failure 400 {string} string
 // @Failure 404 {string} string
 // @Failure 502 {string} string
 // @Failure 503 {string} string

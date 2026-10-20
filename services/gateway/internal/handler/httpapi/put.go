@@ -17,7 +17,9 @@ import (
 // @Success 200
 // @Failure 400 {string} string
 // @Failure 404 {string} string
+// @Failure 502 {string} string
 // @Failure 503 {string} string
+// @Failure 504 {string} string
 // @Failure 507 {string} string
 // @Router /objects/{bucket}/{key} [put]
 func (h *Handler) PutObject(w http.ResponseWriter, r *http.Request) {
