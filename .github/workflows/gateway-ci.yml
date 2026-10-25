@@ -37,7 +37,7 @@ jobs:
           go-version: '1.24.1'
           cache-dependency-path: '**/go.sum'
       - name: Gateway race tests
-        run: go test -race ./services/gateway/... ./shared/pkg/go-kit/kafka/producer ./shared/pkg/go-kit/events/access -count=1
+        run: go test -race ./services/gateway/... ./shared/pkg/go-kit/kafka/... ./shared/pkg/go-kit/middleware/kafka/... -count=1
       - name: Real-service smoke
         run: make smoke-gateway-local
       - name: Logs on failure

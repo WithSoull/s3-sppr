@@ -25,7 +25,7 @@ func TestPut(t *testing.T) {
 		size        *int64
 		contentType string
 	}
-	type mockBuilder func(*minimock.Controller, args) (*mocks.MetadataClientMock, *mocks.StorageClientMock)
+	type mockBuilder func(*minimock.Controller, args) (*mocks.MetadataClientMock, *mocks.StorageClientMock, *mocks.AccessProducerServiceMock)
 	upstreamErr := errors.New("upstream failed")
 	size := int64(4)
 	input := args{
@@ -43,6 +43,7 @@ func TestPut(t *testing.T) {
 		want                            model.PutResult
 		wantErr                         error
 		wantStoreCalls, wantCreateCalls uint64
+		wantAccessCalls                 uint64
 		buildMocks                      mockBuilder
 	}{
 		{
@@ -50,9 +51,10 @@ func TestPut(t *testing.T) {
 			args:            input,
 			wantStoreCalls:  1,
 			wantCreateCalls: 1,
+			wantAccessCalls: 1,
 			want:            model.PutResult{ETag: "etag", VersionID: "version"},
-			buildMocks: func(mc *minimock.Controller, a args) (*mocks.MetadataClientMock, *mocks.StorageClientMock) {
-				meta, storage := mocks.NewMetadataClientMock(mc), mocks.NewStorageClientMock(mc)
+			buildMocks: func(mc *minimock.Controller, a args) (*mocks.MetadataClientMock, *mocks.StorageClientMock, *mocks.AccessProducerServiceMock) {
+				meta, storage, access := mocks.NewMetadataClientMock(mc), mocks.NewStorageClientMock(mc), mocks.NewAccessProducerServiceMock(mc)
 				meta.HeadBucketMock.Expect(a.ctx, a.bucket).Return(true, nil)
 				storage.StoreMock.Expect(a.ctx, a.body, a.size, a.contentType).Return(stored, nil)
 				meta.CreateVersionMock.
@@ -63,27 +65,30 @@ func TestPut(t *testing.T) {
 					ExpectEtagParam6(stored.ETag).
 					ExpectContentTypeParam7(a.contentType).
 					Return("version", nil)
-				return meta, storage
+				access.ProduceObjectWrittenMock.Expect(a.ctx, model.ObjectWrittenEvent{
+					Bucket: a.bucket, ObjectKey: a.key, VersionID: "version", Bytes: stored.Size, Origin: model.OriginClient,
+				}).Return()
+				return meta, storage, access
 			},
 		},
 		{
 			name:    "bucket lookup error",
 			args:    input,
 			wantErr: upstreamErr,
-			buildMocks: func(mc *minimock.Controller, a args) (*mocks.MetadataClientMock, *mocks.StorageClientMock) {
-				meta, storage := mocks.NewMetadataClientMock(mc), mocks.NewStorageClientMock(mc)
+			buildMocks: func(mc *minimock.Controller, a args) (*mocks.MetadataClientMock, *mocks.StorageClientMock, *mocks.AccessProducerServiceMock) {
+				meta, storage, access := mocks.NewMetadataClientMock(mc), mocks.NewStorageClientMock(mc), mocks.NewAccessProducerServiceMock(mc)
 				meta.HeadBucketMock.Expect(a.ctx, a.bucket).Return(false, upstreamErr)
-				return meta, storage
+				return meta, storage, access
 			},
 		},
 		{
 			name:    "missing bucket",
 			args:    input,
 			wantErr: domainerrors.ErrBucketNotFound,
-			buildMocks: func(mc *minimock.Controller, a args) (*mocks.MetadataClientMock, *mocks.StorageClientMock) {
-				meta, storage := mocks.NewMetadataClientMock(mc), mocks.NewStorageClientMock(mc)
+			buildMocks: func(mc *minimock.Controller, a args) (*mocks.MetadataClientMock, *mocks.StorageClientMock, *mocks.AccessProducerServiceMock) {
+				meta, storage, access := mocks.NewMetadataClientMock(mc), mocks.NewStorageClientMock(mc), mocks.NewAccessProducerServiceMock(mc)
 				meta.HeadBucketMock.Expect(a.ctx, a.bucket).Return(false, nil)
-				return meta, storage
+				return meta, storage, access
 			},
 		},
 		{
@@ -91,11 +96,11 @@ func TestPut(t *testing.T) {
 			args:           input,
 			wantStoreCalls: 1,
 			wantErr:        upstreamErr,
-			buildMocks: func(mc *minimock.Controller, a args) (*mocks.MetadataClientMock, *mocks.StorageClientMock) {
-				meta, storage := mocks.NewMetadataClientMock(mc), mocks.NewStorageClientMock(mc)
+			buildMocks: func(mc *minimock.Controller, a args) (*mocks.MetadataClientMock, *mocks.StorageClientMock, *mocks.AccessProducerServiceMock) {
+				meta, storage, access := mocks.NewMetadataClientMock(mc), mocks.NewStorageClientMock(mc), mocks.NewAccessProducerServiceMock(mc)
 				meta.HeadBucketMock.Expect(a.ctx, a.bucket).Return(true, nil)
 				storage.StoreMock.Expect(a.ctx, a.body, a.size, a.contentType).Return(model.StoredObject{}, upstreamErr)
-				return meta, storage
+				return meta, storage, access
 			},
 		},
 		{
@@ -104,8 +109,8 @@ func TestPut(t *testing.T) {
 			wantStoreCalls:  1,
 			wantCreateCalls: 1,
 			wantErr:         upstreamErr,
-			buildMocks: func(mc *minimock.Controller, a args) (*mocks.MetadataClientMock, *mocks.StorageClientMock) {
-				meta, storage := mocks.NewMetadataClientMock(mc), mocks.NewStorageClientMock(mc)
+			buildMocks: func(mc *minimock.Controller, a args) (*mocks.MetadataClientMock, *mocks.StorageClientMock, *mocks.AccessProducerServiceMock) {
+				meta, storage, access := mocks.NewMetadataClientMock(mc), mocks.NewStorageClientMock(mc), mocks.NewAccessProducerServiceMock(mc)
 				meta.HeadBucketMock.Expect(a.ctx, a.bucket).Return(true, nil)
 				storage.StoreMock.Expect(a.ctx, a.body, a.size, a.contentType).Return(stored, nil)
 				meta.CreateVersionMock.
@@ -116,19 +121,20 @@ func TestPut(t *testing.T) {
 					ExpectEtagParam6(stored.ETag).
 					ExpectContentTypeParam7(a.contentType).
 					Return("", upstreamErr)
-				return meta, storage
+				return meta, storage, access
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			mc := minimock.NewController(t)
-			meta, storage := tt.buildMocks(mc, tt.args)
-			result, err := objectservice.NewService(meta, storage).Put(tt.args.ctx, tt.args.bucket, tt.args.key, tt.args.body, tt.args.size, tt.args.contentType)
+			meta, storage, access := tt.buildMocks(mc, tt.args)
+			result, err := objectservice.NewService(meta, storage, access).Put(tt.args.ctx, tt.args.bucket, tt.args.key, tt.args.body, tt.args.size, tt.args.contentType)
 			require.Equal(t, tt.want, result)
 			require.ErrorIs(t, err, tt.wantErr)
 			require.Equal(t, tt.wantStoreCalls, storage.StoreAfterCounter())
 			require.Equal(t, tt.wantCreateCalls, meta.CreateVersionAfterCounter())
+			require.Equal(t, tt.wantAccessCalls, access.ProduceObjectWrittenAfterCounter(), "only a registered version is published")
 		})
 	}
 }
@@ -140,7 +146,7 @@ func TestPutRegistersVersionAfterRequestCancel(t *testing.T) {
 	defer cancel()
 	size := int64(4)
 	stored := model.StoredObject{BlobID: "blob", Size: 4, ETag: "etag"}
-	meta, storage := mocks.NewMetadataClientMock(mc), mocks.NewStorageClientMock(mc)
+	meta, storage, access := mocks.NewMetadataClientMock(mc), mocks.NewStorageClientMock(mc), mocks.NewAccessProducerServiceMock(mc)
 	meta.HeadBucketMock.Expect(ctx, "bucket").Return(true, nil)
 	storage.StoreMock.Set(func(context.Context, io.Reader, *int64, string) (model.StoredObject, error) {
 		cancel()
@@ -151,7 +157,8 @@ func TestPutRegistersVersionAfterRequestCancel(t *testing.T) {
 		require.Equal(t, "blob", blobID)
 		return "version", nil
 	})
-	result, err := objectservice.NewService(meta, storage).Put(ctx, "bucket", "key", strings.NewReader("data"), &size, "text/plain")
+	access.ProduceObjectWrittenMock.Return()
+	result, err := objectservice.NewService(meta, storage, access).Put(ctx, "bucket", "key", strings.NewReader("data"), &size, "text/plain")
 	require.NoError(t, err)
 	require.Equal(t, model.PutResult{ETag: "etag", VersionID: "version"}, result)
 }

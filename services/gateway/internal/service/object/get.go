@@ -11,13 +11,23 @@ func (s *objectService) Get(ctx context.Context, bucket, key string) (model.GetR
 	if err != nil {
 		return model.GetResult{}, err
 	}
-	result := model.GetResult{
-		Size: meta.Size, ETag: meta.ETag, VersionID: meta.VersionID, ContentType: meta.ContentType,
-	}
 	body, err := s.storage.Retrieve(ctx, meta.BlobID, meta.Size)
 	if err != nil {
-		return result, err
+		return model.GetResult{}, err
 	}
-	result.Body = body
-	return result, nil
+	// The stream is open: a response interrupted later still counts as demand.
+	s.access.ProduceObjectRead(ctx, model.ObjectReadEvent{
+		Bucket:    bucket,
+		ObjectKey: key,
+		VersionID: meta.VersionID,
+		Bytes:     meta.Size,
+		Origin:    model.OriginClient,
+	})
+	return model.GetResult{
+		Body:        body,
+		Size:        meta.Size,
+		ETag:        meta.ETag,
+		VersionID:   meta.VersionID,
+		ContentType: meta.ContentType,
+	}, nil
 }
