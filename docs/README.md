@@ -25,6 +25,8 @@ API → данные/сценарии → конфигурация → запу�
 ## Текущее устройство и разработка
 
 - [Filesystem Storage](storage-fs-architecture.md): фактические пути и commit.
+- [События доступа через Kafka](kafka-spec.md): контракт Gateway → SPPR, доставка и
+  отказоустойчивость.
 - [Storage test inventory](../services/storage/tests.md): существующие проверки.
 - [E2E kit](../e2e/README.md): общий test harness и отдельная PostgreSQL.
 - [AGENTS.md](../AGENTS.md): правила изменений, тестов и документации.
