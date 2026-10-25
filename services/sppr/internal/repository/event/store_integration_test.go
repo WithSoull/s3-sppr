@@ -66,13 +66,20 @@ func database(t *testing.T) (db.Client, service.Ingestor) {
 }
 
 func accessEvent(sequence int64) model.AccessEvent {
-	return model.AccessEvent{SchemaVersion: 1, GatewayID: "gw", StreamID: "run", Sequence: sequence,
-		OccurredAt: time.Date(2026, 10, 21, 12, 0, int(sequence), 0, time.UTC), Bucket: "b", ObjectKey: "k", VersionID: "v1", Operation: "read", Origin: "client", Result: "success", Bytes: 100}
+	return model.AccessEvent{GatewayID: "gw", StreamID: "run", Sequence: sequence,
+		OccurredAt: time.Date(2026, 10, 21, 12, 0, int(sequence), 0, time.UTC), Bucket: "b", ObjectKey: "k", VersionID: "v1",
+		Operation: model.OperationRead, Origin: model.OriginClient, Result: model.ResultSuccess, Bytes: 100}
+}
+
+func ingest(s service.Ingestor, e model.AccessEvent, d model.Delivery) (model.IngestResult, error) {
+	// Stands in for the Kafka value, which the store hashes to detect redelivery.
+	e.Payload = []byte(fmt.Sprintf("%+v", e))
+	return s.Ingest(context.Background(), e, d)
 }
 
 func deliver(t *testing.T, s service.Ingestor, e model.AccessEvent, offset int64) model.IngestResult {
 	t.Helper()
-	r, err := s.Ingest(context.Background(), e, model.Delivery{Topic: "access", Partition: 0, Offset: offset})
+	r, err := ingest(s, e, model.Delivery{Topic: "access", Partition: 0, Offset: offset})
 	require.NoError(t, err)
 	return r
 }
@@ -92,16 +99,12 @@ func TestStoreDeduplicationGapsAndDemand(t *testing.T) {
 	require.True(t, deliver(t, s, accessEvent(1), 0).Duplicate)
 	require.Equal(t, int64(1), deliver(t, s, accessEvent(3), 2).Missing)
 	migration := accessEvent(4)
-	migration.Origin = "migration"
+	migration.Origin = model.OriginMigration
 	deliver(t, s, migration, 3)
 	write := accessEvent(5)
-	write.Operation = "write"
+	write.Operation = model.OperationWrite
 	deliver(t, s, write, 4)
-	failure := accessEvent(6)
-	failure.Result = "error"
-	failure.VersionID = ""
-	deliver(t, s, failure, 5)
-	require.Equal(t, int64(5), scalar(t, client, "SELECT count(*) FROM access_events"))
+	require.Equal(t, int64(4), scalar(t, client, "SELECT count(*) FROM access_events"))
 	require.Equal(t, int64(2), scalar(t, client, "SELECT sum(reads) FROM read_aggregates"))
 	require.Equal(t, int64(200), scalar(t, client, "SELECT sum(bytes) FROM read_aggregates"))
 	require.Equal(t, int64(1), scalar(t, client, "SELECT missing_events FROM ingestion_streams"))
@@ -114,8 +117,9 @@ func TestStoreRollsBackEventGapAndProgressWhenAggregateFails(t *testing.T) {
 	deliver(t, s, accessEvent(1), 0)
 	_, err := client.DB().ExecContext(context.Background(), db.Query{Name: "test:constraint", QueryRaw: "ALTER TABLE read_aggregates ADD CONSTRAINT test_limit CHECK (reads<=1)"})
 	require.NoError(t, err)
-	_, err = s.Ingest(context.Background(), accessEvent(3), model.Delivery{Topic: "access", Offset: 2})
+	_, err = ingest(s, accessEvent(3), model.Delivery{Topic: "access", Offset: 2})
 	require.Error(t, err)
+	require.NotErrorIs(t, err, model.ErrRejected, "a database failure must be retried, not committed")
 	require.Equal(t, int64(1), scalar(t, client, "SELECT count(*) FROM access_events"))
 	require.Equal(t, int64(1), scalar(t, client, "SELECT last_sequence FROM ingestion_streams"))
 	require.Equal(t, int64(0), scalar(t, client, "SELECT count(*) FROM ingestion_gaps"))
@@ -133,7 +137,7 @@ func TestStoreConcurrentRedeliveryCountsOnce(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, err := s.Ingest(context.Background(), accessEvent(1), model.Delivery{Topic: "access", Offset: 0})
+			_, err := ingest(s, accessEvent(1), model.Delivery{Topic: "access", Offset: 0})
 			errors <- err
 		}()
 	}
@@ -162,12 +166,22 @@ func TestStoreRejectsStreamContractViolations(t *testing.T) {
 			e := accessEvent(2)
 			d := model.Delivery{Topic: "access", Offset: 1}
 			tt.change(&e, &d)
-			_, err := s.Ingest(context.Background(), e, d)
-			require.Error(t, err)
+			_, err := ingest(s, e, d)
+			require.ErrorIs(t, err, model.ErrRejected)
 			require.Equal(t, int64(1), scalar(t, client, "SELECT count(*) FROM access_events"))
 			require.Equal(t, int64(1), scalar(t, client, "SELECT last_sequence FROM ingestion_streams"))
 		})
 	}
+}
+
+func TestStoreRejectsLateEventFromGap(t *testing.T) {
+	client, s := database(t)
+	deliver(t, s, accessEvent(1), 0)
+	require.Equal(t, int64(1), deliver(t, s, accessEvent(3), 1).Missing)
+	_, err := ingest(s, accessEvent(2), model.Delivery{Topic: "access", Offset: 2})
+	require.ErrorIs(t, err, model.ErrRejected)
+	require.Equal(t, int64(2), scalar(t, client, "SELECT count(*) FROM access_events"))
+	require.Equal(t, int64(1), scalar(t, client, "SELECT count(*) FROM ingestion_gaps"))
 }
 
 func TestStoreFirstGapAndIndependentRestart(t *testing.T) {

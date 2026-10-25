@@ -9,3 +9,7 @@ import (
 type Ingestor interface {
 	Ingest(context.Context, model.AccessEvent, model.Delivery) (model.IngestResult, error)
 }
+
+type AccessConsumerService interface {
+	RunConsumer(ctx context.Context) error
+}

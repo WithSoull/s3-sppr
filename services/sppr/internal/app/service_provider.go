@@ -6,33 +6,49 @@ import (
 
 	"github.com/IBM/sarama"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/config"
-	"github.com/alesplll/opens3-rebac/services/sppr/internal/handler/access"
+	converterKafka "github.com/alesplll/opens3-rebac/services/sppr/internal/converter/kafka"
+	decoderKafka "github.com/alesplll/opens3-rebac/services/sppr/internal/converter/kafka/decoder"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/observability"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/repository"
 	eventRepository "github.com/alesplll/opens3-rebac/services/sppr/internal/repository/event"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/service"
+	accessConsumerService "github.com/alesplll/opens3-rebac/services/sppr/internal/service/consumer/access"
 	ingestorService "github.com/alesplll/opens3-rebac/services/sppr/internal/service/ingestor"
-	"github.com/alesplll/opens3-rebac/services/sppr/internal/worker/ingestion"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/client/db"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/client/db/pg"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/client/db/transaction"
+	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/closer"
+	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/kafka"
+	kafkaConsumer "github.com/alesplll/opens3-rebac/shared/pkg/go-kit/kafka/consumer"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/logger"
-	"go.opentelemetry.io/otel"
+	kafkaMiddleware "github.com/alesplll/opens3-rebac/shared/pkg/go-kit/middleware/kafka"
+	"go.uber.org/zap"
 )
 
 // Dependencies are resolved during startup on one goroutine, then immutable.
 type serviceProvider struct {
-	cfg             *config.Config
+	cfg    *config.Config
+	closer *closer.Closer
+
 	pgClient        db.Client
 	txManager       db.TxManager
-	group           sarama.ConsumerGroup
 	eventRepository repository.EventRepository
 	ingestor        service.Ingestor
-	accessHandler   *access.Handler
-	worker          *ingestion.Worker
+
+	objectReadConsumerGroup sarama.ConsumerGroup
+	objectReadConsumer      kafka.Consumer
+	objectReadDecoder       converterKafka.ObjectReadDecoder
+
+	objectWrittenConsumerGroup sarama.ConsumerGroup
+	objectWrittenConsumer      kafka.Consumer
+	objectWrittenDecoder       converterKafka.ObjectWrittenDecoder
+
+	accessConsumerService service.AccessConsumerService
 }
 
-func newServiceProvider(cfg *config.Config) *serviceProvider { return &serviceProvider{cfg: cfg} }
+func newServiceProvider(cfg *config.Config, closer *closer.Closer) *serviceProvider {
+	return &serviceProvider{cfg: cfg, closer: closer}
+}
 
 func (s *serviceProvider) PGClient(ctx context.Context) (db.Client, error) {
 	if s.pgClient == nil {
@@ -42,8 +58,8 @@ func (s *serviceProvider) PGClient(ctx context.Context) (db.Client, error) {
 		if err != nil {
 			return nil, fmt.Errorf("connect PostgreSQL: %w", err)
 		}
+		s.closer.AddNamed("PGClient", func(context.Context) error { return client.Close() })
 		if err := client.DB().Ping(ctx); err != nil {
-			_ = client.Close()
 			return nil, err
 		}
 		// Fail startup if migrations were forgotten, without consuming any offsets.
@@ -52,7 +68,6 @@ func (s *serviceProvider) PGClient(ctx context.Context) (db.Client, error) {
 			to_regclass('ingestion_streams') IS NOT NULL AND to_regclass('access_events') IS NOT NULL
 			AND to_regclass('ingestion_gaps') IS NOT NULL AND to_regclass('read_aggregates') IS NOT NULL`}).Scan(&schema)
 		if err != nil || !schema {
-			_ = client.Close()
 			return nil, fmt.Errorf("ingestion schema unavailable; apply migrations (query error: %v)", err)
 		}
 		s.pgClient = client
@@ -97,8 +112,105 @@ func (s *serviceProvider) Ingestor(ctx context.Context) (service.Ingestor, error
 	return s.ingestor, nil
 }
 
-func (s *serviceProvider) AccessHandler(ctx context.Context) (*access.Handler, error) {
-	if s.accessHandler == nil {
+func (s *serviceProvider) ObjectReadConsumerGroup() (sarama.ConsumerGroup, error) {
+	if s.objectReadConsumerGroup == nil {
+		group, err := s.newConsumerGroup("object-read")
+		if err != nil {
+			return nil, err
+		}
+		s.objectReadConsumerGroup = group
+	}
+	return s.objectReadConsumerGroup, nil
+}
+
+func (s *serviceProvider) ObjectWrittenConsumerGroup() (sarama.ConsumerGroup, error) {
+	if s.objectWrittenConsumerGroup == nil {
+		group, err := s.newConsumerGroup("object-written")
+		if err != nil {
+			return nil, err
+		}
+		s.objectWrittenConsumerGroup = group
+	}
+	return s.objectWrittenConsumerGroup, nil
+}
+
+func (s *serviceProvider) newConsumerGroup(name string) (sarama.ConsumerGroup, error) {
+	group, err := sarama.NewConsumerGroup(
+		s.cfg.Kafka.Brokers(),
+		s.cfg.Sarama.GroupID(),
+		s.cfg.Sarama.Config(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create Kafka %s consumer group: %w", name, err)
+	}
+	// Consumer.Return.Errors is on, so the channel must be drained; it closes with the group.
+	go func() {
+		for err := range group.Errors() {
+			logger.Error(context.Background(), "Kafka consumer group error", zap.String("group", name), zap.Error(err))
+		}
+	}()
+	s.closer.AddNamed("Kafka "+name+" consumer group", func(context.Context) error {
+		return group.Close()
+	})
+	return group, nil
+}
+
+func (s *serviceProvider) ObjectReadConsumer() (kafka.Consumer, error) {
+	if s.objectReadConsumer == nil {
+		group, err := s.ObjectReadConsumerGroup()
+		if err != nil {
+			return nil, err
+		}
+		s.objectReadConsumer = kafkaConsumer.NewConsumer(
+			group,
+			[]string{s.cfg.ObjectReadConsumer.Topic()},
+			logger.Logger(),
+			s.consumerMiddlewares()...,
+		)
+	}
+	return s.objectReadConsumer, nil
+}
+
+func (s *serviceProvider) ObjectWrittenConsumer() (kafka.Consumer, error) {
+	if s.objectWrittenConsumer == nil {
+		group, err := s.ObjectWrittenConsumerGroup()
+		if err != nil {
+			return nil, err
+		}
+		s.objectWrittenConsumer = kafkaConsumer.NewConsumer(
+			group,
+			[]string{s.cfg.ObjectWrittenConsumer.Topic()},
+			logger.Logger(),
+			s.consumerMiddlewares()...,
+		)
+	}
+	return s.objectWrittenConsumer, nil
+}
+
+// Logging comes first so that retries of one message are logged once.
+func (s *serviceProvider) consumerMiddlewares() []kafkaConsumer.Middleware {
+	return []kafkaConsumer.Middleware{
+		kafkaMiddleware.Logging(logger.Logger()),
+		kafkaMiddleware.Retry(s.cfg.Retry.Interval()),
+	}
+}
+
+func (s *serviceProvider) ObjectReadDecoder() converterKafka.ObjectReadDecoder {
+	if s.objectReadDecoder == nil {
+		s.objectReadDecoder = decoderKafka.NewObjectReadDecoder()
+	}
+	return s.objectReadDecoder
+}
+
+func (s *serviceProvider) ObjectWrittenDecoder() converterKafka.ObjectWrittenDecoder {
+	if s.objectWrittenDecoder == nil {
+		s.objectWrittenDecoder = decoderKafka.NewObjectWrittenDecoder()
+	}
+	return s.objectWrittenDecoder
+}
+
+func (s *serviceProvider) AccessConsumerService(ctx context.Context) (service.AccessConsumerService, error) {
+	if s.accessConsumerService == nil {
 		ingestor, err := s.Ingestor(ctx)
 		if err != nil {
 			return nil, err
@@ -107,38 +219,22 @@ func (s *serviceProvider) AccessHandler(ctx context.Context) (*access.Handler, e
 		if err != nil {
 			return nil, err
 		}
-		s.accessHandler = access.NewHandler(ingestor, metrics, otel.Tracer("sppr/ingestion"), s.cfg.Kafka.MaxEventBytes())
-	}
-	return s.accessHandler, nil
-}
-
-func (s *serviceProvider) ConsumerGroup() (sarama.ConsumerGroup, error) {
-	if s.group == nil {
-		cfg := sarama.NewConfig()
-		cfg.Version = sarama.V2_8_0_0
-		cfg.ClientID = "sppr-ingestor"
-		cfg.Consumer.Offsets.Initial = sarama.OffsetOldest
-		cfg.Consumer.Return.Errors = true
-		group, err := sarama.NewConsumerGroup(s.cfg.Kafka.Brokers(), s.cfg.Kafka.GroupID(), cfg)
-		if err != nil {
-			return nil, fmt.Errorf("create Kafka consumer group: %w", err)
-		}
-		s.group = group
-	}
-	return s.group, nil
-}
-
-func (s *serviceProvider) Worker(ctx context.Context) (*ingestion.Worker, error) {
-	if s.worker == nil {
-		handler, err := s.AccessHandler(ctx)
+		objectReadConsumer, err := s.ObjectReadConsumer()
 		if err != nil {
 			return nil, err
 		}
-		group, err := s.ConsumerGroup()
+		objectWrittenConsumer, err := s.ObjectWrittenConsumer()
 		if err != nil {
 			return nil, err
 		}
-		s.worker = ingestion.NewWorker(group, handler.Handle, s.cfg.Kafka, logger.Logger())
+		s.accessConsumerService = accessConsumerService.NewService(
+			objectReadConsumer,
+			s.ObjectReadDecoder(),
+			objectWrittenConsumer,
+			s.ObjectWrittenDecoder(),
+			ingestor,
+			metrics,
+		)
 	}
-	return s.worker, nil
+	return s.accessConsumerService, nil
 }

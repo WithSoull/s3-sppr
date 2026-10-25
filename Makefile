@@ -168,7 +168,7 @@ up-sppr:
 	docker compose --profile sppr up --build -d sppr
 
 require-gateway-access-producer:
-	@test -f services/gateway/internal/publisher/access/publisher.go || { echo 'Gateway producer is supplied by PR #1; merge both PRs for the combined smoke.' >&2; exit 1; }
+	@test -f services/gateway/internal/service/producer/access/service.go || { echo 'Gateway producer is supplied by PR #1; merge both PRs for the combined smoke.' >&2; exit 1; }
 
 up-sppr-gateway: require-gateway-access-producer
 	ACCESS_EVENTS_ENABLED=true docker compose --profile services --profile sppr up --build -d gateway sppr metadata storage

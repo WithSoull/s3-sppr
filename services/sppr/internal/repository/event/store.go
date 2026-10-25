@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"context"
 	"crypto/sha256"
-	"encoding/json"
+	"errors"
 	"fmt"
 	"time"
 
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/model"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/client/db"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/contextx/txctx"
+	"github.com/jackc/pgx/v4"
 )
 
 func (r *repo) Store(ctx context.Context, e model.AccessEvent, d model.Delivery) (model.IngestResult, error) {
@@ -34,28 +35,27 @@ func (r *repo) Store(ctx context.Context, e model.AccessEvent, d model.Delivery)
 		return model.IngestResult{}, err
 	}
 	if topic != d.Topic || partition != d.Partition {
-		return model.IngestResult{}, fmt.Errorf("stream moved to another topic or partition")
+		return model.IngestResult{}, fmt.Errorf("%w: stream moved to another topic or partition", model.ErrRejected)
 	}
-	payload, err := json.Marshal(e)
-	if err != nil {
-		return model.IngestResult{}, err
-	}
-	hash := sha256.Sum256(payload)
+	hash := sha256.Sum256(e.Payload)
 	if e.Sequence <= sequence {
 		var previous []byte
 		err := r.db.DB().QueryRowContext(ctx, db.Query{Name: "event:duplicate", QueryRaw: `
 			SELECT payload_hash FROM access_events WHERE gateway_id=$1 AND stream_id=$2 AND sequence=$3`},
 			e.GatewayID, e.StreamID, e.Sequence).Scan(&previous)
+		if errors.Is(err, pgx.ErrNoRows) {
+			return model.IngestResult{}, fmt.Errorf("%w: late event from a recorded gap", model.ErrRejected)
+		}
 		if err != nil {
-			return model.IngestResult{}, fmt.Errorf("late event or missing original: %w", err)
+			return model.IngestResult{}, err
 		}
 		if !bytes.Equal(previous, hash[:]) {
-			return model.IngestResult{}, fmt.Errorf("event identity reused with different payload")
+			return model.IngestResult{}, fmt.Errorf("%w: event identity reused with different payload", model.ErrRejected)
 		}
 		return model.IngestResult{Duplicate: true}, nil
 	}
 	if lastAt != nil && e.OccurredAt.Before(*lastAt) {
-		return model.IngestResult{}, fmt.Errorf("event time regressed within stream")
+		return model.IngestResult{}, fmt.Errorf("%w: event time regressed within stream", model.ErrRejected)
 	}
 	if _, err := r.db.DB().ExecContext(ctx, db.Query{Name: "event:insert", QueryRaw: `
 		INSERT INTO access_events (gateway_id, stream_id, sequence, occurred_at, bucket, object_key,

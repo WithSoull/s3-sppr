@@ -84,7 +84,7 @@ jobs:
       - name: Detect the independently delivered Gateway producer
         id: producer
         run: |
-          if test -f services/gateway/internal/publisher/access/publisher.go; then
+          if test -f services/gateway/internal/service/producer/access/service.go; then
             echo 'available=true' >> "$GITHUB_OUTPUT"
           fi
       - uses: actions/setup-go@v5

@@ -23,12 +23,12 @@ func NewService(repo repository.EventRepository, tx db.TxManager) service.Ingest
 
 func (s *ingestor) Ingest(ctx context.Context, event model.AccessEvent, delivery model.Delivery) (model.IngestResult, error) {
 	if err := validator.AccessEvent(event); err != nil {
-		return model.IngestResult{}, fmt.Errorf("validate access event: %w", err)
+		return model.IngestResult{}, fmt.Errorf("%w: %w", model.ErrRejected, err)
 	}
 	if delivery.Topic == "" || delivery.Partition < 0 || delivery.Offset < 0 {
-		return model.IngestResult{}, fmt.Errorf("invalid Kafka delivery coordinates")
+		return model.IngestResult{}, fmt.Errorf("%w: invalid Kafka delivery coordinates", model.ErrRejected)
 	}
-	// Match PostgreSQL timestamp precision before hashing and comparing progress.
+	// Match PostgreSQL timestamp precision before comparing progress.
 	event.OccurredAt = event.OccurredAt.UTC().Truncate(time.Microsecond)
 	var result model.IngestResult
 	err := s.tx.ReadCommitted(ctx, func(ctx context.Context) error {

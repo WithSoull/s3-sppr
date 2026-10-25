@@ -2,7 +2,7 @@
 
 package mocks
 
-//go:generate minimock -i github.com/alesplll/opens3-rebac/services/sppr/internal/handler/access.Observer -o observer_minimock.go -n ObserverMock -p mocks
+//go:generate minimock -i github.com/alesplll/opens3-rebac/services/sppr/internal/service/consumer/access.Observer -o observer_minimock.go -n ObserverMock -p mocks
 
 import (
 	"context"
@@ -19,9 +19,9 @@ type ObserverMock struct {
 	t          minimock.Tester
 	finishOnce sync.Once
 
-	funcObserve          func(ctx context.Context, s1 string, i1 int64, d1 time.Duration)
+	funcObserve          func(ctx context.Context, outcome string, missing int64, elapsed time.Duration)
 	funcObserveOrigin    string
-	inspectFuncObserve   func(ctx context.Context, s1 string, i1 int64, d1 time.Duration)
+	inspectFuncObserve   func(ctx context.Context, outcome string, missing int64, elapsed time.Duration)
 	afterObserveCounter  uint64
 	beforeObserveCounter uint64
 	ObserveMock          mObserverMockObserve
@@ -69,27 +69,27 @@ type ObserverMockObserveExpectation struct {
 
 // ObserverMockObserveParams contains parameters of the Observer.Observe
 type ObserverMockObserveParams struct {
-	ctx context.Context
-	s1  string
-	i1  int64
-	d1  time.Duration
+	ctx     context.Context
+	outcome string
+	missing int64
+	elapsed time.Duration
 }
 
 // ObserverMockObserveParamPtrs contains pointers to parameters of the Observer.Observe
 type ObserverMockObserveParamPtrs struct {
-	ctx *context.Context
-	s1  *string
-	i1  *int64
-	d1  *time.Duration
+	ctx     *context.Context
+	outcome *string
+	missing *int64
+	elapsed *time.Duration
 }
 
 // ObserverMockObserveOrigins contains origins of expectations of the Observer.Observe
 type ObserverMockObserveExpectationOrigins struct {
-	origin    string
-	originCtx string
-	originS1  string
-	originI1  string
-	originD1  string
+	origin        string
+	originCtx     string
+	originOutcome string
+	originMissing string
+	originElapsed string
 }
 
 // Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
@@ -103,7 +103,7 @@ func (mmObserve *mObserverMockObserve) Optional() *mObserverMockObserve {
 }
 
 // Expect sets up expected params for Observer.Observe
-func (mmObserve *mObserverMockObserve) Expect(ctx context.Context, s1 string, i1 int64, d1 time.Duration) *mObserverMockObserve {
+func (mmObserve *mObserverMockObserve) Expect(ctx context.Context, outcome string, missing int64, elapsed time.Duration) *mObserverMockObserve {
 	if mmObserve.mock.funcObserve != nil {
 		mmObserve.mock.t.Fatalf("ObserverMock.Observe mock is already set by Set")
 	}
@@ -116,7 +116,7 @@ func (mmObserve *mObserverMockObserve) Expect(ctx context.Context, s1 string, i1
 		mmObserve.mock.t.Fatalf("ObserverMock.Observe mock is already set by ExpectParams functions")
 	}
 
-	mmObserve.defaultExpectation.params = &ObserverMockObserveParams{ctx, s1, i1, d1}
+	mmObserve.defaultExpectation.params = &ObserverMockObserveParams{ctx, outcome, missing, elapsed}
 	mmObserve.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
 	for _, e := range mmObserve.expectations {
 		if minimock.Equal(e.params, mmObserve.defaultExpectation.params) {
@@ -150,8 +150,8 @@ func (mmObserve *mObserverMockObserve) ExpectCtxParam1(ctx context.Context) *mOb
 	return mmObserve
 }
 
-// ExpectS1Param2 sets up expected param s1 for Observer.Observe
-func (mmObserve *mObserverMockObserve) ExpectS1Param2(s1 string) *mObserverMockObserve {
+// ExpectOutcomeParam2 sets up expected param outcome for Observer.Observe
+func (mmObserve *mObserverMockObserve) ExpectOutcomeParam2(outcome string) *mObserverMockObserve {
 	if mmObserve.mock.funcObserve != nil {
 		mmObserve.mock.t.Fatalf("ObserverMock.Observe mock is already set by Set")
 	}
@@ -167,14 +167,14 @@ func (mmObserve *mObserverMockObserve) ExpectS1Param2(s1 string) *mObserverMockO
 	if mmObserve.defaultExpectation.paramPtrs == nil {
 		mmObserve.defaultExpectation.paramPtrs = &ObserverMockObserveParamPtrs{}
 	}
-	mmObserve.defaultExpectation.paramPtrs.s1 = &s1
-	mmObserve.defaultExpectation.expectationOrigins.originS1 = minimock.CallerInfo(1)
+	mmObserve.defaultExpectation.paramPtrs.outcome = &outcome
+	mmObserve.defaultExpectation.expectationOrigins.originOutcome = minimock.CallerInfo(1)
 
 	return mmObserve
 }
 
-// ExpectI1Param3 sets up expected param i1 for Observer.Observe
-func (mmObserve *mObserverMockObserve) ExpectI1Param3(i1 int64) *mObserverMockObserve {
+// ExpectMissingParam3 sets up expected param missing for Observer.Observe
+func (mmObserve *mObserverMockObserve) ExpectMissingParam3(missing int64) *mObserverMockObserve {
 	if mmObserve.mock.funcObserve != nil {
 		mmObserve.mock.t.Fatalf("ObserverMock.Observe mock is already set by Set")
 	}
@@ -190,14 +190,14 @@ func (mmObserve *mObserverMockObserve) ExpectI1Param3(i1 int64) *mObserverMockOb
 	if mmObserve.defaultExpectation.paramPtrs == nil {
 		mmObserve.defaultExpectation.paramPtrs = &ObserverMockObserveParamPtrs{}
 	}
-	mmObserve.defaultExpectation.paramPtrs.i1 = &i1
-	mmObserve.defaultExpectation.expectationOrigins.originI1 = minimock.CallerInfo(1)
+	mmObserve.defaultExpectation.paramPtrs.missing = &missing
+	mmObserve.defaultExpectation.expectationOrigins.originMissing = minimock.CallerInfo(1)
 
 	return mmObserve
 }
 
-// ExpectD1Param4 sets up expected param d1 for Observer.Observe
-func (mmObserve *mObserverMockObserve) ExpectD1Param4(d1 time.Duration) *mObserverMockObserve {
+// ExpectElapsedParam4 sets up expected param elapsed for Observer.Observe
+func (mmObserve *mObserverMockObserve) ExpectElapsedParam4(elapsed time.Duration) *mObserverMockObserve {
 	if mmObserve.mock.funcObserve != nil {
 		mmObserve.mock.t.Fatalf("ObserverMock.Observe mock is already set by Set")
 	}
@@ -213,14 +213,14 @@ func (mmObserve *mObserverMockObserve) ExpectD1Param4(d1 time.Duration) *mObserv
 	if mmObserve.defaultExpectation.paramPtrs == nil {
 		mmObserve.defaultExpectation.paramPtrs = &ObserverMockObserveParamPtrs{}
 	}
-	mmObserve.defaultExpectation.paramPtrs.d1 = &d1
-	mmObserve.defaultExpectation.expectationOrigins.originD1 = minimock.CallerInfo(1)
+	mmObserve.defaultExpectation.paramPtrs.elapsed = &elapsed
+	mmObserve.defaultExpectation.expectationOrigins.originElapsed = minimock.CallerInfo(1)
 
 	return mmObserve
 }
 
 // Inspect accepts an inspector function that has same arguments as the Observer.Observe
-func (mmObserve *mObserverMockObserve) Inspect(f func(ctx context.Context, s1 string, i1 int64, d1 time.Duration)) *mObserverMockObserve {
+func (mmObserve *mObserverMockObserve) Inspect(f func(ctx context.Context, outcome string, missing int64, elapsed time.Duration)) *mObserverMockObserve {
 	if mmObserve.mock.inspectFuncObserve != nil {
 		mmObserve.mock.t.Fatalf("Inspect function is already set for ObserverMock.Observe")
 	}
@@ -245,7 +245,7 @@ func (mmObserve *mObserverMockObserve) Return() *ObserverMock {
 }
 
 // Set uses given function f to mock the Observer.Observe method
-func (mmObserve *mObserverMockObserve) Set(f func(ctx context.Context, s1 string, i1 int64, d1 time.Duration)) *ObserverMock {
+func (mmObserve *mObserverMockObserve) Set(f func(ctx context.Context, outcome string, missing int64, elapsed time.Duration)) *ObserverMock {
 	if mmObserve.defaultExpectation != nil {
 		mmObserve.mock.t.Fatalf("Default expectation is already set for the Observer.Observe method")
 	}
@@ -261,14 +261,14 @@ func (mmObserve *mObserverMockObserve) Set(f func(ctx context.Context, s1 string
 
 // When sets expectation for the Observer.Observe which will trigger the result defined by the following
 // Then helper
-func (mmObserve *mObserverMockObserve) When(ctx context.Context, s1 string, i1 int64, d1 time.Duration) *ObserverMockObserveExpectation {
+func (mmObserve *mObserverMockObserve) When(ctx context.Context, outcome string, missing int64, elapsed time.Duration) *ObserverMockObserveExpectation {
 	if mmObserve.mock.funcObserve != nil {
 		mmObserve.mock.t.Fatalf("ObserverMock.Observe mock is already set by Set")
 	}
 
 	expectation := &ObserverMockObserveExpectation{
 		mock:               mmObserve.mock,
-		params:             &ObserverMockObserveParams{ctx, s1, i1, d1},
+		params:             &ObserverMockObserveParams{ctx, outcome, missing, elapsed},
 		expectationOrigins: ObserverMockObserveExpectationOrigins{origin: minimock.CallerInfo(1)},
 	}
 	mmObserve.expectations = append(mmObserve.expectations, expectation)
@@ -303,17 +303,17 @@ func (mmObserve *mObserverMockObserve) invocationsDone() bool {
 }
 
 // Observe implements mm_access.Observer
-func (mmObserve *ObserverMock) Observe(ctx context.Context, s1 string, i1 int64, d1 time.Duration) {
+func (mmObserve *ObserverMock) Observe(ctx context.Context, outcome string, missing int64, elapsed time.Duration) {
 	mm_atomic.AddUint64(&mmObserve.beforeObserveCounter, 1)
 	defer mm_atomic.AddUint64(&mmObserve.afterObserveCounter, 1)
 
 	mmObserve.t.Helper()
 
 	if mmObserve.inspectFuncObserve != nil {
-		mmObserve.inspectFuncObserve(ctx, s1, i1, d1)
+		mmObserve.inspectFuncObserve(ctx, outcome, missing, elapsed)
 	}
 
-	mm_params := ObserverMockObserveParams{ctx, s1, i1, d1}
+	mm_params := ObserverMockObserveParams{ctx, outcome, missing, elapsed}
 
 	// Record call args
 	mmObserve.ObserveMock.mutex.Lock()
@@ -332,7 +332,7 @@ func (mmObserve *ObserverMock) Observe(ctx context.Context, s1 string, i1 int64,
 		mm_want := mmObserve.ObserveMock.defaultExpectation.params
 		mm_want_ptrs := mmObserve.ObserveMock.defaultExpectation.paramPtrs
 
-		mm_got := ObserverMockObserveParams{ctx, s1, i1, d1}
+		mm_got := ObserverMockObserveParams{ctx, outcome, missing, elapsed}
 
 		if mm_want_ptrs != nil {
 
@@ -341,19 +341,19 @@ func (mmObserve *ObserverMock) Observe(ctx context.Context, s1 string, i1 int64,
 					mmObserve.ObserveMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
 			}
 
-			if mm_want_ptrs.s1 != nil && !minimock.Equal(*mm_want_ptrs.s1, mm_got.s1) {
-				mmObserve.t.Errorf("ObserverMock.Observe got unexpected parameter s1, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
-					mmObserve.ObserveMock.defaultExpectation.expectationOrigins.originS1, *mm_want_ptrs.s1, mm_got.s1, minimock.Diff(*mm_want_ptrs.s1, mm_got.s1))
+			if mm_want_ptrs.outcome != nil && !minimock.Equal(*mm_want_ptrs.outcome, mm_got.outcome) {
+				mmObserve.t.Errorf("ObserverMock.Observe got unexpected parameter outcome, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmObserve.ObserveMock.defaultExpectation.expectationOrigins.originOutcome, *mm_want_ptrs.outcome, mm_got.outcome, minimock.Diff(*mm_want_ptrs.outcome, mm_got.outcome))
 			}
 
-			if mm_want_ptrs.i1 != nil && !minimock.Equal(*mm_want_ptrs.i1, mm_got.i1) {
-				mmObserve.t.Errorf("ObserverMock.Observe got unexpected parameter i1, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
-					mmObserve.ObserveMock.defaultExpectation.expectationOrigins.originI1, *mm_want_ptrs.i1, mm_got.i1, minimock.Diff(*mm_want_ptrs.i1, mm_got.i1))
+			if mm_want_ptrs.missing != nil && !minimock.Equal(*mm_want_ptrs.missing, mm_got.missing) {
+				mmObserve.t.Errorf("ObserverMock.Observe got unexpected parameter missing, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmObserve.ObserveMock.defaultExpectation.expectationOrigins.originMissing, *mm_want_ptrs.missing, mm_got.missing, minimock.Diff(*mm_want_ptrs.missing, mm_got.missing))
 			}
 
-			if mm_want_ptrs.d1 != nil && !minimock.Equal(*mm_want_ptrs.d1, mm_got.d1) {
-				mmObserve.t.Errorf("ObserverMock.Observe got unexpected parameter d1, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
-					mmObserve.ObserveMock.defaultExpectation.expectationOrigins.originD1, *mm_want_ptrs.d1, mm_got.d1, minimock.Diff(*mm_want_ptrs.d1, mm_got.d1))
+			if mm_want_ptrs.elapsed != nil && !minimock.Equal(*mm_want_ptrs.elapsed, mm_got.elapsed) {
+				mmObserve.t.Errorf("ObserverMock.Observe got unexpected parameter elapsed, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmObserve.ObserveMock.defaultExpectation.expectationOrigins.originElapsed, *mm_want_ptrs.elapsed, mm_got.elapsed, minimock.Diff(*mm_want_ptrs.elapsed, mm_got.elapsed))
 			}
 
 		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
@@ -365,10 +365,10 @@ func (mmObserve *ObserverMock) Observe(ctx context.Context, s1 string, i1 int64,
 
 	}
 	if mmObserve.funcObserve != nil {
-		mmObserve.funcObserve(ctx, s1, i1, d1)
+		mmObserve.funcObserve(ctx, outcome, missing, elapsed)
 		return
 	}
-	mmObserve.t.Fatalf("Unexpected call to ObserverMock.Observe. %v %v %v %v", ctx, s1, i1, d1)
+	mmObserve.t.Fatalf("Unexpected call to ObserverMock.Observe. %v %v %v %v", ctx, outcome, missing, elapsed)
 
 }
 

@@ -2,6 +2,8 @@ package config
 
 import (
 	"time"
+
+	"github.com/IBM/sarama"
 )
 
 type PGConfig interface {
@@ -36,11 +38,23 @@ type MetricsConfig interface {
 
 type KafkaConfig interface {
 	Brokers() []string
-	AccessTopic() string
+}
+
+type SaramaConfig interface {
+	Config() *sarama.Config
 	GroupID() string
-	RetryInterval() time.Duration
-	ProcessingTimeout() time.Duration
-	MaxEventBytes() int
+}
+
+type ObjectReadConsumerConfig interface {
+	Topic() string
+}
+
+type ObjectWrittenConsumerConfig interface {
+	Topic() string
+}
+
+type RetryConfig interface {
+	Interval() time.Duration
 }
 
 type HTTPConfig interface {

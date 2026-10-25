@@ -59,8 +59,10 @@ services:
       PG_TIMEOUT: 5s
       PG_LOGGING: "false"
       KAFKA_BOOTSTRAP: kafka:29092
-      KAFKA_ACCESS_TOPIC: "${KAFKA_ACCESS_TOPIC:-opens3.access.v1}"
-      KAFKA_GROUP_ID: sppr-ingestor-v1
+      KAFKA_OBJECT_READ_TOPIC: "${KAFKA_OBJECT_READ_TOPIC:-object-read}"
+      KAFKA_OBJECT_WRITTEN_TOPIC: "${KAFKA_OBJECT_WRITTEN_TOPIC:-object-written}"
+      KAFKA_CONSUMER_GROUP_ID: sppr
+      KAFKA_RETRY_INTERVAL: 1s
       LOGGER_LEVEL: info
       LOGGER_AS_JSON: "true"
       LOGGER_ENABLE_OLTP: "false"

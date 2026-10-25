@@ -16,8 +16,9 @@ import (
 
 func TestIngest(t *testing.T) {
 	ctx := context.Background()
-	event := model.AccessEvent{SchemaVersion: 1, GatewayID: "gw", StreamID: "run", Sequence: 1,
-		OccurredAt: time.Date(2026, 10, 21, 12, 0, 0, 0, time.UTC), Bucket: "bucket", ObjectKey: "key", VersionID: "v1", Operation: "read", Origin: "client", Result: "success", Bytes: 100}
+	event := model.AccessEvent{GatewayID: "gw", StreamID: "run", Sequence: 1,
+		OccurredAt: time.Date(2026, 10, 21, 12, 0, 0, 0, time.UTC), Bucket: "bucket", ObjectKey: "key", VersionID: "v1",
+		Operation: model.OperationRead, Origin: model.OriginClient, Result: model.ResultSuccess, Bytes: 100, Payload: []byte("raw")}
 	delivery := model.Delivery{Topic: "access", Partition: 0, Offset: 0}
 	repoErr := errors.New("repository unavailable")
 	commitErr := errors.New("commit failed")
@@ -72,7 +73,7 @@ func TestIngest(t *testing.T) {
 			r, tx := tt.build(mc, tt.args)
 			result, err := ingestor.NewService(r, tx).Ingest(ctx, tt.args.event, tt.args.delivery)
 			if tt.validationError {
-				require.Error(t, err)
+				require.ErrorIs(t, err, model.ErrRejected)
 				require.Equal(t, uint64(0), r.StoreAfterCounter())
 				require.Equal(t, uint64(0), tx.ReadCommittedAfterCounter())
 			} else {
