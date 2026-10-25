@@ -9,23 +9,25 @@ Gateway принимает обычный PUT/GET объекта, передаё
 каталогом Metadata. HTTP-сервер также предоставляет `GET /healthz` и завершает
 активные запросы при SIGINT/SIGTERM. Для локальной разработки доступны Swagger
 UI, нормализованные HTTP-метрики и трассировка без bucket/key в labels.
-При `ACCESS_EVENTS_ENABLED=true` публикует результаты обращений в Kafka для SPPR.
+При `ACCESS_EVENTS_ENABLED=true` публикует успешные GET и PUT в Kafka для SPPR.
 
 ## Архитектура и зависимости
 
 ```text
 HTTP client → Gateway → Metadata gRPC (bucket и версии)
                       → Storage gRPC (байты blob)
-             → bounded queue → Kafka opens3.access.v1 → SPPR
+     object service → AccessProducerService → sarama AsyncProducer → Kafka object-read
+                                                                    → Kafka object-written → SPPR
 ```
 
 Для работы с объектами нужны доступные Metadata и один Storage node. При включённых
 событиях Gateway также подключается к Kafka; PostgreSQL остаётся зависимостью
 Metadata и SPPR. Внутренние gRPC-соединения в локальном стенде используют plaintext.
-Контракт события и валидация общие с SPPR: `shared/pkg/go-kit/events/access`.
-Producer собирает service provider; HTTP handlers сообщают результат передачи.
-Consumer SPPR поставляется отдельным PR. Gateway запускается и публикует события
-без него; PostgreSQL и миграции Ingestor в этом срезе не требуются.
+Контракт — `shared/api/events/v1/access.proto`, решения — [спека Kafka](../../docs/kafka-spec.md).
+Как в UserServer из `messenger-overview` (раздел 5.1 спеки), на процесс создаётся
+один `sarama.AsyncProducer` и по `kafka.Producer` из go-kit на topic. HTTP handlers про события не
+знают. Consumer SPPR поставляется отдельным PR; Gateway запускается и публикует
+события без него.
 
 ## Структура проекта
 
@@ -40,8 +42,8 @@ internal/errors/domain_errors/ ошибки сценариев и чтения �
 internal/service/object/    сценарии PUT/GET с Metadata и Storage
 internal/handler/httpapi/   HTTP-маршруты, заголовки и коды ответов
 internal/observability/     HTTP spans и метрики с нормализованными route
-internal/publisher/access/  bounded queue, нумерация и последовательная доставка событий
-pkg/mocks/                  сгенерированные minimock для клиентов и ObjectService
+internal/service/producer/access/ потоки с номерами и публикация ObjectRead/ObjectWritten; noop при выключенных событиях
+pkg/mocks/                  сгенерированные minimock для клиентов, сервисов и kafka.Producer
 docs/                       сгенерированная Swagger/OpenAPI 2.0 схема
 ```
 
@@ -95,28 +97,26 @@ committed-версию. `pending/committed/aborted` orchestration, operation ID 
 ещё одну версию: идемпотентность и проверка результата по operation ID пока
 отсутствуют.
 
-При включённых событиях GET становится `read/client/success` только после EOF
-Storage и успешной записи последнего байта в HTTP writer. Ошибки RPC, частичная
-передача, ошибка writer и отмена GET дают `result=error`. Для GET `bytes` — число
-байтов, принятых HTTP writer; это не подтверждение получения клиентом, поскольку
-сетевой стек может ещё буферизовать их. PUT становится `write/client/success`
-после регистрации версии в Metadata, даже если после commit клиент отменил
-запрос. Для PUT `bytes` — число байтов, прочитанных из HTTP body, включая chunked
-upload, а не объявленный Content-Length. Завершённые ошибки тоже публикуются;
-health/swagger, неверные object paths и неподдерживаемые методы событий не создают.
+При включённых событиях object service публикует только успешные операции.
+`ObjectRead` уходит в `object-read` после открытия потока из Storage; `bytes` —
+размер объекта (Range пока нет). Чтение, оборванное на середине передачи,
+считается чтением: спрос был. `ObjectWritten` уходит в `object-written` после
+`CreateObjectVersion`, даже если клиент уже отменил запрос; `bytes` — размер,
+сохранённый Storage. Ошибки, health/swagger и неверные пути событий не создают.
+`origin` пока всегда `ORIGIN_CLIENT`; признак Migration Executor появится в шаге 3.6.
 
-Очередь хранится в памяти. Sequence, время UTC до микросекунд и enqueue
-назначаются под одним mutex; регрессия часов ограничивается последним временем
-потока. При переполнении номер расходуется, событие отбрасывается, а последующее
-событие позволяет SPPR обнаружить gap. Один sender повторяет тот же payload до
-успеха, не отправляя следующее событие поверх ошибки. HTTP не ожидает Kafka, но
-выполняет валидацию, сериализацию и enqueue. Ошибка аналитики не меняет HTTP-результат.
+У каждого topic свой поток: `stream_id` — новый UUID при старте, `sequence` — с
+1 без дыр. Kafka key — `gateway_id/stream_id`, поэтому поток попадает в одну
+partition. Присвоение номера и времени, marshal и `Send` выполняются под одним
+мьютексом потока, иначе событие N+1 могло бы попасть в sarama раньше N.
 
-`stream_id` — новый UUID при создании producer. Kafka partition выбирается по
-stream key один раз на startup и закрепляется до конца потока, включая расширение
-topic. Используются idempotent producer, `acks=all` и один outstanding broker
-request. Trace context передаётся через `traceparent`. Deadline отправки означает
-неизвестный результат ack; retry сохраняет sequence/payload, SPPR дедуплицирует повтор.
+`Send` не ждёт Kafka: сообщение передаётся в `Input()` sarama, буфер, ретраи и
+порядок дальше обеспечивает sarama. `Input()` небуферизованный, поэтому `Send`
+ждёт передачи около 1 мс (таймер); если буферы sarama полны, возвращается
+`ErrBufferFull`. Номер при этом потрачен, и SPPR увидит пропуск. Окончательная
+ошибка доставки после ретраев приходит в `Errors()` и тоже становится пропуском.
+Методы `AccessProducerService` ошибку не возвращают: событие — телеметрия, и
+S3-операция её не видит.
 
 ## Конфигурация
 
@@ -128,13 +128,10 @@ request. Trace context передаётся через `traceparent`. Deadline �
 | `STORAGE_GRPC_ADDR` | `localhost:50053` | `storage:50053` |
 | `STORAGE_RETRIEVE_CHUNK_SIZE_BYTES` | `1048576` (1 MiB) | `${STORAGE_RETRIEVE_CHUNK_SIZE_BYTES:-1048576}` |
 | `ACCESS_EVENTS_ENABLED` | `false` | `${ACCESS_EVENTS_ENABLED:-true}` |
-| `GATEWAY_ID` | обязателен при включении; `[A-Za-z0-9_.-]{1,128}` | `${GATEWAY_ID:-gateway-local}` |
-| `KAFKA_BOOTSTRAP` | обязателен при включении; список `host:port` | `kafka:29092` |
-| `KAFKA_ACCESS_TOPIC` | `opens3.access.v1` | тот же topic, что у SPPR |
-| `ACCESS_EVENTS_QUEUE_CAPACITY` | `1024`, допустимо 1–65536 | `1024` |
-| `ACCESS_EVENTS_RETRY_INTERVAL` | `1s`, допустимо 1ms–1m | `1s` |
-| `ACCESS_EVENTS_SEND_TIMEOUT` | `2s`, допустимо 1ms–30s | `2s` |
-| `ACCESS_EVENTS_SHUTDOWN_TIMEOUT` | `10s`, допустимо 1ms–1m | `10s` |
+| `GATEWAY_ID` | обязателен при включении; SPPR принимает `[A-Za-z0-9_.-]{1,128}` | `${GATEWAY_ID:-gateway-1}` |
+| `KAFKA_BOOTSTRAP` | `localhost:9092`; список `host:port` через запятую | `kafka:29092` |
+| `KAFKA_OBJECT_READ_TOPIC` | `object-read` | `${KAFKA_OBJECT_READ_TOPIC:-object-read}` |
+| `KAFKA_OBJECT_WRITTEN_TOPIC` | `object-written` | `${KAFKA_OBJECT_WRITTEN_TOPIC:-object-written}` |
 | `LOGGER_LEVEL` | `info` | `info` |
 | `LOGGER_AS_JSON` | `false` | `false` |
 | `LOGGER_ENABLE_OLTP` | `false` | `false` |
@@ -145,18 +142,17 @@ request. Trace context передаётся через `traceparent`. Deadline �
 | `OTEL_ENVIRONMENT` | `local` | `${GATEWAY_ENVIRONMENT:-local}` |
 | `OTEL_METRICS_PUSH_TIMEOUT` | `30s` | `${GATEWAY_METRICS_PUSH_TIMEOUT:-30s}` |
 
-При выключенных событиях Kafka client и sender не создаются. При включении Kafka
-и topic должны быть доступны на startup; ошибка подключения возвращается из
-инициализации с конечными сетевыми таймаутами. Runtime outage обрабатывается
-очередью и retry. `ACCESS_EVENTS_SEND_TIMEOUT` задаёт deadline попытки sender и
-сетевые/produce таймауты Sarama; отмена ожидания ack не отменяет уже принятую отправку.
+При `ACCESS_EVENTS_ENABLED=false` provider отдаёт noop-сервис, Kafka client не
+создаётся. При включении Kafka должна быть доступна на startup: иначе
+`sarama.NewAsyncProducer` возвращает ошибку и Gateway не стартует. Отказ Kafka
+после старта обрабатывают буфер и ретраи sarama.
 
-После завершения HTTP drain приложение прекращает приём событий и пытается
-выгрузить очередь в пределах `ACCESS_EVENTS_SHUTDOWN_TIMEOUT`, затем закрывает
-producer с отдельным таким же бюджетом для завершения in-flight сообщений и
-completion-router, затем gRPC-зависимости и telemetry. Это два отдельных этапа;
-параметр не ограничивает суммарное время остановки приложения. Неотправленный хвост при timeout отражается
-в логах и dropped counter. Пример локальных настроек — [.env.example](.env.example).
+Параметры sarama — константы `internal/config/env/sarama.go`, не env:
+idempotent producer, `RequiredAcks=WaitForAll`, `Net.MaxOpenRequests=1`,
+`Return.Successes=false`, `ChannelBufferSize=1024`, `Retry.Max=5`,
+`Retry.Backoff=200ms`, `Version=V2_8_0_0`. После HTTP drain closer вызывает
+`AsyncProducer.Close()`: sarama дотправляет буфер в пределах общего shutdown
+timeout (10 s). Пример локальных настроек — [.env.example](.env.example).
 
 Каждый Metadata RPC ограничен `METADATA_RPC_TIMEOUT` (положительная duration).
 Более короткий deadline исходного контекста сохраняется. Таймаут действует
@@ -193,7 +189,7 @@ docker compose --profile services ps gateway metadata storage
 
 Команда поднимает Gateway, Metadata, Storage и инфраструктурные зависимости
 Metadata. Kafka запускается после проверки готовности ZooKeeper. Bucket должен быть создан заранее через Metadata. Для запуска вне
-Docker поднимите Metadata и Storage, затем:
+Docker поднимите Metadata и Storage (и Kafka, если события включены), затем:
 
 ```bash
 cd services/gateway
@@ -230,11 +226,13 @@ curl -i http://127.0.0.1:8080/healthz
 route и status. HTTP trace context передаётся в Metadata и streaming-вызовы
 Storage. Для логов контейнера: `docker compose logs -f gateway`.
 
-`gateway_access_events_total` использует `outcome=queued|sent|retry|dropped`.
-Для dropped `reason=queue_full|invalid|shutdown`; object keys и stream IDs в labels
-отсутствуют. Drop logs показывают нарастающий итог без записи на каждый запрос;
-при shutdown timeout отдельно выводится `pending_events`. `/healthz` не проверяет
-готовность аналитики: следите за retry/dropped и полнотой истории в SPPR.
+Потерянные события видны в двух счётчиках. `gateway_access_events_dropped_total`
+(`event=object_read|object_written`, `reason=buffer_full|error`) считает события,
+которые sarama не принял. `gateway_kafka_delivery_errors_total` (`topic`) считает
+сообщения, которые sarama не доставил после ретраев. Каждая потеря пишется в лог
+(`Access event dropped`, `Failed to deliver message`); object keys и stream IDs в
+labels отсутствуют. `/healthz` не проверяет Kafka: полноту истории показывает
+`ingestion_gaps` в SPPR.
 
 ## Разработка и тесты
 
@@ -270,20 +268,22 @@ go run ./services/gateway/cmd/smoke -gateway http://127.0.0.1:8080 -metadata 127
   Каждый case создаёт свой minimock controller; версия генератора minimock закреплена в
   `pkg/mocks/generate.go`.
 - `internal/service/object/tests/`: порядок вызовов Metadata и Storage, `WithoutCancel`
-  при регистрации версии, отсутствие downstream-вызовов при раннем отказе.
+  при регистрации версии, отсутствие downstream-вызовов при раннем отказе, вызов
+  `AccessProducerService` только после успеха.
 - `internal/handler/httpapi/*_test.go` (component): настоящий HTTP и настоящие gRPC-клиенты
   поверх фейков Metadata/Storage. Проверяют потоковую передачу PUT до EOF, публикацию версии
   только после commit Storage, обрыв GET, отмену клиента и то, что неудачный PUT ничего не
   оставляет (`TestUpstreamFailures`).
 - `internal/app`: сборка приложения (`newTestApp`), 503 при недоступном Metadata,
-  `METADATA_RPC_TIMEOUT` → 504, graceful shutdown.
-- `internal/config/env/config_test.go`: имена переменных и валидация.
-- `internal/handler/httpapi/access_test.go`: outcome и фактические байты GET/PUT,
-  EOF, partial stream, writer failure, отсутствие событий служебных маршрутов.
-- `internal/publisher/access/record_test.go`: concurrent sequence/time, retry
-  identity, overflow/gap, отмена sender и конкурентный Record/Close.
-- `shared/pkg/go-kit/kafka/producer/async_test.go`: broker error и late ack,
-  который не должен завершать отправку другого сообщения.
+  `METADATA_RPC_TIMEOUT` → 504, graceful shutdown, noop без Kafka client при
+  выключенных событиях, ошибка startup при недоступной Kafka.
+- `internal/config/env/config_test.go`: имена переменных, валидация и корректность
+  idempotent-настроек sarama.
+- `internal/service/producer/access/`: номера идут подряд, `ErrBufferFull` тратит
+  номер, у каждого topic свой `stream_id` и счётчик, конкурентные события попадают
+  в producer по порядку номеров (проверяется под `-race`).
+- `shared/pkg/go-kit/kafka/producer/async_test.go`: `Send` при полном буфере
+  возвращает `ErrBufferFull` без ожидания Kafka; `LogErrors` вычитывает ошибки.
 
 Фейки Metadata и Storage общие и лежат в `internal/testkit` (`testkit.New()`, затем
 `Dial` для bufconn или `ListenTCP` для настоящего порта). Поведение настраивается полями и
@@ -301,12 +301,13 @@ pending-версии и отдельная фиксация в Metadata. Пос�
 восстановление зависших операций.
 
 События обращений не сохраняются на диск в Gateway: crash может потерять хвост
-очереди. Без следующего события такой хвост не обнаруживается. Durable outbox,
-heartbeat, общий watermark и восстановление gaps в этот срез не входят.
+буфера sarama. Без следующего события такой хвост не обнаруживается; это закроет
+heartbeat. Durable outbox, heartbeat, trace context в Kafka, общий watermark и
+восстановление gaps в этот срез не входят.
 
 ## Связанные документы
 
 - [Metadata](../metadata/README.md) и [Storage](../storage/README.md).
-- [Контракт и требования к событиям](../../docs/gateway-access-events.md).
+- [Спека событий доступа через Kafka](../../docs/kafka-spec.md).
 - [Проект политики Gateway](../../docs/gateway-contract-plan.md).
 - [Первый запуск](../../GETTING_STARTED.md).
