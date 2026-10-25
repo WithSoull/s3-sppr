@@ -29,7 +29,8 @@
 4. **Kafka-код в фиксированных местах** (раздел 5); доменные сервисы видят только
    `AccessProducerService` (Gateway) и `Ingestor` (SPPR).
 5. **Async publish без своей очереди**: буфер, ретраи и порядок даёт
-   `sarama.AsyncProducer`; `Send` никогда не блокирует запрос.
+   `sarama.AsyncProducer`; `Send` не ждёт Kafka (передача в sarama — около 1 мс,
+   см. 4.1).
 6. **Обнаружение потерь — через поток с номерами** (`stream_id` + `sequence`),
    дедупликация — inbox по `(gateway_id, stream_id, sequence)`.
 
@@ -106,8 +107,9 @@ var ErrBufferFull = errors.New("kafka producer buffer is full")
 // NewAsyncProducer реализует kafka.Producer поверх общего sarama.AsyncProducer.
 func NewAsyncProducer(ap sarama.AsyncProducer, topic string) kafka.Producer
 
-// Send кладёт сообщение в ap.Input() через select/default и сразу возвращается:
-// nil — принято в буфер sarama, ErrBufferFull — буфер полон, событие потеряно.
+// Send передаёт сообщение в ap.Input(): сначала select/default, затем ждёт
+// около 1 мс (таймер). nil — принято sarama, ErrBufferFull — буферы полны,
+// событие потеряно.
 func (p *asyncProducer) Send(ctx context.Context, key, value []byte, _ kafka.PrettyDecoder) error
 
 // LogErrors вычитывает ap.Errors() до закрытия producer'а: логирует и вызывает
@@ -115,6 +117,12 @@ func (p *asyncProducer) Send(ctx context.Context, key, value []byte, _ kafka.Pre
 func LogErrors(ap sarama.AsyncProducer, logger Logger, onError func(topic string))
 ```
 
+- `ap.Input()` в sarama небуферизованный: dispatcher забирает сообщения по
+  одному и перекладывает в буферы `ChannelBufferSize`. Голый select/default
+  отказывает, пока dispatcher занят предыдущим сообщением: при здоровой Kafka
+  замер дал 3.5 % ложных `ErrBufferFull` на ~2000 msg/s и 21.5 % на 16
+  параллельных отправителях. С ожиданием до 1 мс ложных потерь нет. Цена: при
+  долгом отказе Kafka, когда буферы заполнены, каждый GET/PUT ждёт около 1 мс.
 - Один `sarama.AsyncProducer` на процесс, по одному `kafka.Producer` на топик —
   как `SyncProducer` в эталоне.
 - `Return.Successes = false` — канал успехов не читаем.
@@ -263,7 +271,7 @@ services/sppr/internal/
 | Отказ | Поведение | Чем обеспечено |
 |---|---|---|
 | Kafka недоступна недолго | GET/PUT не замедляются, события дотправляются | буфер и ретраи `AsyncProducer` |
-| Kafka недоступна долго | GET/PUT не замедляются, часть событий теряется, пропуск виден в SPPR | `ErrBufferFull` / `Errors()` + `sequence` |
+| Kafka недоступна долго | GET/PUT ждут передачу в sarama около 1 мс, часть событий теряется, пропуск виден в SPPR | `ErrBufferFull` / `Errors()` + `sequence` |
 | Рестарт / падение Gateway | новый `stream_id`; буфер при graceful stop дотправляется, при падении теряется | `closer` + `ap.Close()`; хвост — см. ниже |
 | SPPR или его PG недоступны | события ждут в Kafka, ingestor догоняет | commit offset после транзакции + `Retry` |
 | Дубли (ретрай producer, redelivery) | спрос не растёт | inbox по `(stream, sequence)` + `payload_hash` |
