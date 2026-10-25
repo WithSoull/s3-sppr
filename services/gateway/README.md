@@ -202,23 +202,31 @@ MD5/ETag, размер, Content-Type и версия. Данные остают�
 go run ./services/gateway/cmd/smoke -gateway http://127.0.0.1:8080 -metadata 127.0.0.1:50052 -timeout 3m
 ```
 
-Unit-тесты `internal/service/object/tests/` и `internal/handler/httpapi/*_unit_test.go`
-используют minimock с отдельным controller на каждый case. Они проверяют
-аргументы вызовов, результаты, передачу ошибок и отсутствие downstream-вызовов
-при раннем отказе. Handler-тесты также проверяют закрытие GET-потока при успехе
-и обрыве ответа. Версия генератора minimock закреплена в `pkg/mocks/generate.go`.
+Тесты разложены по слоям, и каждый факт проверяется в одном месте:
 
-Компонентные тесты Gateway используют контролируемые gRPC-серверы, чтобы проверить передачу
-PUT до EOF, отсутствие записи Metadata до подтверждения Storage, ранний отказ
-Storage и обрыв неуспешного GET. Дополнительно проверяются отмена HTTP GET,
-передача deadline в Metadata и Storage, 404 для отсутствующего объекта, 503
-при недоступном Metadata, переиспользование клиентов и завершение активного
-запроса до закрытия gRPC-соединений при shutdown. Регрессионные тесты также проверяют ошибку Storage после всех заявленных байтов
-на стороне настоящего HTTP-клиента, пустой и избыточный поток, ошибку чтения
-PUT, полный HTTP mapping ошибок и bucket `swagger`. Зависшие Metadata RPC
-проверяются через HTTP-вход приложения: deadline добавляется Gateway, клиент
-получает 504, а downstream прекращает ожидание.
-Это дополняет smoke с настоящими сервисами.
+- `internal/client/{metadata,storage}`: gRPC-код → доменная ошибка (`ErrMetadataOverloaded`,
+  `ErrInsufficientStorage`, `ErrBlobMissing`), ошибка чтения тела, пустой поток;
+  `internal/client/propagation_test.go`: deadline вызывающего доходит до Metadata и Storage.
+- `internal/handler/httpapi/errors_test.go`: единственная таблица «ошибка → HTTP-статус».
+  Unit-тесты handler (`*_unit_test.go`, minimock) проверяют разбор пути, аргументы вызова
+  сервиса, заголовки и закрытие тела (включая обрыв GET), а не повторяют таблицу статусов.
+  Каждый case создаёт свой minimock controller; версия генератора minimock закреплена в
+  `pkg/mocks/generate.go`.
+- `internal/service/object/tests/`: порядок вызовов Metadata и Storage, `WithoutCancel`
+  при регистрации версии, отсутствие downstream-вызовов при раннем отказе.
+- `internal/handler/httpapi/*_test.go` (component): настоящий HTTP и настоящие gRPC-клиенты
+  поверх фейков Metadata/Storage. Проверяют потоковую передачу PUT до EOF, публикацию версии
+  только после commit Storage, обрыв GET, отмену клиента и то, что неудачный PUT ничего не
+  оставляет (`TestUpstreamFailures`).
+- `internal/app`: сборка приложения (`newTestApp`), 503 при недоступном Metadata,
+  `METADATA_RPC_TIMEOUT` → 504, graceful shutdown.
+- `internal/config/env/config_test.go`: имена переменных и валидация.
+
+Фейки Metadata и Storage общие и лежат в `internal/testkit` (`testkit.New()`, затем
+`Dial` для bufconn или `ListenTCP` для настоящего порта). Поведение настраивается полями и
+хуками: `FailStore`, `FailRetrieve`, `FailMetadata(err, ops...)`, `OnMetadata`,
+`BeforeCommit`, `BeforeNextChunk`. Новый сценарий добавляйте строкой в существующую
+таблицу, а не новым фейком. Всё это дополняет smoke с настоящими сервисами.
 Изменение protobuf для этого первого среза не требуется.
 
 ## Ограничения и дальнейшие работы

@@ -27,7 +27,6 @@ func TestPut(t *testing.T) {
 	}
 	type mockBuilder func(*minimock.Controller, args) (*mocks.MetadataClientMock, *mocks.StorageClientMock)
 	upstreamErr := errors.New("upstream failed")
-	readErr := &domainerrors.BodyReadError{Err: io.ErrUnexpectedEOF}
 	size := int64(4)
 	input := args{
 		ctx:         context.Background(),
@@ -96,18 +95,6 @@ func TestPut(t *testing.T) {
 				meta, storage := mocks.NewMetadataClientMock(mc), mocks.NewStorageClientMock(mc)
 				meta.HeadBucketMock.Expect(a.ctx, a.bucket).Return(true, nil)
 				storage.StoreMock.Expect(a.ctx, a.body, a.size, a.contentType).Return(model.StoredObject{}, upstreamErr)
-				return meta, storage
-			},
-		},
-		{
-			name:           "body read error",
-			args:           input,
-			wantStoreCalls: 1,
-			wantErr:        readErr,
-			buildMocks: func(mc *minimock.Controller, a args) (*mocks.MetadataClientMock, *mocks.StorageClientMock) {
-				meta, storage := mocks.NewMetadataClientMock(mc), mocks.NewStorageClientMock(mc)
-				meta.HeadBucketMock.Expect(a.ctx, a.bucket).Return(true, nil)
-				storage.StoreMock.Expect(a.ctx, a.body, a.size, a.contentType).Return(model.StoredObject{}, readErr)
 				return meta, storage
 			},
 		},
