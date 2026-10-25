@@ -111,8 +111,8 @@ Storage записывает blob во временный файл, синхро
 
 ### SPPR
 
-Ingestor читает `opens3.access.v1` из Kafka и одной транзакцией сохраняет историю,
-пропуски, прогресс потока и минутный спрос в PostgreSQL. Gateway producer
+Ingestor читает protobuf-события `object-read` и `object-written` из Kafka и одной
+транзакцией сохраняет историю, пропуски, прогресс потока и минутный спрос в PostgreSQL. Gateway producer
 поставляется отдельным [PR #1](https://github.com/WithSoull/s3-sppr/pull/1);
 для автономного Ingestor он не требуется. Прогнозы и размещение ещё не реализованы. Начать чтение
 кода можно с [онбординга SPPR](services/sppr/ONBOARDING.md).

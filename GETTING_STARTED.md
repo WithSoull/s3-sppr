@@ -42,13 +42,13 @@ Kafka ожидает успешной проверки готовности ZooK
 
 Основа СППР запускается отдельно: `make up-sppr`. Команда поднимает SPPR, его
 PostgreSQL и мигратор, Kafka и ZooKeeper без остальных прикладных сервисов.
-Проверка: `curl -f http://localhost:8086/readyz`. Пример событий и детали — в
+Проверка: `curl -f http://localhost:8086/readyz`. Детали — в
 [README SPPR](services/sppr/README.md). Порт БД — 5436; профиль `services`
 не включает SPPR.
 
 Gateway producer поставляется отдельным [PR #1](https://github.com/WithSoull/s3-sppr/pull/1).
-Для автономной проверки Ingestor используйте JSON-пример из README; порядок чтения кода — в
-[онбординге SPPR](services/sppr/ONBOARDING.md).
+Для автономной проверки Ingestor используйте integration tests из README; порядок чтения
+кода — в [онбординге SPPR](services/sppr/ONBOARDING.md).
 
 После мержа обоих PR доступен `make smoke-sppr-local`: дополнительная проверка
 HTTP → Kafka → PostgreSQL. Она не нужна для автономных тестов Ingestor.

@@ -8,7 +8,9 @@ Go services follow the same layout: `cmd/server` for server entrypoints and `int
 
 `services/sppr` is the Go decision-support foundation (currently Kafka Ingestor).
 Use its service provider and shared go-kit clients. Preserve commit-before-ack,
-stream deduplication and atomic event/progress/gap/aggregate updates. Its SQL
+stream deduplication and atomic event/progress/gap/aggregate updates. Mark events
+that a retry cannot fix with `model.ErrRejected` so they are committed; return
+infrastructure errors so the go-kit `Retry` middleware holds the partition. Its SQL
 migrations use migrate up/down files. See `services/sppr/README.md` for the event
 contract and unfinished roadmap steps. Run `make test-sppr`; database/Kafka
 checks use `make test-sppr-integration` with documented test environment variables.

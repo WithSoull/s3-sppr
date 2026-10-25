@@ -53,7 +53,7 @@ Auth AuthZ Meta Storage
   │  Redis  Kafka
 Users :50054 ── PostgreSQL
 Quota :50055 ── Redis ── Kafka
-Kafka opens3.access.v1 → SPPR :8086 (health) → PostgreSQL SPPR
+Kafka object-read, object-written → SPPR :8086 (health) → PostgreSQL SPPR
 ```
 
 Gateway → Auth and Gateway → AuthZ are not implemented yet: Gateway currently
@@ -83,6 +83,8 @@ serves local PUT/GET and calls only Metadata and Storage.
 | `bucket-deleted` | Metadata | AuthZ |
 | `auth-changes` | AuthZ | AuthZ cache_invalidator |
 | `auth-audit` | AuthZ | — (log sink) |
+| `object-read` | Gateway (успешный GET) | SPPR |
+| `object-written` | Gateway (успешный PUT) | SPPR |
 
 Публичные relations: `MEMBER_OF`, `HAS_PERMISSION`, `PARENT_OF`. Для владельца
 используйте `HAS_PERMISSION` с уровнем `ADMIN`; `OWNER_OF` — только legacy-чтение
@@ -93,8 +95,9 @@ serves local PUT/GET and calls only Metadata and Storage.
 SPPR самостоятельно читает Kafka и сохраняет историю, gaps и минутный спрос.
 Runbook — [README](services/sppr/README.md), маршрут чтения —
 [онбординг](services/sppr/ONBOARDING.md). Gateway producer поставляется отдельным
-PR; для запуска и тестов Ingestor он не нужен. Контракт v1 находится в
-`shared/pkg/go-kit/events/access` и включён в оба PR одним общим коммитом.
+PR; для запуска и тестов Ingestor он не нужен. Контракт —
+`shared/api/events/v1/access.proto`, решения — [спека Kafka](docs/kafka-spec.md).
+Оба PR зависят от общей ветки `feat/access-events-contract`.
 
 | Service | Does NOT |
 |---|---|

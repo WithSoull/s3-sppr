@@ -1,3 +1,0 @@
-{"schema_version":1,"gateway_id":"demo-gateway","stream_id":"demo-run-1","sequence":1,"occurred_at":"2026-10-21T12:00:00Z","bucket":"demo","object_key":"object.bin","version_id":"v1","operation":"read","origin":"client","result":"success","bytes":1048576}
-{"schema_version":1,"gateway_id":"demo-gateway","stream_id":"demo-run-1","sequence":1,"occurred_at":"2026-10-21T12:00:00Z","bucket":"demo","object_key":"object.bin","version_id":"v1","operation":"read","origin":"client","result":"success","bytes":1048576}
-{"schema_version":1,"gateway_id":"demo-gateway","stream_id":"demo-run-1","sequence":3,"occurred_at":"2026-10-21T12:00:02Z","bucket":"demo","object_key":"object.bin","version_id":"v1","operation":"read","origin":"client","result":"success","bytes":1048576}
