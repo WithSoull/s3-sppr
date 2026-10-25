@@ -29,6 +29,7 @@ Storage и Quota, а также локальный эксперименталь�
 | Users | Go | 50054 | PostgreSQL |
 | Quota | Rust | 50055 | Redis |
 | [Gateway](services/gateway/README.md) | Go, локальный PUT/GET | 8080 (localhost) | Metadata, Storage |
+| SPPR Ingestor | Go | 8086 (health HTTP) | PostgreSQL, Kafka; отдельный профиль `sppr` |
 
 Сервис Storage хранит immutable blobs и поддерживает внутренние RPC для обычной и
 multipart-загрузки. Metadata хранит buckets, objects и versions. Наличие этих RPC
@@ -108,6 +109,14 @@ Storage записывает blob во временный файл, синхро
 ограничена одной записью и одним процессом Quota, поэтому сервис пока рассчитан на
 одну активную реплику.
 
+### SPPR
+
+Ingestor читает `opens3.access.v1` из Kafka и одной транзакцией сохраняет историю,
+пропуски, прогресс потока и минутный спрос в PostgreSQL. Gateway producer
+поставляется отдельным [PR #1](https://github.com/WithSoull/s3-sppr/pull/1);
+для автономного Ingestor он не требуется. Прогнозы и размещение ещё не реализованы. Начать чтение
+кода можно с [онбординга SPPR](services/sppr/ONBOARDING.md).
+
 ### Gateway
 
 Gateway предоставляет локальные PUT/GET по `/objects/{bucket}/{key}` и `/healthz`.
@@ -117,7 +126,7 @@ Gateway предоставляет локальные PUT/GET по `/objects/{bu
 ## Структура репозитория
 
 ```text
-services/               # auth, users, authz, metadata, storage, quota, gateway
+services/               # auth, users, authz, metadata, storage, quota, gateway, sppr
 shared/api/              # исходные protobuf-контракты
 shared/pkg/go/           # сгенерированный Go-код
 shared/pkg/py/           # сгенерированный Python-код
@@ -167,6 +176,7 @@ end-to-end flow, сохранив сильную read-after-write видимос
 - [Metadata](services/metadata/README.md)
 - [Storage](services/storage/README.md)
 - [Quota](services/quota/README.md)
+- [SPPR](services/sppr/README.md) — Ingestor, DI, Kafka, история и OTEL; запуск `make up-sppr`, [онбординг](services/sppr/ONBOARDING.md). Сквозной smoke доступен после подключения отдельного producer.
 - [GitHub Wiki](https://github.com/alesplll/opens3-rebac/wiki)
 
 ## Разработка и вклад

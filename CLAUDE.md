@@ -15,7 +15,7 @@ Repo: https://github.com/alesplll/opens3-rebac
 - generated Python: `shared/pkg/py`;
 - общие библиотеки: `shared/pkg/go-kit`, `shared/pkg/py_kit`,
   `shared/pkg/rust-kit`;
-- Go-сервисы: `services/{auth,users,metadata,storage}`;
+- Go-сервисы: `services/{auth,users,metadata,storage,gateway,sppr}`;
 - Python AuthZ: `services/authz`;
 - Rust Quota: `services/quota`.
 
@@ -24,6 +24,7 @@ Repo: https://github.com/alesplll/opens3-rebac
 | Service | Lang | Port | Owner | Status |
 |---|---|---|---|---|
 | **Gateway** | Go | `:8080` HTTP | Max | 🟡 Local PUT/GET MVP; Auth/AuthZ/Quota pending |
+| **SPPR** | Go | `:8086` health HTTP | — | Kafka Ingestor; standalone profile `sppr` |
 | **Auth** | Go | `:50050` gRPC | — | ✅ Complete |
 | **AuthZ (ReBAC)** | Python | `:50051` gRPC | Alexa | ✅ Complete |
 | **Metadata** | Go | `:50052` gRPC | Anya | ✅ Complete |
@@ -52,6 +53,7 @@ Auth AuthZ Meta Storage
   │  Redis  Kafka
 Users :50054 ── PostgreSQL
 Quota :50055 ── Redis ── Kafka
+Kafka opens3.access.v1 → SPPR :8086 (health) → PostgreSQL SPPR
 ```
 
 Gateway → Auth and Gateway → AuthZ are not implemented yet: Gateway currently
@@ -87,6 +89,12 @@ serves local PUT/GET and calls only Metadata and Storage.
 в store и не принимается публичным enum.
 
 ## Service boundaries
+
+SPPR самостоятельно читает Kafka и сохраняет историю, gaps и минутный спрос.
+Runbook — [README](services/sppr/README.md), маршрут чтения —
+[онбординг](services/sppr/ONBOARDING.md). Gateway producer поставляется отдельным
+PR; для запуска и тестов Ingestor он не нужен. Контракт v1 находится в
+`shared/pkg/go-kit/events/access` и включён в оба PR одним общим коммитом.
 
 | Service | Does NOT |
 |---|---|

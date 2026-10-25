@@ -3,6 +3,7 @@ networks:
     driver: bridge
 
 volumes:
+  pgdata-sppr:
   pgdata-users:
   pgdata-metadata:
   neo4j-data:
@@ -15,6 +16,76 @@ volumes:
   es_data:
 
 services:
+
+  # СППР можно поднять отдельно от Gateway и остальных прикладных сервисов.
+  postgres-sppr:
+    profiles: [sppr]
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: sppr_db
+      POSTGRES_USER: sppr_user
+      POSTGRES_PASSWORD: sppr_password
+    ports:
+      - "${SPPR_DB_PORT:-5436}:5432"
+    volumes:
+      - pgdata-sppr:/var/lib/postgresql/data
+    networks: [opens3-network]
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U sppr_user -d sppr_db"]
+      interval: 2s
+      timeout: 1s
+      retries: 15
+
+  migrator-sppr:
+    profiles: [sppr]
+    image: migrate/migrate:v4.19.1
+    volumes:
+      - ./services/sppr/migrations:/migrations:ro
+    command: ["-path", "/migrations", "-database", "postgres://sppr_user:sppr_password@postgres-sppr:5432/sppr_db?sslmode=disable", "up"]
+    networks: [opens3-network]
+    depends_on:
+      postgres-sppr:
+        condition: service_healthy
+
+  sppr:
+    profiles: [sppr]
+    build:
+      context: .
+      dockerfile: services/sppr/Dockerfile
+    environment:
+      HTTP_ADDRESS: 0.0.0.0:8086
+      SHUTDOWN_TIMEOUT: 15s
+      PG_DSN: postgres://sppr_user:sppr_password@postgres-sppr:5432/sppr_db?sslmode=disable
+      PG_TIMEOUT: 5s
+      PG_LOGGING: "false"
+      KAFKA_BOOTSTRAP: kafka:29092
+      KAFKA_ACCESS_TOPIC: "${KAFKA_ACCESS_TOPIC:-opens3.access.v1}"
+      KAFKA_GROUP_ID: sppr-ingestor-v1
+      LOGGER_LEVEL: info
+      LOGGER_AS_JSON: "true"
+      LOGGER_ENABLE_OLTP: "false"
+      OTEL_SERVICE_NAME: sppr
+      OTEL_SERVICE_VERSION: 0.1.0
+      OTEL_ENVIRONMENT: development
+      OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
+      OTEL_METRICS_PUSH_TIMEOUT: 10s
+    ports:
+      - "${SPPR_HTTP_PORT:-8086}:8086"
+    networks: [opens3-network]
+    restart: unless-stopped
+    depends_on:
+      postgres-sppr:
+        condition: service_healthy
+      migrator-sppr:
+        condition: service_completed_successfully
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, wget, -q, -O, /dev/null, "http://localhost:8086/readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
 
   # ── Infrastructure ─────────────────────────────────────────────────────────
   # Стартует всегда: docker compose up

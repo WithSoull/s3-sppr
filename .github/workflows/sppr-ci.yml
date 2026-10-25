@@ -1,0 +1,103 @@
+name: SPPR CI
+
+permissions:
+  contents: read
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "services/sppr/**"
+      - "shared/pkg/go-kit/**"
+      - "shared/pkg/go/**"
+      - "shared/go.*"
+      - ".github/workflows/sppr-ci.yml"
+  pull_request:
+    paths:
+      - "services/sppr/**"
+      - "shared/pkg/go-kit/**"
+      - "shared/pkg/go/**"
+      - "shared/go.*"
+      - ".github/workflows/sppr-ci.yml"
+
+defaults:
+  run:
+    working-directory: services/sppr
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: sppr_test
+          POSTGRES_PASSWORD: sppr_test
+          POSTGRES_DB: sppr_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U sppr_test -d sppr_test"
+          --health-interval 2s --health-timeout 2s --health-retries 20
+      kafka:
+        image: confluentinc/cp-kafka:7.7.0
+        env:
+          KAFKA_NODE_ID: "1"
+          KAFKA_PROCESS_ROLES: broker,controller
+          KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:29093
+          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,CONTROLLER:PLAINTEXT
+          KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092,CONTROLLER://0.0.0.0:29093
+          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+          KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+          KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: "1"
+          KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: "1"
+          KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: "1"
+          KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: "0"
+          CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+        ports: ["9092:9092"]
+        options: >-
+          --health-cmd "kafka-broker-api-versions --bootstrap-server localhost:9092"
+          --health-interval 5s --health-timeout 5s --health-retries 30
+    env:
+      GOWORK: "off"
+      SPPR_TEST_PG_DSN: postgres://sppr_test:sppr_test@localhost:5432/sppr_test?sslmode=disable
+      SPPR_TEST_KAFKA_BOOTSTRAP: localhost:9092
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.1"
+          cache-dependency-path: services/sppr/go.sum
+      - name: Vet
+        run: go vet ./...
+      - name: Unit and integration tests
+        run: go test -race -tags=integration ./... -count=1 -timeout=120s
+
+  gateway-integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect the independently delivered Gateway producer
+        id: producer
+        run: |
+          if test -f services/gateway/internal/publisher/access/publisher.go; then
+            echo 'available=true' >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/setup-go@v5
+        if: steps.producer.outputs.available == 'true'
+        with:
+          go-version: "1.24.1"
+          cache-dependency-path: "**/go.sum"
+      - name: Combined smoke after both components are present
+        if: steps.producer.outputs.available == 'true'
+        run: make smoke-sppr-local
+      - name: Logs on failure
+        if: failure() && steps.producer.outputs.available == 'true'
+        run: docker compose --profile services --profile sppr logs --no-color --tail 150
+      - name: Stop combined test stack
+        if: always() && steps.producer.outputs.available == 'true'
+        run: docker compose --profile services --profile sppr down -v
