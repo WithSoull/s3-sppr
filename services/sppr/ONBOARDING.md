@@ -79,12 +79,108 @@ Validator проверяет версию схемы, идентификатор
 
 Прочитай [up-миграцию](migrations/20261021000000_ingestion.up.sql).
 
-| Таблица | Что нужно увидеть в SQL |
+Четыре таблицы хранят прогресс потока, историю обращений, пропуски и минутный спрос:
+
+| Таблица | Одна строка — это | Для чего нужна |
+|---|---|---|
+| `ingestion_streams` | один запуск producer одного Gateway | хранить прогресс и блокировать поток при конкурентной обработке |
+| `access_events` | одно принятое событие обращения | хранить точную историю и узнавать повторы |
+| `ingestion_gaps` | один диапазон пропущенных номеров в потоке | явно отличать потерянные события от отсутствия спроса |
+| `read_aggregates` | спрос на одну версию объекта за одну минуту | читать готовые счётчики без пересчёта всей истории |
+
+На схеме показаны ключи и основные поля; служебные времена `received_at`,
+`detected_at`, `updated_at` и поле `first_event_at` смотри в миграции.
+Сплошные линии — реальные внешние ключи PostgreSQL.
+
+```mermaid
+erDiagram
+    ingestion_streams ||--o{ access_events : "события этого потока"
+    ingestion_streams ||--o{ ingestion_gaps : "пропуски этого потока"
+
+    ingestion_streams {
+        text gateway_id PK
+        text stream_id PK
+        text topic
+        integer partition
+        bigint last_sequence "последний принятый номер"
+        timestamptz last_event_at "время последнего события"
+        bigint missing_events "сколько номеров пропущено"
+    }
+
+    access_events {
+        text gateway_id PK,FK
+        text stream_id PK,FK
+        bigint sequence PK
+        timestamptz occurred_at
+        text bucket
+        text object_key
+        text version_id
+        text operation "read или write"
+        text origin "client или migration"
+        text result "success или error"
+        bigint bytes
+        bytea payload_hash "сравнение содержимого при повторе"
+        text topic UK
+        integer partition UK
+        bigint kafka_offset UK
+    }
+
+    ingestion_gaps {
+        text gateway_id PK,FK
+        text stream_id PK,FK
+        bigint first_sequence PK "начало пропуска включительно"
+        bigint last_sequence "конец пропуска включительно"
+        timestamptz after_time "NULL если предыдущего события нет"
+        timestamptz before_time "время события после пропуска"
+    }
+
+    read_aggregates {
+        text bucket PK
+        text object_key PK
+        text version_id PK
+        timestamptz minute PK "начало минуты UTC"
+        bigint reads "успешные клиентские чтения"
+        bigint bytes "сумма байтов этих чтений"
+    }
+```
+
+Как читать ключи и связи:
+
+- Все поля с `PK` **внутри одной таблицы вместе** образуют её первичный ключ.
+  Например, событие узнаётся по тройке `(gateway_id, stream_id, sequence)`;
+  один `sequence` не уникален для всей базы.
+- `FK` у пары `(gateway_id, stream_id)` ведёт в `ingestion_streams`. Событие и
+  пропуск всегда принадлежат существующему потоку. У потока может быть много
+  событий и много диапазонов пропусков.
+- Три поля с `UK` в `access_events` образуют **одно общее ограничение UNIQUE**:
+  `(topic, partition, kafka_offset)`. Оно защищает от привязки одной записи Kafka
+  к разным событиям. Отдельный offset между разными partitions может совпадать.
+
+У `read_aggregates` **нет внешнего ключа к `access_events`**. Это отдельный
+результат подсчёта: repository увеличивает его только для
+`operation=read AND origin=client AND result=success`. Группировка идёт по
+`(bucket, object_key, version_id, minute)`, поэтому события нескольких потоков
+могут увеличивать одну строку агрегата. Это логическая зависимость данных,
+а не ещё одна связь `FK` на схеме.
+
+`bucket`, `object_key`, `version_id` адресуют объект из Metadata. В базе SPPR
+нет локальных таблиц buckets/versions и внешних ключей в БД другого сервиса.
+
+**Пример после обработки `1 → повтор 1 → 3`.** Все события относятся к потоку
+`gw-1/run-1`, версии `demo/object.bin/v1`; события 1 и 3 — успешные клиентские
+чтения по 100 байт в `12:00:01` и `12:00:03` UTC одного дня.
+
+| Таблица | Что окажется в базе |
 |---|---|
-| `ingestion_streams` | одна строка на поток; последний sequence, время и число пропусков |
-| `access_events` | уникальность события и координат Kafka; hash полезной нагрузки |
-| `ingestion_gaps` | диапазон отсутствующих номеров и временные границы |
-| `read_aggregates` | ключ версии объекта и минуты; счётчики чтений и байтов |
+| `ingestion_streams` | одна строка `gw-1/run-1`: `last_sequence=3`, `last_event_at=12:00:03`, `missing_events=1` |
+| `access_events` | две строки: `sequence=1` и `sequence=3`; идентичный повтор 1 не создаёт строку |
+| `ingestion_gaps` | одна строка: `first_sequence=2`, `last_sequence=2`, `after_time=12:00:01`, `before_time=12:00:03` |
+| `read_aggregates` | одна строка для `demo/object.bin/v1`, `minute=12:00:00`: `reads=2`, `bytes=200` |
+
+Событие, новый gap, счётчики и прогресс меняются **в одной транзакции**.
+Например, если обновление агрегата для события 3 завершится ошибкой, в базе
+останется состояние после события 1: без события 3, без нового gap и с
+`last_sequence=1`. Повторная доставка сможет выполнить всю операцию заново.
 
 `after_time` у первого пропуска может быть `NULL`: если первым пришёл номер 5,
 время событий 1–4 неизвестно. `before_time` — время первого события после
