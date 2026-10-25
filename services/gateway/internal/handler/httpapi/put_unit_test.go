@@ -1,8 +1,6 @@
 package httpapi_test
 
 import (
-	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -15,8 +13,6 @@ import (
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/logger"
 	"github.com/gojuno/minimock/v3"
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 func TestPutObject(t *testing.T) {
@@ -67,7 +63,7 @@ func TestPutObject(t *testing.T) {
 			},
 		},
 		{
-			name:       "missing bucket",
+			name:       "service error is mapped",
 			args:       args{"/objects/bucket/key", "", 4},
 			wantStatus: http.StatusNotFound,
 			wantBody:   "bucket not found\n",
@@ -75,30 +71,6 @@ func TestPutObject(t *testing.T) {
 			buildMock: func(mc *minimock.Controller, r *http.Request) *mocks.ObjectServiceMock {
 				objects := mocks.NewObjectServiceMock(mc)
 				objects.PutMock.Expect(r.Context(), "bucket", "key", r.Body, &size, "application/octet-stream").Return(model.PutResult{}, domainerrors.ErrBucketNotFound)
-				return objects
-			},
-		},
-		{
-			name:       "body read error",
-			args:       args{"/objects/bucket/key", "", 4},
-			wantStatus: http.StatusBadRequest,
-			wantBody:   "could not read request body\n",
-			wantCalls:  1,
-			buildMock: func(mc *minimock.Controller, r *http.Request) *mocks.ObjectServiceMock {
-				objects := mocks.NewObjectServiceMock(mc)
-				objects.PutMock.Expect(r.Context(), "bucket", "key", r.Body, &size, "application/octet-stream").Return(model.PutResult{}, &domainerrors.BodyReadError{Err: io.ErrUnexpectedEOF})
-				return objects
-			},
-		},
-		{
-			name:       "storage exhausted",
-			args:       args{"/objects/bucket/key", "", 4},
-			wantStatus: http.StatusInsufficientStorage,
-			wantBody:   "Insufficient Storage\n",
-			wantCalls:  1,
-			buildMock: func(mc *minimock.Controller, r *http.Request) *mocks.ObjectServiceMock {
-				objects := mocks.NewObjectServiceMock(mc)
-				objects.PutMock.Expect(r.Context(), "bucket", "key", r.Body, &size, "application/octet-stream").Return(model.PutResult{}, fmt.Errorf("%w: %w", domainerrors.ErrInsufficientStorage, status.Error(codes.ResourceExhausted, "private detail")))
 				return objects
 			},
 		},

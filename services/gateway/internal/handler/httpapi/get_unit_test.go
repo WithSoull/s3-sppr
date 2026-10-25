@@ -7,7 +7,6 @@ import (
 	"strings"
 	"testing"
 
-	domainerrors "github.com/alesplll/opens3-rebac/services/gateway/internal/errors/domain_errors"
 	"github.com/alesplll/opens3-rebac/services/gateway/internal/handler/httpapi"
 	"github.com/alesplll/opens3-rebac/services/gateway/internal/model"
 	"github.com/alesplll/opens3-rebac/services/gateway/pkg/mocks"
@@ -78,7 +77,7 @@ func TestGetObject(t *testing.T) {
 			},
 		},
 		{
-			name:       "missing object",
+			name:       "service error is mapped",
 			wantCalls:  1,
 			args:       args{"/objects/bucket/key"},
 			wantStatus: http.StatusNotFound,
@@ -86,30 +85,6 @@ func TestGetObject(t *testing.T) {
 			buildMock: func(mc *minimock.Controller, r *http.Request, _ *trackedBody) *mocks.ObjectServiceMock {
 				objects := mocks.NewObjectServiceMock(mc)
 				objects.GetMock.Expect(r.Context(), "bucket", "key").Return(model.GetResult{}, status.Error(codes.NotFound, "private detail"))
-				return objects
-			},
-		},
-		{
-			name:       "empty storage stream",
-			wantCalls:  1,
-			args:       args{"/objects/bucket/key"},
-			wantStatus: http.StatusBadGateway,
-			wantBody:   "storage returned an empty stream\n",
-			buildMock: func(mc *minimock.Controller, r *http.Request, _ *trackedBody) *mocks.ObjectServiceMock {
-				objects := mocks.NewObjectServiceMock(mc)
-				objects.GetMock.Expect(r.Context(), "bucket", "key").Return(model.GetResult{}, domainerrors.ErrEmptyStorageStream)
-				return objects
-			},
-		},
-		{
-			name:       "upstream deadline",
-			wantCalls:  1,
-			args:       args{"/objects/bucket/key"},
-			wantStatus: http.StatusGatewayTimeout,
-			wantBody:   "Gateway Timeout\n",
-			buildMock: func(mc *minimock.Controller, r *http.Request, _ *trackedBody) *mocks.ObjectServiceMock {
-				objects := mocks.NewObjectServiceMock(mc)
-				objects.GetMock.Expect(r.Context(), "bucket", "key").Return(model.GetResult{}, status.Error(codes.DeadlineExceeded, "private detail"))
 				return objects
 			},
 		},

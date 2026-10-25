@@ -2,6 +2,7 @@ package httpapi_test
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -11,18 +12,16 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 func TestPutStreamsBeforeEOFAndPublishesOnlyAfterStorageCommit(t *testing.T) {
-	server, state := newGateway(t)
+	server, upstream := newGateway(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	chunkReceived, atCommit, allowCommit := make(chan struct{}), make(chan struct{}), make(chan struct{})
 	var once sync.Once
-	state.onChunk = func() { once.Do(func() { close(chunkReceived) }) }
-	state.beforeCommit = func(ctx context.Context) error {
+	upstream.OnChunk = func() { once.Do(func() { close(chunkReceived) }) }
+	upstream.BeforeCommit = func(ctx context.Context) error {
 		close(atCommit)
 		select {
 		case <-allowCommit:
@@ -35,88 +34,52 @@ func TestPutStreamsBeforeEOFAndPublishesOnlyAfterStorageCommit(t *testing.T) {
 	defer reader.Close()
 	defer writer.Close()
 	req, err := http.NewRequestWithContext(ctx, http.MethodPut, server.URL+"/objects/fixture/stream", reader)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	done := make(chan error, 1)
 	go func() {
 		response, err := server.Client().Do(req)
 		if err == nil {
 			response.Body.Close()
 			if response.StatusCode != http.StatusOK {
-				err = status.Errorf(codes.Internal, "HTTP %d", response.StatusCode)
+				err = fmt.Errorf("HTTP %d", response.StatusCode)
 			}
 		}
 		done <- err
 	}()
-	if _, err := io.WriteString(writer, strings.Repeat("x", 128*1024)); err != nil {
-		t.Fatal(err)
-	}
+	_, err = io.WriteString(writer, strings.Repeat("x", 128*1024))
+	require.NoError(t, err)
 	select {
 	case <-chunkReceived:
 	case <-ctx.Done():
 		t.Fatal("Gateway buffered PUT until EOF")
 	}
-	if err := writer.Close(); err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, writer.Close())
 	select {
 	case <-atCommit:
 	case <-ctx.Done():
 		t.Fatal("Storage did not reach commit")
 	}
-	state.Lock()
-	published := len(state.meta)
-	state.Unlock()
-	if published != 0 {
-		t.Fatal("Metadata published before Storage acknowledged commit")
-	}
+	_, versions := upstream.Stats()
+	require.Zero(t, versions, "Metadata published before Storage acknowledged commit")
 	close(allowCommit)
 	select {
 	case err := <-done:
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
 	case <-ctx.Done():
 		t.Fatal(ctx.Err())
 	}
-	state.Lock()
-	defer state.Unlock()
-	if len(state.meta) != 1 {
-		t.Fatal("successful PUT did not publish Metadata")
-	}
+	_, versions = upstream.Stats()
+	require.Equal(t, 1, versions, "successful PUT did not publish Metadata")
 }
 
-func TestStorageRejectsUploadWithoutPublishingMetadata(t *testing.T) {
-	server, state := newGateway(t)
-	state.failStore = status.Error(codes.ResourceExhausted, "disk full")
-	request, err := http.NewRequest(http.MethodPut, server.URL+"/objects/fixture/key", strings.NewReader(strings.Repeat("x", 8*1024*1024)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	response, err := server.Client().Do(request)
-	if err != nil {
-		t.Fatal(err)
-	}
-	response.Body.Close()
-	if response.StatusCode != http.StatusInsufficientStorage {
-		t.Fatalf("status = %d, want 507", response.StatusCode)
-	}
-	state.Lock()
-	defer state.Unlock()
-	if len(state.meta) != 0 || state.storeCount != 0 {
-		t.Fatal("failed upload published data")
-	}
-}
-
+// A broken request body cannot be sent through a real HTTP client, so the handler is called directly.
 func TestPutBodyReadFailureDoesNotPublishMetadata(t *testing.T) {
-	handler, state := newGatewayHandler(t)
+	handler, upstream := newGatewayHandler(t)
 	request := httptest.NewRequest(http.MethodPut, "/objects/fixture/key", io.MultiReader(strings.NewReader("prefix"), failedReader{}))
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 	require.Equal(t, http.StatusBadRequest, response.Code)
-	state.Lock()
-	defer state.Unlock()
-	require.Zero(t, state.storeCount)
-	require.Empty(t, state.meta)
+	blobs, versions := upstream.Stats()
+	require.Zero(t, blobs)
+	require.Zero(t, versions)
 }

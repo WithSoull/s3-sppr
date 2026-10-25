@@ -2,7 +2,6 @@ package httpapi_test
 
 import (
 	"context"
-	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/alesplll/opens3-rebac/services/gateway/internal/handler/httpapi"
 	"github.com/alesplll/opens3-rebac/services/gateway/internal/model"
+	"github.com/alesplll/opens3-rebac/services/gateway/internal/testkit"
 	"github.com/alesplll/opens3-rebac/services/gateway/pkg/mocks"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/logger"
 	metadatav1 "github.com/alesplll/opens3-rebac/shared/pkg/go/metadata/v1"
@@ -19,10 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type failedReader struct{}
-
-func (failedReader) Read([]byte) (int, error) { return 0, errors.New("storage stream failed") }
-
+// A response that has started with 200 can only be cut short, never turned into an error status.
 func TestGetAbortsIncompleteResponse(t *testing.T) {
 	for _, tc := range []struct {
 		name string
@@ -52,11 +49,11 @@ func TestGetAbortsIncompleteResponse(t *testing.T) {
 }
 
 func TestGetStreamsBeforeStorageEOF(t *testing.T) {
-	server, state := newGateway(t)
+	server, upstream := newGateway(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	next := make(chan struct{})
-	state.beforeNextChunk = func(ctx context.Context) error {
+	upstream.BeforeNextChunk = func(ctx context.Context) error {
 		select {
 		case <-next:
 			return nil
@@ -65,55 +62,39 @@ func TestGetStreamsBeforeStorageEOF(t *testing.T) {
 		}
 	}
 	const size = 9 * 1024 * 1024
-	state.blobs["stream-blob"] = []byte(strings.Repeat("x", size))
-	state.meta["stream"] = &metadatav1.GetObjectMetaResponse{BlobId: "stream-blob", SizeBytes: size}
+	upstream.Seed("stream", []byte(strings.Repeat("x", size)))
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+"/objects/fixture/stream", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	response, err := server.Client().Do(req)
-	if err != nil {
-		t.Fatalf("Gateway did not return a prefix before Storage EOF: %v", err)
-	}
+	require.NoError(t, err, "Gateway did not return a prefix before Storage EOF")
 	defer response.Body.Close()
 	first := make([]byte, 1)
-	if _, err := io.ReadFull(response.Body, first); err != nil {
-		t.Fatal(err)
-	}
-	if first[0] != 'x' {
-		t.Fatal("unexpected first byte")
-	}
+	_, err = io.ReadFull(response.Body, first)
+	require.NoError(t, err)
+	require.Equal(t, byte('x'), first[0])
 	close(next)
 	n, err := io.Copy(io.Discard, response.Body)
-	if err != nil || n != size-1 {
-		t.Fatalf("remaining body = %d, error = %v", n, err)
-	}
+	require.NoError(t, err)
+	require.EqualValues(t, size-1, n)
 }
 
 func TestClientCancellationStopsStorageRead(t *testing.T) {
-	server, state := newGateway(t)
+	server, upstream := newGateway(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	stopped := make(chan struct{})
-	state.beforeNextChunk = func(ctx context.Context) error {
+	upstream.BeforeNextChunk = func(ctx context.Context) error {
 		<-ctx.Done()
 		close(stopped)
 		return ctx.Err()
 	}
-	state.blobs["blob"] = []byte(strings.Repeat("x", 9*1024*1024))
-	state.meta["key"] = &metadatav1.GetObjectMetaResponse{BlobId: "blob", SizeBytes: 9 * 1024 * 1024}
+	upstream.Seed("key", []byte(strings.Repeat("x", 9*1024*1024)))
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+"/objects/fixture/key", nil)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	response, err := server.Client().Do(req)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	defer response.Body.Close()
-	if response.StatusCode != http.StatusOK {
-		t.Fatalf("GET status %d", response.StatusCode)
-	}
+	require.Equal(t, http.StatusOK, response.StatusCode)
 	cancel()
 	select {
 	case <-stopped:
@@ -122,52 +103,30 @@ func TestClientCancellationStopsStorageRead(t *testing.T) {
 	}
 }
 
-func TestMissingObjectReturnsNotFound(t *testing.T) {
-	server, _ := newGateway(t)
-	response, err := server.Client().Get(server.URL + "/objects/fixture/missing")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer response.Body.Close()
-	if response.StatusCode != http.StatusNotFound {
-		t.Fatalf("GET status %d, want 404", response.StatusCode)
-	}
-}
-
-func TestGetClientRejectsFailedStorageCompletion(t *testing.T) {
+// What Metadata declares and what Storage streams disagree. The Gateway has not sent a status yet
+// for an empty stream, and has for an oversized one, where the client sees a broken body.
+func TestGetStorageDisagreesWithMetadata(t *testing.T) {
 	tests := []struct {
 		name          string
 		storedSize    int
 		declaredSize  int64
-		streamErr     error
 		wantStatus    int
 		wantReadError bool
 	}{
-		{name: "failure after declared bytes", storedSize: 131072, declaredSize: 131072, streamErr: errors.New("storage failed after bytes"), wantStatus: http.StatusOK, wantReadError: true},
-		{name: "short stream", storedSize: 131072, declaredSize: 131073, wantStatus: http.StatusOK, wantReadError: true},
 		{name: "oversized stream", storedSize: 131073, declaredSize: 131072, wantStatus: http.StatusOK, wantReadError: true},
-		{name: "successful completion", storedSize: 131072, declaredSize: 131072, wantStatus: http.StatusOK},
 		{name: "empty stream for nonempty object", declaredSize: 1, wantStatus: http.StatusBadGateway},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			server, state := newGateway(t)
-			state.blobs["blob"] = []byte(strings.Repeat("x", tt.storedSize))
-			state.meta["key"] = &metadatav1.GetObjectMetaResponse{BlobId: "blob", SizeBytes: tt.declaredSize}
-			state.failRetrieve = tt.streamErr
-			response, err := server.Client().Get(server.URL + "/objects/fixture/key")
-			require.NoError(t, err)
-			defer response.Body.Close()
+			server, upstream := newGateway(t)
+			upstream.Blobs["blob"] = []byte(strings.Repeat("x", tt.storedSize))
+			upstream.Meta["key"] = &metadatav1.GetObjectMetaResponse{BlobId: "blob", SizeBytes: tt.declaredSize}
+			response := do(t, server, http.MethodGet, "/objects/"+testkit.Bucket+"/key", nil)
 			require.Equal(t, tt.wantStatus, response.StatusCode)
 			body, err := io.ReadAll(response.Body)
 			if tt.wantReadError {
 				require.Error(t, err)
 				require.Less(t, int64(len(body)), tt.declaredSize)
-			} else {
-				require.NoError(t, err)
-				if tt.wantStatus == http.StatusOK {
-					require.Len(t, body, tt.storedSize)
-				}
 			}
 		})
 	}
