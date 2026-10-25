@@ -1,0 +1,37 @@
+syntax = "proto3";
+package events.v1;
+import "google/protobuf/timestamp.proto";
+option go_package = "github.com/alesplll/opens3-rebac/shared/pkg/go/events/v1;events_v1";
+
+enum Origin {
+  ORIGIN_UNSPECIFIED = 0;
+  ORIGIN_CLIENT = 1;
+  ORIGIN_MIGRATION = 2;
+}
+
+// Позиция события в потоке одного процесса Gateway.
+message StreamPosition {
+  string gateway_id = 1;
+  string stream_id = 2;  // новый UUID на каждый старт Gateway и на каждый топик
+  int64 sequence = 3;    // с 1, без дыр на стороне producer
+}
+
+message ObjectRead {
+  StreamPosition position = 1;
+  google.protobuf.Timestamp occurred_at = 2;
+  string bucket = 3;
+  string object_key = 4;
+  string version_id = 5;
+  int64 bytes = 6;       // длина отданного диапазона (Range) или размер объекта
+  Origin origin = 7;
+}
+
+message ObjectWritten {
+  StreamPosition position = 1;
+  google.protobuf.Timestamp occurred_at = 2;
+  string bucket = 3;
+  string object_key = 4;
+  string version_id = 5;
+  int64 bytes = 6;
+  Origin origin = 7;
+}

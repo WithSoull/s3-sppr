@@ -20,7 +20,7 @@ generate-all: generate
 generate-all-go: generate-go
 generate-all-py: generate-py
 
-generate-go: generate-user-go generate-auth-go generate-storage-go generate-metadata-go generate-authz-go generate-quota-go
+generate-go: generate-user-go generate-auth-go generate-storage-go generate-metadata-go generate-authz-go generate-quota-go generate-events-go
 
 generate-py: generate-user-py generate-auth-py generate-storage-py generate-metadata-py generate-authz-py generate-quota-py
 
@@ -133,6 +133,14 @@ generate-quota-go:
 		--go-grpc_out=$(GO_PROTO_OUT)/quota/v1 --go-grpc_opt=paths=source_relative \
 		--plugin=protoc-gen-go-grpc=$(LOCAL_BIN)/protoc-gen-go-grpc \
 		shared/api/quota/v1/quota.proto
+
+generate-events-go:
+	mkdir -p $(GO_PROTO_OUT)/events/v1
+	protoc \
+		--proto_path shared/api/events/v1 \
+		--go_out=$(GO_PROTO_OUT)/events/v1 --go_opt=paths=source_relative \
+		--plugin=protoc-gen-go=$(LOCAL_BIN)/protoc-gen-go \
+		shared/api/events/v1/access.proto
 
 generate-quota-py:
 	mkdir -p $(PY_PROTO_OUT)/quota/v1
