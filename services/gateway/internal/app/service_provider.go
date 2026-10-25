@@ -56,7 +56,11 @@ func (s *serviceProvider) MetadataClient() (client.MetadataClient, error) {
 
 func (s *serviceProvider) StorageClient() (client.StorageClient, error) {
 	if s.storageClient == nil {
-		conn, err := grpc.NewClient(s.config.Storage.Address(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, err := grpc.NewClient(
+			s.config.Storage.Address(),
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithStreamInterceptor(tracing.StreamClientInterceptor("gateway.storage")),
+		)
 		if err != nil {
 			return nil, fmt.Errorf("create Storage client: %w", err)
 		}
