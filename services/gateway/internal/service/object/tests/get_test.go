@@ -57,6 +57,7 @@ func TestGet(t *testing.T) {
 		},
 		{
 			name:              "storage error",
+			want:              model.GetResult{Size: 4, ETag: "etag", VersionID: "version", ContentType: "text/plain"},
 			args:              input,
 			wantRetrieveCalls: 1,
 			wantErr:           upstreamErr,
@@ -69,6 +70,7 @@ func TestGet(t *testing.T) {
 		},
 		{
 			name:              "empty storage stream",
+			want:              model.GetResult{Size: 4, ETag: "etag", VersionID: "version", ContentType: "text/plain"},
 			args:              input,
 			wantRetrieveCalls: 1,
 			wantErr:           domainerrors.ErrEmptyStorageStream,

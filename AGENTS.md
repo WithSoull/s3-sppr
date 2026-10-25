@@ -25,6 +25,10 @@ Go services follow the same layout: `cmd/server` for server entrypoints and `int
 
 ## Coding Style & Naming Conventions
 
+Gateway access events use `shared/pkg/go-kit/events/access` and a bounded
+asynchronous queue. Never make HTTP wait for Kafka or count incomplete GETs
+as successful demand. Producer tests and startup must work without an Ingestor.
+
 Use standard Go formatting (`gofmt`) and keep package names lowercase. Prefer the existing service layering (`handler`, `service`, `repository`) and place binaries only under `cmd/`. In Python, use 4-space indentation, `snake_case` for functions/modules, and keep gRPC service classes descriptive, for example `PermissionServiceServicer`.
 
 Do not hand-edit generated protobuf files under `shared/pkg/`; regenerate them instead.

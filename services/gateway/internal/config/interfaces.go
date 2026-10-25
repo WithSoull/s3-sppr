@@ -2,6 +2,17 @@ package config
 
 import "time"
 
+type AccessConfig interface {
+	Enabled() bool
+	GatewayID() string
+	Brokers() []string
+	AccessTopic() string
+	QueueCapacity() int
+	RetryInterval() time.Duration
+	SendTimeout() time.Duration
+	ShutdownTimeout() time.Duration
+}
+
 type HTTPConfig interface{ Address() string }
 type GRPCClientConfig interface{ Address() string }
 type MetadataClientConfig interface {

@@ -3,6 +3,7 @@ package httpapi
 import (
 	"bufio"
 	"errors"
+	access "github.com/alesplll/opens3-rebac/shared/pkg/go-kit/events/access"
 	"io"
 	"net/http"
 	"strconv"
@@ -31,7 +32,14 @@ func (h *Handler) GetObject(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
+	event := access.Event{Bucket: bucket, ObjectKey: key, Operation: "read", Origin: "client", Result: "error"}
+	defer func() {
+		if h.access != nil {
+			h.access.Record(r.Context(), event)
+		}
+	}()
 	result, err := h.objects.Get(r.Context(), bucket, key)
+	event.VersionID = result.VersionID
 	if err != nil {
 		writeServiceError(w, r, err)
 		return
@@ -59,13 +67,23 @@ func (h *Handler) GetObject(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Object-Version-Id", result.VersionID)
 	if result.Size == 0 {
 		w.WriteHeader(http.StatusOK)
+		if r.Context().Err() == nil {
+			event.Result = "success"
+		}
 		return
 	}
-	err = copyVerifiedObject(w, result.Body, result.Size)
+	var dst io.Writer = w
+	if h.access != nil {
+		dst = &countWriter{writer: w, count: &event.Bytes}
+	}
+	err = copyVerifiedObject(dst, result.Body, result.Size)
 	if err != nil {
 		logger.Error(r.Context(), "object response interrupted", zap.String("bucket", bucket), zap.String("key", key), zap.Error(err))
 		// Headers may already be on the wire; abort instead of completing a successful response.
 		panic(http.ErrAbortHandler)
+	}
+	if r.Context().Err() == nil {
+		event.Result = "success"
 	}
 }
 

@@ -29,6 +29,9 @@ func NewHTTPHandler(next http.Handler) (http.Handler, error) {
 		route := routeName(r.URL.Path)
 		method := methodLabel(r.Method)
 		ctx := otel.GetTextMapPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
+		if !trace.SpanContextFromContext(ctx).IsValid() {
+			ctx = propagation.TraceContext{}.Extract(ctx, propagation.HeaderCarrier(r.Header))
+		}
 		ctx, span := tracer.Start(ctx, method+" "+route, trace.WithSpanKind(trace.SpanKindServer))
 		defer span.End()
 

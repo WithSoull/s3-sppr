@@ -81,6 +81,11 @@ serves local PUT/GET and calls only Metadata and Storage.
 | `bucket-deleted` | Metadata | AuthZ |
 | `auth-changes` | AuthZ | AuthZ cache_invalidator |
 | `auth-audit` | AuthZ | — (log sink) |
+| `opens3.access.v1` | Gateway bounded queue, когда включена | SPPR, отдельный PR |
+
+Контракт `shared/pkg/go-kit/events/access` не зависит от consumer.
+Gateway публикует outcome после PUT/GET и не ждёт Kafka в HTTP handler;
+см. [требования к producer](docs/gateway-access-events.md).
 
 Публичные relations: `MEMBER_OF`, `HAS_PERMISSION`, `PARENT_OF`. Для владельца
 используйте `HAS_PERMISSION` с уровнем `ADMIN`; `OWNER_OF` — только legacy-чтение

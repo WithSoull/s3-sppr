@@ -6,13 +6,17 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/IBM/sarama"
+
 	"github.com/alesplll/opens3-rebac/services/gateway/internal/client"
 	metadataclient "github.com/alesplll/opens3-rebac/services/gateway/internal/client/metadata"
 	storageclient "github.com/alesplll/opens3-rebac/services/gateway/internal/client/storage"
 	"github.com/alesplll/opens3-rebac/services/gateway/internal/config"
 	"github.com/alesplll/opens3-rebac/services/gateway/internal/handler/httpapi"
+	accesspublisher "github.com/alesplll/opens3-rebac/services/gateway/internal/publisher/access"
 	"github.com/alesplll/opens3-rebac/services/gateway/internal/service"
 	objectservice "github.com/alesplll/opens3-rebac/services/gateway/internal/service/object"
+	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/kafka/producer"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/tracing"
 	metadatav1 "github.com/alesplll/opens3-rebac/shared/pkg/go/metadata/v1"
 	storagev1 "github.com/alesplll/opens3-rebac/shared/pkg/go/storage/v1"
@@ -28,10 +32,15 @@ type serviceProvider struct {
 	metadataClient client.MetadataClient
 	storageClient  client.StorageClient
 
-	objectService service.ObjectService
-	objectHandler http.Handler
-	closeOnce     sync.Once
-	closeErr      error
+	objectService   service.ObjectService
+	objectHandler   http.Handler
+	accessPublisher *accesspublisher.Publisher
+	accessTransport *producer.AsyncProducer
+	accessClient    sarama.Client
+	accessCloseOnce sync.Once
+	accessCloseErr  error
+	closeOnce       sync.Once
+	closeErr        error
 }
 
 func newServiceProvider(cfg *config.Config) *serviceProvider {
@@ -97,7 +106,11 @@ func (s *serviceProvider) ObjectHandler() (http.Handler, error) {
 		if err != nil {
 			return nil, err
 		}
-		s.objectHandler = httpapi.NewHandler(objects)
+		access, err := s.AccessPublisher()
+		if err != nil {
+			return nil, err
+		}
+		s.objectHandler = httpapi.NewHandler(objects, access)
 	}
 	return s.objectHandler, nil
 }

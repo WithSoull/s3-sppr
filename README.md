@@ -114,6 +114,11 @@ Gateway предоставляет локальные PUT/GET по `/objects/{bu
 Он вызывает Storage и Metadata последовательно и возвращает успех записи только
 после регистрации текущей версии. Подробнее: [Gateway README](services/gateway/README.md).
 
+При `ACCESS_EVENTS_ENABLED=true` Gateway публикует outcome PUT/GET в
+`opens3.access.v1` через ограниченную очередь. В Compose producer включён по
+умолчанию. Для публикации нужен Kafka; отдельный consumer и его БД Gateway не
+требуются. Контракт и гарантии — в [требованиях](docs/gateway-access-events.md).
+
 ## Структура репозитория
 
 ```text

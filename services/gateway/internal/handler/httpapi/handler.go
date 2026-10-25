@@ -1,6 +1,8 @@
 package httpapi
 
 import (
+	"context"
+	access "github.com/alesplll/opens3-rebac/shared/pkg/go-kit/events/access"
 	"io"
 	"net/http"
 	"strings"
@@ -13,13 +15,22 @@ import (
 type Handler struct {
 	objects service.ObjectService
 	swagger http.Handler
+	access  AccessRecorder
 }
 
-func NewHandler(objects service.ObjectService) http.Handler {
-	return &Handler{
+type AccessRecorder interface {
+	Record(context.Context, access.Event)
+}
+
+func NewHandler(objects service.ObjectService, recorders ...AccessRecorder) http.Handler {
+	h := &Handler{
 		objects: objects,
 		swagger: httpSwagger.Handler(httpSwagger.URL("/swagger/doc.json")),
 	}
+	if len(recorders) > 0 {
+		h.access = recorders[0]
+	}
+	return h
 }
 
 func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {

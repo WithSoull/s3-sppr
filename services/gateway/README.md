@@ -9,17 +9,23 @@ Gateway принимает обычный PUT/GET объекта, передаё
 каталогом Metadata. HTTP-сервер также предоставляет `GET /healthz` и завершает
 активные запросы при SIGINT/SIGTERM. Для локальной разработки доступны Swagger
 UI, нормализованные HTTP-метрики и трассировка без bucket/key в labels.
+При `ACCESS_EVENTS_ENABLED=true` публикует результаты обращений в Kafka для SPPR.
 
 ## Архитектура и зависимости
 
 ```text
 HTTP client → Gateway → Metadata gRPC (bucket и версии)
                       → Storage gRPC (байты blob)
+             → bounded queue → Kafka opens3.access.v1 → SPPR
 ```
 
-Для работы с объектами нужны доступные Metadata и один Storage node. Kafka и
-PostgreSQL остаются зависимостями Metadata, но Gateway к ним напрямую не
-подключается. Внутренние gRPC-соединения в локальном стенде используют plaintext.
+Для работы с объектами нужны доступные Metadata и один Storage node. При включённых
+событиях Gateway также подключается к Kafka; PostgreSQL остаётся зависимостью
+Metadata и SPPR. Внутренние gRPC-соединения в локальном стенде используют plaintext.
+Контракт события и валидация общие с SPPR: `shared/pkg/go-kit/events/access`.
+Producer собирает service provider; HTTP handlers сообщают результат передачи.
+Consumer SPPR поставляется отдельным PR. Gateway запускается и публикует события
+без него; PostgreSQL и миграции Ingestor в этом срезе не требуются.
 
 ## Структура проекта
 
@@ -34,6 +40,7 @@ internal/errors/domain_errors/ ошибки сценариев и чтения �
 internal/service/object/    сценарии PUT/GET с Metadata и Storage
 internal/handler/httpapi/   HTTP-маршруты, заголовки и коды ответов
 internal/observability/     HTTP spans и метрики с нормализованными route
+internal/publisher/access/  bounded queue, нумерация и последовательная доставка событий
 pkg/mocks/                  сгенерированные minimock для клиентов и ObjectService
 docs/                       сгенерированная Swagger/OpenAPI 2.0 схема
 ```
@@ -88,6 +95,29 @@ committed-версию. `pending/committed/aborted` orchestration, operation ID 
 ещё одну версию: идемпотентность и проверка результата по operation ID пока
 отсутствуют.
 
+При включённых событиях GET становится `read/client/success` только после EOF
+Storage и успешной записи последнего байта в HTTP writer. Ошибки RPC, частичная
+передача, ошибка writer и отмена GET дают `result=error`. Для GET `bytes` — число
+байтов, принятых HTTP writer; это не подтверждение получения клиентом, поскольку
+сетевой стек может ещё буферизовать их. PUT становится `write/client/success`
+после регистрации версии в Metadata, даже если после commit клиент отменил
+запрос. Для PUT `bytes` — число байтов, прочитанных из HTTP body, включая chunked
+upload, а не объявленный Content-Length. Завершённые ошибки тоже публикуются;
+health/swagger, неверные object paths и неподдерживаемые методы событий не создают.
+
+Очередь хранится в памяти. Sequence, время UTC до микросекунд и enqueue
+назначаются под одним mutex; регрессия часов ограничивается последним временем
+потока. При переполнении номер расходуется, событие отбрасывается, а последующее
+событие позволяет SPPR обнаружить gap. Один sender повторяет тот же payload до
+успеха, не отправляя следующее событие поверх ошибки. HTTP не ожидает Kafka, но
+выполняет валидацию, сериализацию и enqueue. Ошибка аналитики не меняет HTTP-результат.
+
+`stream_id` — новый UUID при создании producer. Kafka partition выбирается по
+stream key один раз на startup и закрепляется до конца потока, включая расширение
+topic. Используются idempotent producer, `acks=all` и один outstanding broker
+request. Trace context передаётся через `traceparent`. Deadline отправки означает
+неизвестный результат ack; retry сохраняет sequence/payload, SPPR дедуплицирует повтор.
+
 ## Конфигурация
 
 | Переменная | Локальное значение по умолчанию | Compose |
@@ -97,6 +127,14 @@ committed-версию. `pending/committed/aborted` orchestration, operation ID 
 | `METADATA_RPC_TIMEOUT` | `5s` | `${METADATA_RPC_TIMEOUT:-5s}` |
 | `STORAGE_GRPC_ADDR` | `localhost:50053` | `storage:50053` |
 | `STORAGE_RETRIEVE_CHUNK_SIZE_BYTES` | `1048576` (1 MiB) | `${STORAGE_RETRIEVE_CHUNK_SIZE_BYTES:-1048576}` |
+| `ACCESS_EVENTS_ENABLED` | `false` | `${ACCESS_EVENTS_ENABLED:-true}` |
+| `GATEWAY_ID` | обязателен при включении; `[A-Za-z0-9_.-]{1,128}` | `${GATEWAY_ID:-gateway-local}` |
+| `KAFKA_BOOTSTRAP` | обязателен при включении; список `host:port` | `kafka:29092` |
+| `KAFKA_ACCESS_TOPIC` | `opens3.access.v1` | тот же topic, что у SPPR |
+| `ACCESS_EVENTS_QUEUE_CAPACITY` | `1024`, допустимо 1–65536 | `1024` |
+| `ACCESS_EVENTS_RETRY_INTERVAL` | `1s`, допустимо 1ms–1m | `1s` |
+| `ACCESS_EVENTS_SEND_TIMEOUT` | `2s`, допустимо 1ms–30s | `2s` |
+| `ACCESS_EVENTS_SHUTDOWN_TIMEOUT` | `10s`, допустимо 1ms–1m | `10s` |
 | `LOGGER_LEVEL` | `info` | `info` |
 | `LOGGER_AS_JSON` | `false` | `false` |
 | `LOGGER_ENABLE_OLTP` | `false` | `false` |
@@ -106,6 +144,19 @@ committed-версию. `pending/committed/aborted` orchestration, operation ID 
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | `localhost:4317` | `${GATEWAY_OTLP_ENDPOINT:-otel-collector:4317}` |
 | `OTEL_ENVIRONMENT` | `local` | `${GATEWAY_ENVIRONMENT:-local}` |
 | `OTEL_METRICS_PUSH_TIMEOUT` | `30s` | `${GATEWAY_METRICS_PUSH_TIMEOUT:-30s}` |
+
+При выключенных событиях Kafka client и sender не создаются. При включении Kafka
+и topic должны быть доступны на startup; ошибка подключения возвращается из
+инициализации с конечными сетевыми таймаутами. Runtime outage обрабатывается
+очередью и retry. `ACCESS_EVENTS_SEND_TIMEOUT` задаёт deadline попытки sender и
+сетевые/produce таймауты Sarama; отмена ожидания ack не отменяет уже принятую отправку.
+
+После завершения HTTP drain приложение прекращает приём событий и пытается
+выгрузить очередь в пределах `ACCESS_EVENTS_SHUTDOWN_TIMEOUT`, затем закрывает
+producer с отдельным таким же бюджетом для завершения in-flight сообщений и
+completion-router, затем gRPC-зависимости и telemetry. Это два отдельных этапа;
+параметр не ограничивает суммарное время остановки приложения. Неотправленный хвост при timeout отражается
+в логах и dropped counter. Пример локальных настроек — [.env.example](.env.example).
 
 Каждый Metadata RPC ограничен `METADATA_RPC_TIMEOUT` (положительная duration).
 Более короткий deadline исходного контекста сохраняется. Таймаут действует
@@ -179,6 +230,12 @@ curl -i http://127.0.0.1:8080/healthz
 route и status. HTTP trace context передаётся в Metadata и streaming-вызовы
 Storage. Для логов контейнера: `docker compose logs -f gateway`.
 
+`gateway_access_events_total` использует `outcome=queued|sent|retry|dropped`.
+Для dropped `reason=queue_full|invalid|shutdown`; object keys и stream IDs в labels
+отсутствуют. Drop logs показывают нарастающий итог без записи на каждый запрос;
+при shutdown timeout отдельно выводится `pending_events`. `/healthz` не проверяет
+готовность аналитики: следите за retry/dropped и полнотой истории в SPPR.
+
 ## Разработка и тесты
 
 ```bash
@@ -221,6 +278,12 @@ go run ./services/gateway/cmd/smoke -gateway http://127.0.0.1:8080 -metadata 127
 - `internal/app`: сборка приложения (`newTestApp`), 503 при недоступном Metadata,
   `METADATA_RPC_TIMEOUT` → 504, graceful shutdown.
 - `internal/config/env/config_test.go`: имена переменных и валидация.
+- `internal/handler/httpapi/access_test.go`: outcome и фактические байты GET/PUT,
+  EOF, partial stream, writer failure, отсутствие событий служебных маршрутов.
+- `internal/publisher/access/record_test.go`: concurrent sequence/time, retry
+  identity, overflow/gap, отмена sender и конкурентный Record/Close.
+- `shared/pkg/go-kit/kafka/producer/async_test.go`: broker error и late ack,
+  который не должен завершать отправку другого сообщения.
 
 Фейки Metadata и Storage общие и лежат в `internal/testkit` (`testkit.New()`, затем
 `Dial` для bufconn или `ListenTCP` для настоящего порта). Поведение настраивается полями и
@@ -237,8 +300,13 @@ Metadata. Следующий шаг для жизненного цикла ве�
 pending-версии и отдельная фиксация в Metadata. После этого можно добавить
 восстановление зависших операций.
 
+События обращений не сохраняются на диск в Gateway: crash может потерять хвост
+очереди. Без следующего события такой хвост не обнаруживается. Durable outbox,
+heartbeat, общий watermark и восстановление gaps в этот срез не входят.
+
 ## Связанные документы
 
 - [Metadata](../metadata/README.md) и [Storage](../storage/README.md).
+- [Контракт и требования к событиям](../../docs/gateway-access-events.md).
 - [Проект политики Gateway](../../docs/gateway-contract-plan.md).
 - [Первый запуск](../../GETTING_STARTED.md).

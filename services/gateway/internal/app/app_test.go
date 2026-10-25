@@ -60,6 +60,9 @@ func TestConfiguredClientsAreReused(t *testing.T) {
 	s2, err := a.serviceProvider.StorageClient()
 	require.NoError(t, err)
 	require.True(t, m1 == m2 && s1 == s2, "downstream clients are not reused")
+	require.Nil(t, a.serviceProvider.accessPublisher)
+	require.Nil(t, a.serviceProvider.accessTransport)
+	require.Nil(t, a.serviceProvider.accessClient)
 	require.Equal(t, a.config.Metadata.Address(), a.serviceProvider.metadataConn.Target())
 	require.Equal(t, a.config.Storage.Address(), a.serviceProvider.storageConn.Target())
 }

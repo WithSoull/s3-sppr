@@ -42,6 +42,11 @@ Kafka ожидает успешной проверки готовности ZooK
 
 ## Порты на хосте
 
+Gateway в Compose публикует события обращений в Kafka; standalone запуск
+выключает producer по умолчанию. Настройка `ACCESS_EVENTS_ENABLED=false` отключает
+его и в Compose. Consumer событий поставляется отдельно и для запуска Gateway
+не нужен. См. [Gateway README](services/gateway/README.md#конфигурация).
+
 | Компонент | Адрес |
 |---|---|
 | Auth | `localhost:50050` |

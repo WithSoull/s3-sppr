@@ -9,6 +9,7 @@ import (
 )
 
 type Config struct {
+	Access   AccessConfig
 	HTTP     HTTPConfig
 	Metadata MetadataClientConfig
 	Storage  StorageClientConfig
@@ -46,7 +47,12 @@ func Load(path ...string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	accessConfig, err := env.NewAccessConfig()
+	if err != nil {
+		return nil, err
+	}
 	return &Config{
+		Access:   accessConfig,
 		HTTP:     httpConfig,
 		Metadata: metadataConfig,
 		Storage:  storageConfig,

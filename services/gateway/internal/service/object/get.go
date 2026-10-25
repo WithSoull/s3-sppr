@@ -11,15 +11,13 @@ func (s *objectService) Get(ctx context.Context, bucket, key string) (model.GetR
 	if err != nil {
 		return model.GetResult{}, err
 	}
+	result := model.GetResult{
+		Size: meta.Size, ETag: meta.ETag, VersionID: meta.VersionID, ContentType: meta.ContentType,
+	}
 	body, err := s.storage.Retrieve(ctx, meta.BlobID, meta.Size)
 	if err != nil {
-		return model.GetResult{}, err
+		return result, err
 	}
-	return model.GetResult{
-		Body:        body,
-		Size:        meta.Size,
-		ETag:        meta.ETag,
-		VersionID:   meta.VersionID,
-		ContentType: meta.ContentType,
-	}, nil
+	result.Body = body
+	return result, nil
 }

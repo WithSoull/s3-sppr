@@ -143,15 +143,20 @@ func (a *App) Run(ctx context.Context) (runErr error) {
 		if err := <-served; !errors.Is(err, http.ErrServerClosed) {
 			return err
 		}
-		logger.Info(context.Background(), "Gateway stopped gracefully")
+		logger.Info(context.Background(), "Gateway HTTP requests drained")
 		return nil
 	}
 }
 
 func (a *App) closeResources() error {
+	var result error
+	if a.serviceProvider != nil && a.config.Access != nil {
+		accessCtx, stop := context.WithTimeout(context.Background(), a.config.Access.ShutdownTimeout())
+		result = errors.Join(result, a.serviceProvider.CloseAccess(accessCtx))
+		stop()
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
-	var result error
 	if a.closer != nil {
 		result = errors.Join(result, a.closer.CloseAll(ctx))
 	} else if a.serviceProvider != nil {
