@@ -17,6 +17,8 @@ func PlacementToDomain(p *repoModel.Placement) *domainModel.Placement {
 		Generation:   p.Generation,
 		SizeBytes:    p.SizeBytes,
 		UpdatedAt:    p.UpdatedAt,
+
+		MigrationInProgress: p.MigrationInProgress,
 	}
 }
 

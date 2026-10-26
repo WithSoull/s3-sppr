@@ -17,6 +17,23 @@ func placementToProto(p *model.Placement) *metadatav1.PlacementInfo {
 		Generation:   p.Generation,
 		SizeBytes:    p.SizeBytes,
 		UpdatedAt:    p.UpdatedAt.UnixMilli(),
+
+		MigrationInProgress: p.MigrationInProgress,
+	}
+}
+
+func storageClassToProto(u *model.StorageClassUsage) *metadatav1.StorageClassInfo {
+	return &metadatav1.StorageClassInfo{
+		Name:           string(u.Name),
+		CapacityBytes:  u.CapacityBytes,
+		MaxUtilization: u.MaxUtilization,
+		UsableBytes:    u.UsableBytes,
+		PlacedBytes:    u.PlacedBytes,
+		PlacedVersions: u.PlacedVersions,
+		CopyBytes:      u.CopyBytes,
+		Copies:         u.Copies,
+		FailedCleanups: u.FailedCleanups,
+		FreeBytes:      u.FreeBytes(),
 	}
 }
 

@@ -18,6 +18,8 @@ type Placement struct {
 	Generation   int64
 	SizeBytes    int64
 	UpdatedAt    time.Time
+	// MigrationInProgress is set while a target copy of the version is reserved.
+	MigrationInProgress bool
 }
 
 type CopyRole string

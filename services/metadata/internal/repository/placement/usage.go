@@ -63,3 +63,22 @@ func (r *repo) GetUsage(ctx context.Context, storageClass model.StorageClass) (*
 
 	return converter.UsageToDomain(&u), nil
 }
+
+func (r *repo) ListUsage(ctx context.Context) ([]*model.StorageClassUsage, error) {
+	q := db.Query{
+		Name:     "placement_repository:ListUsage",
+		QueryRaw: selectUsage + "\nORDER BY sc.name",
+	}
+
+	var rows []repoModel.StorageClassUsage
+	if err := r.db.DB().ScanAllContext(ctx, &rows, q); err != nil {
+		return nil, err
+	}
+
+	usage := make([]*model.StorageClassUsage, 0, len(rows))
+	for i := range rows {
+		usage = append(usage, converter.UsageToDomain(&rows[i]))
+	}
+
+	return usage, nil
+}

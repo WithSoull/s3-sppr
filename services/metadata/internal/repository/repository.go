@@ -28,6 +28,7 @@ type ObjectRepository interface {
 type PlacementRepository interface {
 	Create(ctx context.Context, versionID, blobID string, storageClass model.StorageClass) error
 	Get(ctx context.Context, versionID string) (*model.Placement, error)
+	ListCurrent(ctx context.Context, afterVersionID string, limit int32) ([]*model.Placement, error)
 	// LockForChange locks the object and placement rows of the version until the
 	// transaction ends, so overwrites and other switches wait for the caller.
 	LockForChange(ctx context.Context, versionID string) (*model.Placement, error)
@@ -35,6 +36,7 @@ type PlacementRepository interface {
 	// LockStorageClass serializes capacity checks of one class.
 	LockStorageClass(ctx context.Context, storageClass model.StorageClass) error
 	GetUsage(ctx context.Context, storageClass model.StorageClass) (*model.StorageClassUsage, error)
+	ListUsage(ctx context.Context) ([]*model.StorageClassUsage, error)
 }
 
 type CopyRepository interface {

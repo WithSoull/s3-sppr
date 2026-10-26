@@ -28,8 +28,8 @@ if _version_not_supported:
 class PlacementServiceStub(object):
     """PlacementService управляет расположением версий в классах хранения HOT/COLD.
     Работает в процессе Metadata на том же порту, что и MetadataService.
-    Клиент — исполнитель миграций. Gateway читает расположение только через
-    MetadataService.GetObjectMeta.
+    Клиенты — СППР (каталог и занятость классов для Planner) и исполнитель миграций.
+    Gateway читает расположение только через MetadataService.GetObjectMeta.
 
     Инварианты:
     - у committed blob-версии ровно одна запись version_placements, чтение
@@ -54,6 +54,16 @@ class PlacementServiceStub(object):
         Args:
             channel: A grpc.Channel.
         """
+        self.ListStorageClasses = channel.unary_unary(
+                '/opens3.metadata.v1.PlacementService/ListStorageClasses',
+                request_serializer=placement__pb2.ListStorageClassesRequest.SerializeToString,
+                response_deserializer=placement__pb2.ListStorageClassesResponse.FromString,
+                _registered_method=True)
+        self.ListPlacements = channel.unary_unary(
+                '/opens3.metadata.v1.PlacementService/ListPlacements',
+                request_serializer=placement__pb2.ListPlacementsRequest.SerializeToString,
+                response_deserializer=placement__pb2.ListPlacementsResponse.FromString,
+                _registered_method=True)
         self.GetPlacement = channel.unary_unary(
                 '/opens3.metadata.v1.PlacementService/GetPlacement',
                 request_serializer=placement__pb2.GetPlacementRequest.SerializeToString,
@@ -94,8 +104,8 @@ class PlacementServiceStub(object):
 class PlacementServiceServicer(object):
     """PlacementService управляет расположением версий в классах хранения HOT/COLD.
     Работает в процессе Metadata на том же порту, что и MetadataService.
-    Клиент — исполнитель миграций. Gateway читает расположение только через
-    MetadataService.GetObjectMeta.
+    Клиенты — СППР (каталог и занятость классов для Planner) и исполнитель миграций.
+    Gateway читает расположение только через MetadataService.GetObjectMeta.
 
     Инварианты:
     - у committed blob-версии ровно одна запись version_placements, чтение
@@ -113,6 +123,23 @@ class PlacementServiceServicer(object):
 
     PostgreSQL: version_placements, storage_classes, placement_copies.
     """
+
+    def ListStorageClasses(self, request, context):
+        """ListStorageClasses возвращает ёмкость и занятость классов. В занятость входят
+        расположения всех версий (включая нетекущие) и копии, ещё занимающие место.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def ListPlacements(self, request, context):
+        """ListPlacements постранично возвращает текущие версии активных объектов с их
+        расположением — каталог для Planner. Порядок — по version_id.
+        Ошибки: INVALID_ARGUMENT (page_token не UUID).
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
 
     def GetPlacement(self, request, context):
         """GetPlacement возвращает действующее расположение версии и признак текущей версии.
@@ -188,6 +215,16 @@ class PlacementServiceServicer(object):
 
 def add_PlacementServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
+            'ListStorageClasses': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListStorageClasses,
+                    request_deserializer=placement__pb2.ListStorageClassesRequest.FromString,
+                    response_serializer=placement__pb2.ListStorageClassesResponse.SerializeToString,
+            ),
+            'ListPlacements': grpc.unary_unary_rpc_method_handler(
+                    servicer.ListPlacements,
+                    request_deserializer=placement__pb2.ListPlacementsRequest.FromString,
+                    response_serializer=placement__pb2.ListPlacementsResponse.SerializeToString,
+            ),
             'GetPlacement': grpc.unary_unary_rpc_method_handler(
                     servicer.GetPlacement,
                     request_deserializer=placement__pb2.GetPlacementRequest.FromString,
@@ -234,8 +271,8 @@ def add_PlacementServiceServicer_to_server(servicer, server):
 class PlacementService(object):
     """PlacementService управляет расположением версий в классах хранения HOT/COLD.
     Работает в процессе Metadata на том же порту, что и MetadataService.
-    Клиент — исполнитель миграций. Gateway читает расположение только через
-    MetadataService.GetObjectMeta.
+    Клиенты — СППР (каталог и занятость классов для Planner) и исполнитель миграций.
+    Gateway читает расположение только через MetadataService.GetObjectMeta.
 
     Инварианты:
     - у committed blob-версии ровно одна запись version_placements, чтение
@@ -253,6 +290,60 @@ class PlacementService(object):
 
     PostgreSQL: version_placements, storage_classes, placement_copies.
     """
+
+    @staticmethod
+    def ListStorageClasses(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/opens3.metadata.v1.PlacementService/ListStorageClasses',
+            placement__pb2.ListStorageClassesRequest.SerializeToString,
+            placement__pb2.ListStorageClassesResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def ListPlacements(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/opens3.metadata.v1.PlacementService/ListPlacements',
+            placement__pb2.ListPlacementsRequest.SerializeToString,
+            placement__pb2.ListPlacementsResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
 
     @staticmethod
     def GetPlacement(request,

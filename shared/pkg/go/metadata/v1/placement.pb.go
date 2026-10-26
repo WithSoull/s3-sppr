@@ -22,19 +22,21 @@ const (
 )
 
 type PlacementInfo struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	VersionId     string                 `protobuf:"bytes,1,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`
-	ObjectId      string                 `protobuf:"bytes,2,opt,name=object_id,json=objectId,proto3" json:"object_id,omitempty"`
-	BucketName    string                 `protobuf:"bytes,3,opt,name=bucket_name,json=bucketName,proto3" json:"bucket_name,omitempty"`
-	Key           string                 `protobuf:"bytes,4,opt,name=key,proto3" json:"key,omitempty"`
-	IsCurrent     bool                   `protobuf:"varint,5,opt,name=is_current,json=isCurrent,proto3" json:"is_current,omitempty"`         // версия является current_version_id активного объекта
-	StorageClass  string                 `protobuf:"bytes,6,opt,name=storage_class,json=storageClass,proto3" json:"storage_class,omitempty"` // "HOT" или "COLD"
-	BlobId        string                 `protobuf:"bytes,7,opt,name=blob_id,json=blobId,proto3" json:"blob_id,omitempty"`
-	Generation    int64                  `protobuf:"varint,8,opt,name=generation,proto3" json:"generation,omitempty"` // растёт при каждом SwitchPlacement
-	SizeBytes     int64                  `protobuf:"varint,9,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
-	UpdatedAt     int64                  `protobuf:"varint,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"` // Unix timestamp в миллисекундах
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	VersionId    string                 `protobuf:"bytes,1,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`
+	ObjectId     string                 `protobuf:"bytes,2,opt,name=object_id,json=objectId,proto3" json:"object_id,omitempty"`
+	BucketName   string                 `protobuf:"bytes,3,opt,name=bucket_name,json=bucketName,proto3" json:"bucket_name,omitempty"`
+	Key          string                 `protobuf:"bytes,4,opt,name=key,proto3" json:"key,omitempty"`
+	IsCurrent    bool                   `protobuf:"varint,5,opt,name=is_current,json=isCurrent,proto3" json:"is_current,omitempty"`         // версия является current_version_id активного объекта
+	StorageClass string                 `protobuf:"bytes,6,opt,name=storage_class,json=storageClass,proto3" json:"storage_class,omitempty"` // "HOT" или "COLD"
+	BlobId       string                 `protobuf:"bytes,7,opt,name=blob_id,json=blobId,proto3" json:"blob_id,omitempty"`
+	Generation   int64                  `protobuf:"varint,8,opt,name=generation,proto3" json:"generation,omitempty"` // растёт при каждом SwitchPlacement
+	SizeBytes    int64                  `protobuf:"varint,9,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	UpdatedAt    int64                  `protobuf:"varint,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"` // Unix timestamp в миллисекундах
+	// У версии есть зарезервированная целевая копия: перенос уже выполняется.
+	MigrationInProgress bool `protobuf:"varint,11,opt,name=migration_in_progress,json=migrationInProgress,proto3" json:"migration_in_progress,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *PlacementInfo) Reset() {
@@ -137,6 +139,129 @@ func (x *PlacementInfo) GetUpdatedAt() int64 {
 	return 0
 }
 
+func (x *PlacementInfo) GetMigrationInProgress() bool {
+	if x != nil {
+		return x.MigrationInProgress
+	}
+	return false
+}
+
+type StorageClassInfo struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Name           string                 `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"` // "HOT" или "COLD"
+	CapacityBytes  int64                  `protobuf:"varint,2,opt,name=capacity_bytes,json=capacityBytes,proto3" json:"capacity_bytes,omitempty"`
+	MaxUtilization float64                `protobuf:"fixed64,3,opt,name=max_utilization,json=maxUtilization,proto3" json:"max_utilization,omitempty"` // доля ёмкости, доступная для размещения
+	UsableBytes    int64                  `protobuf:"varint,4,opt,name=usable_bytes,json=usableBytes,proto3" json:"usable_bytes,omitempty"`           // floor(capacity_bytes * max_utilization)
+	PlacedBytes    int64                  `protobuf:"varint,5,opt,name=placed_bytes,json=placedBytes,proto3" json:"placed_bytes,omitempty"`           // версии с расположением в классе
+	PlacedVersions int64                  `protobuf:"varint,6,opt,name=placed_versions,json=placedVersions,proto3" json:"placed_versions,omitempty"`
+	CopyBytes      int64                  `protobuf:"varint,7,opt,name=copy_bytes,json=copyBytes,proto3" json:"copy_bytes,omitempty"` // копии в состояниях reserved, cleanup_pending, cleanup_failed
+	Copies         int64                  `protobuf:"varint,8,opt,name=copies,proto3" json:"copies,omitempty"`
+	FailedCleanups int64                  `protobuf:"varint,9,opt,name=failed_cleanups,json=failedCleanups,proto3" json:"failed_cleanups,omitempty"` // копии в cleanup_failed
+	FreeBytes      int64                  `protobuf:"varint,10,opt,name=free_bytes,json=freeBytes,proto3" json:"free_bytes,omitempty"`               // usable - placed - copy; может быть отрицательным
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *StorageClassInfo) Reset() {
+	*x = StorageClassInfo{}
+	mi := &file_placement_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StorageClassInfo) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StorageClassInfo) ProtoMessage() {}
+
+func (x *StorageClassInfo) ProtoReflect() protoreflect.Message {
+	mi := &file_placement_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StorageClassInfo.ProtoReflect.Descriptor instead.
+func (*StorageClassInfo) Descriptor() ([]byte, []int) {
+	return file_placement_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *StorageClassInfo) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *StorageClassInfo) GetCapacityBytes() int64 {
+	if x != nil {
+		return x.CapacityBytes
+	}
+	return 0
+}
+
+func (x *StorageClassInfo) GetMaxUtilization() float64 {
+	if x != nil {
+		return x.MaxUtilization
+	}
+	return 0
+}
+
+func (x *StorageClassInfo) GetUsableBytes() int64 {
+	if x != nil {
+		return x.UsableBytes
+	}
+	return 0
+}
+
+func (x *StorageClassInfo) GetPlacedBytes() int64 {
+	if x != nil {
+		return x.PlacedBytes
+	}
+	return 0
+}
+
+func (x *StorageClassInfo) GetPlacedVersions() int64 {
+	if x != nil {
+		return x.PlacedVersions
+	}
+	return 0
+}
+
+func (x *StorageClassInfo) GetCopyBytes() int64 {
+	if x != nil {
+		return x.CopyBytes
+	}
+	return 0
+}
+
+func (x *StorageClassInfo) GetCopies() int64 {
+	if x != nil {
+		return x.Copies
+	}
+	return 0
+}
+
+func (x *StorageClassInfo) GetFailedCleanups() int64 {
+	if x != nil {
+		return x.FailedCleanups
+	}
+	return 0
+}
+
+func (x *StorageClassInfo) GetFreeBytes() int64 {
+	if x != nil {
+		return x.FreeBytes
+	}
+	return 0
+}
+
 type PlacementCopyInfo struct {
 	state              protoimpl.MessageState `protogen:"open.v1"`
 	CopyId             string                 `protobuf:"bytes,1,opt,name=copy_id,json=copyId,proto3" json:"copy_id,omitempty"`
@@ -162,7 +287,7 @@ type PlacementCopyInfo struct {
 
 func (x *PlacementCopyInfo) Reset() {
 	*x = PlacementCopyInfo{}
-	mi := &file_placement_proto_msgTypes[1]
+	mi := &file_placement_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -174,7 +299,7 @@ func (x *PlacementCopyInfo) String() string {
 func (*PlacementCopyInfo) ProtoMessage() {}
 
 func (x *PlacementCopyInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_placement_proto_msgTypes[1]
+	mi := &file_placement_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -187,7 +312,7 @@ func (x *PlacementCopyInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PlacementCopyInfo.ProtoReflect.Descriptor instead.
 func (*PlacementCopyInfo) Descriptor() ([]byte, []int) {
-	return file_placement_proto_rawDescGZIP(), []int{1}
+	return file_placement_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *PlacementCopyInfo) GetCopyId() string {
@@ -302,6 +427,190 @@ func (x *PlacementCopyInfo) GetUpdatedAt() int64 {
 	return 0
 }
 
+type ListStorageClassesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListStorageClassesRequest) Reset() {
+	*x = ListStorageClassesRequest{}
+	mi := &file_placement_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListStorageClassesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListStorageClassesRequest) ProtoMessage() {}
+
+func (x *ListStorageClassesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_placement_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListStorageClassesRequest.ProtoReflect.Descriptor instead.
+func (*ListStorageClassesRequest) Descriptor() ([]byte, []int) {
+	return file_placement_proto_rawDescGZIP(), []int{3}
+}
+
+type ListStorageClassesResponse struct {
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	StorageClasses []*StorageClassInfo    `protobuf:"bytes,1,rep,name=storage_classes,json=storageClasses,proto3" json:"storage_classes,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ListStorageClassesResponse) Reset() {
+	*x = ListStorageClassesResponse{}
+	mi := &file_placement_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListStorageClassesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListStorageClassesResponse) ProtoMessage() {}
+
+func (x *ListStorageClassesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_placement_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListStorageClassesResponse.ProtoReflect.Descriptor instead.
+func (*ListStorageClassesResponse) Descriptor() ([]byte, []int) {
+	return file_placement_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *ListStorageClassesResponse) GetStorageClasses() []*StorageClassInfo {
+	if x != nil {
+		return x.StorageClasses
+	}
+	return nil
+}
+
+type ListPlacementsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	PageSize      int32                  `protobuf:"varint,1,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`   // по умолчанию и максимум 1000
+	PageToken     string                 `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"` // next_page_token предыдущего ответа; пусто — первая страница
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListPlacementsRequest) Reset() {
+	*x = ListPlacementsRequest{}
+	mi := &file_placement_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListPlacementsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListPlacementsRequest) ProtoMessage() {}
+
+func (x *ListPlacementsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_placement_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListPlacementsRequest.ProtoReflect.Descriptor instead.
+func (*ListPlacementsRequest) Descriptor() ([]byte, []int) {
+	return file_placement_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ListPlacementsRequest) GetPageSize() int32 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+func (x *ListPlacementsRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
+type ListPlacementsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Placements    []*PlacementInfo       `protobuf:"bytes,1,rep,name=placements,proto3" json:"placements,omitempty"`
+	NextPageToken string                 `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"` // пусто — страниц больше нет
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListPlacementsResponse) Reset() {
+	*x = ListPlacementsResponse{}
+	mi := &file_placement_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListPlacementsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListPlacementsResponse) ProtoMessage() {}
+
+func (x *ListPlacementsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_placement_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListPlacementsResponse.ProtoReflect.Descriptor instead.
+func (*ListPlacementsResponse) Descriptor() ([]byte, []int) {
+	return file_placement_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ListPlacementsResponse) GetPlacements() []*PlacementInfo {
+	if x != nil {
+		return x.Placements
+	}
+	return nil
+}
+
+func (x *ListPlacementsResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
+}
+
 type GetPlacementRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	VersionId     string                 `protobuf:"bytes,1,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`
@@ -311,7 +620,7 @@ type GetPlacementRequest struct {
 
 func (x *GetPlacementRequest) Reset() {
 	*x = GetPlacementRequest{}
-	mi := &file_placement_proto_msgTypes[2]
+	mi := &file_placement_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -323,7 +632,7 @@ func (x *GetPlacementRequest) String() string {
 func (*GetPlacementRequest) ProtoMessage() {}
 
 func (x *GetPlacementRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_placement_proto_msgTypes[2]
+	mi := &file_placement_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -336,7 +645,7 @@ func (x *GetPlacementRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPlacementRequest.ProtoReflect.Descriptor instead.
 func (*GetPlacementRequest) Descriptor() ([]byte, []int) {
-	return file_placement_proto_rawDescGZIP(), []int{2}
+	return file_placement_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *GetPlacementRequest) GetVersionId() string {
@@ -355,7 +664,7 @@ type GetPlacementResponse struct {
 
 func (x *GetPlacementResponse) Reset() {
 	*x = GetPlacementResponse{}
-	mi := &file_placement_proto_msgTypes[3]
+	mi := &file_placement_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -367,7 +676,7 @@ func (x *GetPlacementResponse) String() string {
 func (*GetPlacementResponse) ProtoMessage() {}
 
 func (x *GetPlacementResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_placement_proto_msgTypes[3]
+	mi := &file_placement_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -380,7 +689,7 @@ func (x *GetPlacementResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetPlacementResponse.ProtoReflect.Descriptor instead.
 func (*GetPlacementResponse) Descriptor() ([]byte, []int) {
-	return file_placement_proto_rawDescGZIP(), []int{3}
+	return file_placement_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *GetPlacementResponse) GetPlacement() *PlacementInfo {
@@ -403,7 +712,7 @@ type ReserveCopyRequest struct {
 
 func (x *ReserveCopyRequest) Reset() {
 	*x = ReserveCopyRequest{}
-	mi := &file_placement_proto_msgTypes[4]
+	mi := &file_placement_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -415,7 +724,7 @@ func (x *ReserveCopyRequest) String() string {
 func (*ReserveCopyRequest) ProtoMessage() {}
 
 func (x *ReserveCopyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_placement_proto_msgTypes[4]
+	mi := &file_placement_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -428,7 +737,7 @@ func (x *ReserveCopyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReserveCopyRequest.ProtoReflect.Descriptor instead.
 func (*ReserveCopyRequest) Descriptor() ([]byte, []int) {
-	return file_placement_proto_rawDescGZIP(), []int{4}
+	return file_placement_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *ReserveCopyRequest) GetMigrationId() string {
@@ -475,7 +784,7 @@ type ReserveCopyResponse struct {
 
 func (x *ReserveCopyResponse) Reset() {
 	*x = ReserveCopyResponse{}
-	mi := &file_placement_proto_msgTypes[5]
+	mi := &file_placement_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -487,7 +796,7 @@ func (x *ReserveCopyResponse) String() string {
 func (*ReserveCopyResponse) ProtoMessage() {}
 
 func (x *ReserveCopyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_placement_proto_msgTypes[5]
+	mi := &file_placement_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -500,7 +809,7 @@ func (x *ReserveCopyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ReserveCopyResponse.ProtoReflect.Descriptor instead.
 func (*ReserveCopyResponse) Descriptor() ([]byte, []int) {
-	return file_placement_proto_rawDescGZIP(), []int{5}
+	return file_placement_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *ReserveCopyResponse) GetCopy() *PlacementCopyInfo {
@@ -524,7 +833,7 @@ type SwitchPlacementRequest struct {
 
 func (x *SwitchPlacementRequest) Reset() {
 	*x = SwitchPlacementRequest{}
-	mi := &file_placement_proto_msgTypes[6]
+	mi := &file_placement_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -536,7 +845,7 @@ func (x *SwitchPlacementRequest) String() string {
 func (*SwitchPlacementRequest) ProtoMessage() {}
 
 func (x *SwitchPlacementRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_placement_proto_msgTypes[6]
+	mi := &file_placement_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -549,7 +858,7 @@ func (x *SwitchPlacementRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SwitchPlacementRequest.ProtoReflect.Descriptor instead.
 func (*SwitchPlacementRequest) Descriptor() ([]byte, []int) {
-	return file_placement_proto_rawDescGZIP(), []int{6}
+	return file_placement_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *SwitchPlacementRequest) GetMigrationId() string {
@@ -593,7 +902,7 @@ type SwitchPlacementResponse struct {
 
 func (x *SwitchPlacementResponse) Reset() {
 	*x = SwitchPlacementResponse{}
-	mi := &file_placement_proto_msgTypes[7]
+	mi := &file_placement_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -605,7 +914,7 @@ func (x *SwitchPlacementResponse) String() string {
 func (*SwitchPlacementResponse) ProtoMessage() {}
 
 func (x *SwitchPlacementResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_placement_proto_msgTypes[7]
+	mi := &file_placement_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -618,7 +927,7 @@ func (x *SwitchPlacementResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SwitchPlacementResponse.ProtoReflect.Descriptor instead.
 func (*SwitchPlacementResponse) Descriptor() ([]byte, []int) {
-	return file_placement_proto_rawDescGZIP(), []int{7}
+	return file_placement_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *SwitchPlacementResponse) GetVersionId() string {
@@ -666,7 +975,7 @@ type AbortCopyRequest struct {
 
 func (x *AbortCopyRequest) Reset() {
 	*x = AbortCopyRequest{}
-	mi := &file_placement_proto_msgTypes[8]
+	mi := &file_placement_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -678,7 +987,7 @@ func (x *AbortCopyRequest) String() string {
 func (*AbortCopyRequest) ProtoMessage() {}
 
 func (x *AbortCopyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_placement_proto_msgTypes[8]
+	mi := &file_placement_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -691,7 +1000,7 @@ func (x *AbortCopyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AbortCopyRequest.ProtoReflect.Descriptor instead.
 func (*AbortCopyRequest) Descriptor() ([]byte, []int) {
-	return file_placement_proto_rawDescGZIP(), []int{8}
+	return file_placement_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *AbortCopyRequest) GetMigrationId() string {
@@ -717,7 +1026,7 @@ type AbortCopyResponse struct {
 
 func (x *AbortCopyResponse) Reset() {
 	*x = AbortCopyResponse{}
-	mi := &file_placement_proto_msgTypes[9]
+	mi := &file_placement_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -729,7 +1038,7 @@ func (x *AbortCopyResponse) String() string {
 func (*AbortCopyResponse) ProtoMessage() {}
 
 func (x *AbortCopyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_placement_proto_msgTypes[9]
+	mi := &file_placement_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -742,7 +1051,7 @@ func (x *AbortCopyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AbortCopyResponse.ProtoReflect.Descriptor instead.
 func (*AbortCopyResponse) Descriptor() ([]byte, []int) {
-	return file_placement_proto_rawDescGZIP(), []int{9}
+	return file_placement_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *AbortCopyResponse) GetCopy() *PlacementCopyInfo {
@@ -761,7 +1070,7 @@ type ListMigrationCopiesRequest struct {
 
 func (x *ListMigrationCopiesRequest) Reset() {
 	*x = ListMigrationCopiesRequest{}
-	mi := &file_placement_proto_msgTypes[10]
+	mi := &file_placement_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -773,7 +1082,7 @@ func (x *ListMigrationCopiesRequest) String() string {
 func (*ListMigrationCopiesRequest) ProtoMessage() {}
 
 func (x *ListMigrationCopiesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_placement_proto_msgTypes[10]
+	mi := &file_placement_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -786,7 +1095,7 @@ func (x *ListMigrationCopiesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMigrationCopiesRequest.ProtoReflect.Descriptor instead.
 func (*ListMigrationCopiesRequest) Descriptor() ([]byte, []int) {
-	return file_placement_proto_rawDescGZIP(), []int{10}
+	return file_placement_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ListMigrationCopiesRequest) GetMigrationId() string {
@@ -805,7 +1114,7 @@ type ListMigrationCopiesResponse struct {
 
 func (x *ListMigrationCopiesResponse) Reset() {
 	*x = ListMigrationCopiesResponse{}
-	mi := &file_placement_proto_msgTypes[11]
+	mi := &file_placement_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -817,7 +1126,7 @@ func (x *ListMigrationCopiesResponse) String() string {
 func (*ListMigrationCopiesResponse) ProtoMessage() {}
 
 func (x *ListMigrationCopiesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_placement_proto_msgTypes[11]
+	mi := &file_placement_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -830,7 +1139,7 @@ func (x *ListMigrationCopiesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMigrationCopiesResponse.ProtoReflect.Descriptor instead.
 func (*ListMigrationCopiesResponse) Descriptor() ([]byte, []int) {
-	return file_placement_proto_rawDescGZIP(), []int{11}
+	return file_placement_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ListMigrationCopiesResponse) GetCopies() []*PlacementCopyInfo {
@@ -849,7 +1158,7 @@ type ListDueCleanupsRequest struct {
 
 func (x *ListDueCleanupsRequest) Reset() {
 	*x = ListDueCleanupsRequest{}
-	mi := &file_placement_proto_msgTypes[12]
+	mi := &file_placement_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -861,7 +1170,7 @@ func (x *ListDueCleanupsRequest) String() string {
 func (*ListDueCleanupsRequest) ProtoMessage() {}
 
 func (x *ListDueCleanupsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_placement_proto_msgTypes[12]
+	mi := &file_placement_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -874,7 +1183,7 @@ func (x *ListDueCleanupsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDueCleanupsRequest.ProtoReflect.Descriptor instead.
 func (*ListDueCleanupsRequest) Descriptor() ([]byte, []int) {
-	return file_placement_proto_rawDescGZIP(), []int{12}
+	return file_placement_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ListDueCleanupsRequest) GetLimit() int32 {
@@ -893,7 +1202,7 @@ type ListDueCleanupsResponse struct {
 
 func (x *ListDueCleanupsResponse) Reset() {
 	*x = ListDueCleanupsResponse{}
-	mi := &file_placement_proto_msgTypes[13]
+	mi := &file_placement_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -905,7 +1214,7 @@ func (x *ListDueCleanupsResponse) String() string {
 func (*ListDueCleanupsResponse) ProtoMessage() {}
 
 func (x *ListDueCleanupsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_placement_proto_msgTypes[13]
+	mi := &file_placement_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -918,7 +1227,7 @@ func (x *ListDueCleanupsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListDueCleanupsResponse.ProtoReflect.Descriptor instead.
 func (*ListDueCleanupsResponse) Descriptor() ([]byte, []int) {
-	return file_placement_proto_rawDescGZIP(), []int{13}
+	return file_placement_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ListDueCleanupsResponse) GetCopies() []*PlacementCopyInfo {
@@ -939,7 +1248,7 @@ type CompleteCleanupRequest struct {
 
 func (x *CompleteCleanupRequest) Reset() {
 	*x = CompleteCleanupRequest{}
-	mi := &file_placement_proto_msgTypes[14]
+	mi := &file_placement_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -951,7 +1260,7 @@ func (x *CompleteCleanupRequest) String() string {
 func (*CompleteCleanupRequest) ProtoMessage() {}
 
 func (x *CompleteCleanupRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_placement_proto_msgTypes[14]
+	mi := &file_placement_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -964,7 +1273,7 @@ func (x *CompleteCleanupRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompleteCleanupRequest.ProtoReflect.Descriptor instead.
 func (*CompleteCleanupRequest) Descriptor() ([]byte, []int) {
-	return file_placement_proto_rawDescGZIP(), []int{14}
+	return file_placement_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *CompleteCleanupRequest) GetCopyId() string {
@@ -997,7 +1306,7 @@ type CompleteCleanupResponse struct {
 
 func (x *CompleteCleanupResponse) Reset() {
 	*x = CompleteCleanupResponse{}
-	mi := &file_placement_proto_msgTypes[15]
+	mi := &file_placement_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1009,7 +1318,7 @@ func (x *CompleteCleanupResponse) String() string {
 func (*CompleteCleanupResponse) ProtoMessage() {}
 
 func (x *CompleteCleanupResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_placement_proto_msgTypes[15]
+	mi := &file_placement_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1022,7 +1331,7 @@ func (x *CompleteCleanupResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CompleteCleanupResponse.ProtoReflect.Descriptor instead.
 func (*CompleteCleanupResponse) Descriptor() ([]byte, []int) {
-	return file_placement_proto_rawDescGZIP(), []int{15}
+	return file_placement_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *CompleteCleanupResponse) GetCopy() *PlacementCopyInfo {
@@ -1036,7 +1345,7 @@ var File_placement_proto protoreflect.FileDescriptor
 
 const file_placement_proto_rawDesc = "" +
 	"\n" +
-	"\x0fplacement.proto\x12\x12opens3.metadata.v1\"\xb9\x02\n" +
+	"\x0fplacement.proto\x12\x12opens3.metadata.v1\"\xed\x02\n" +
 	"\rPlacementInfo\x12\x1d\n" +
 	"\n" +
 	"version_id\x18\x01 \x01(\tR\tversionId\x12\x1b\n" +
@@ -1055,7 +1364,22 @@ const file_placement_proto_rawDesc = "" +
 	"size_bytes\x18\t \x01(\x03R\tsizeBytes\x12\x1d\n" +
 	"\n" +
 	"updated_at\x18\n" +
-	" \x01(\x03R\tupdatedAt\"\x9d\x04\n" +
+	" \x01(\x03R\tupdatedAt\x122\n" +
+	"\x15migration_in_progress\x18\v \x01(\bR\x13migrationInProgress\"\xe4\x02\n" +
+	"\x10StorageClassInfo\x12\x12\n" +
+	"\x04name\x18\x01 \x01(\tR\x04name\x12%\n" +
+	"\x0ecapacity_bytes\x18\x02 \x01(\x03R\rcapacityBytes\x12'\n" +
+	"\x0fmax_utilization\x18\x03 \x01(\x01R\x0emaxUtilization\x12!\n" +
+	"\fusable_bytes\x18\x04 \x01(\x03R\vusableBytes\x12!\n" +
+	"\fplaced_bytes\x18\x05 \x01(\x03R\vplacedBytes\x12'\n" +
+	"\x0fplaced_versions\x18\x06 \x01(\x03R\x0eplacedVersions\x12\x1d\n" +
+	"\n" +
+	"copy_bytes\x18\a \x01(\x03R\tcopyBytes\x12\x16\n" +
+	"\x06copies\x18\b \x01(\x03R\x06copies\x12'\n" +
+	"\x0ffailed_cleanups\x18\t \x01(\x03R\x0efailedCleanups\x12\x1d\n" +
+	"\n" +
+	"free_bytes\x18\n" +
+	" \x01(\x03R\tfreeBytes\"\x9d\x04\n" +
 	"\x11PlacementCopyInfo\x12\x17\n" +
 	"\acopy_id\x18\x01 \x01(\tR\x06copyId\x12!\n" +
 	"\fmigration_id\x18\x02 \x01(\tR\vmigrationId\x12\x1d\n" +
@@ -1078,7 +1402,19 @@ const file_placement_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x0f \x01(\x03R\tcreatedAt\x12\x1d\n" +
 	"\n" +
-	"updated_at\x18\x10 \x01(\x03R\tupdatedAt\"4\n" +
+	"updated_at\x18\x10 \x01(\x03R\tupdatedAt\"\x1b\n" +
+	"\x19ListStorageClassesRequest\"k\n" +
+	"\x1aListStorageClassesResponse\x12M\n" +
+	"\x0fstorage_classes\x18\x01 \x03(\v2$.opens3.metadata.v1.StorageClassInfoR\x0estorageClasses\"S\n" +
+	"\x15ListPlacementsRequest\x12\x1b\n" +
+	"\tpage_size\x18\x01 \x01(\x05R\bpageSize\x12\x1d\n" +
+	"\n" +
+	"page_token\x18\x02 \x01(\tR\tpageToken\"\x83\x01\n" +
+	"\x16ListPlacementsResponse\x12A\n" +
+	"\n" +
+	"placements\x18\x01 \x03(\v2!.opens3.metadata.v1.PlacementInfoR\n" +
+	"placements\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"4\n" +
 	"\x13GetPlacementRequest\x12\x1d\n" +
 	"\n" +
 	"version_id\x18\x01 \x01(\tR\tversionId\"W\n" +
@@ -1124,8 +1460,10 @@ const file_placement_proto_rawDesc = "" +
 	"\adeleted\x18\x02 \x01(\bR\adeleted\x12#\n" +
 	"\rerror_message\x18\x03 \x01(\tR\ferrorMessage\"T\n" +
 	"\x17CompleteCleanupResponse\x129\n" +
-	"\x04copy\x18\x01 \x01(\v2%.opens3.metadata.v1.PlacementCopyInfoR\x04copy2\xeb\x05\n" +
-	"\x10PlacementService\x12a\n" +
+	"\x04copy\x18\x01 \x01(\v2%.opens3.metadata.v1.PlacementCopyInfoR\x04copy2\xc9\a\n" +
+	"\x10PlacementService\x12s\n" +
+	"\x12ListStorageClasses\x12-.opens3.metadata.v1.ListStorageClassesRequest\x1a..opens3.metadata.v1.ListStorageClassesResponse\x12g\n" +
+	"\x0eListPlacements\x12).opens3.metadata.v1.ListPlacementsRequest\x1a*.opens3.metadata.v1.ListPlacementsResponse\x12a\n" +
 	"\fGetPlacement\x12'.opens3.metadata.v1.GetPlacementRequest\x1a(.opens3.metadata.v1.GetPlacementResponse\x12^\n" +
 	"\vReserveCopy\x12&.opens3.metadata.v1.ReserveCopyRequest\x1a'.opens3.metadata.v1.ReserveCopyResponse\x12j\n" +
 	"\x0fSwitchPlacement\x12*.opens3.metadata.v1.SwitchPlacementRequest\x1a+.opens3.metadata.v1.SwitchPlacementResponse\x12X\n" +
@@ -1146,52 +1484,63 @@ func file_placement_proto_rawDescGZIP() []byte {
 	return file_placement_proto_rawDescData
 }
 
-var file_placement_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_placement_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_placement_proto_goTypes = []any{
 	(*PlacementInfo)(nil),               // 0: opens3.metadata.v1.PlacementInfo
-	(*PlacementCopyInfo)(nil),           // 1: opens3.metadata.v1.PlacementCopyInfo
-	(*GetPlacementRequest)(nil),         // 2: opens3.metadata.v1.GetPlacementRequest
-	(*GetPlacementResponse)(nil),        // 3: opens3.metadata.v1.GetPlacementResponse
-	(*ReserveCopyRequest)(nil),          // 4: opens3.metadata.v1.ReserveCopyRequest
-	(*ReserveCopyResponse)(nil),         // 5: opens3.metadata.v1.ReserveCopyResponse
-	(*SwitchPlacementRequest)(nil),      // 6: opens3.metadata.v1.SwitchPlacementRequest
-	(*SwitchPlacementResponse)(nil),     // 7: opens3.metadata.v1.SwitchPlacementResponse
-	(*AbortCopyRequest)(nil),            // 8: opens3.metadata.v1.AbortCopyRequest
-	(*AbortCopyResponse)(nil),           // 9: opens3.metadata.v1.AbortCopyResponse
-	(*ListMigrationCopiesRequest)(nil),  // 10: opens3.metadata.v1.ListMigrationCopiesRequest
-	(*ListMigrationCopiesResponse)(nil), // 11: opens3.metadata.v1.ListMigrationCopiesResponse
-	(*ListDueCleanupsRequest)(nil),      // 12: opens3.metadata.v1.ListDueCleanupsRequest
-	(*ListDueCleanupsResponse)(nil),     // 13: opens3.metadata.v1.ListDueCleanupsResponse
-	(*CompleteCleanupRequest)(nil),      // 14: opens3.metadata.v1.CompleteCleanupRequest
-	(*CompleteCleanupResponse)(nil),     // 15: opens3.metadata.v1.CompleteCleanupResponse
+	(*StorageClassInfo)(nil),            // 1: opens3.metadata.v1.StorageClassInfo
+	(*PlacementCopyInfo)(nil),           // 2: opens3.metadata.v1.PlacementCopyInfo
+	(*ListStorageClassesRequest)(nil),   // 3: opens3.metadata.v1.ListStorageClassesRequest
+	(*ListStorageClassesResponse)(nil),  // 4: opens3.metadata.v1.ListStorageClassesResponse
+	(*ListPlacementsRequest)(nil),       // 5: opens3.metadata.v1.ListPlacementsRequest
+	(*ListPlacementsResponse)(nil),      // 6: opens3.metadata.v1.ListPlacementsResponse
+	(*GetPlacementRequest)(nil),         // 7: opens3.metadata.v1.GetPlacementRequest
+	(*GetPlacementResponse)(nil),        // 8: opens3.metadata.v1.GetPlacementResponse
+	(*ReserveCopyRequest)(nil),          // 9: opens3.metadata.v1.ReserveCopyRequest
+	(*ReserveCopyResponse)(nil),         // 10: opens3.metadata.v1.ReserveCopyResponse
+	(*SwitchPlacementRequest)(nil),      // 11: opens3.metadata.v1.SwitchPlacementRequest
+	(*SwitchPlacementResponse)(nil),     // 12: opens3.metadata.v1.SwitchPlacementResponse
+	(*AbortCopyRequest)(nil),            // 13: opens3.metadata.v1.AbortCopyRequest
+	(*AbortCopyResponse)(nil),           // 14: opens3.metadata.v1.AbortCopyResponse
+	(*ListMigrationCopiesRequest)(nil),  // 15: opens3.metadata.v1.ListMigrationCopiesRequest
+	(*ListMigrationCopiesResponse)(nil), // 16: opens3.metadata.v1.ListMigrationCopiesResponse
+	(*ListDueCleanupsRequest)(nil),      // 17: opens3.metadata.v1.ListDueCleanupsRequest
+	(*ListDueCleanupsResponse)(nil),     // 18: opens3.metadata.v1.ListDueCleanupsResponse
+	(*CompleteCleanupRequest)(nil),      // 19: opens3.metadata.v1.CompleteCleanupRequest
+	(*CompleteCleanupResponse)(nil),     // 20: opens3.metadata.v1.CompleteCleanupResponse
 }
 var file_placement_proto_depIdxs = []int32{
-	0,  // 0: opens3.metadata.v1.GetPlacementResponse.placement:type_name -> opens3.metadata.v1.PlacementInfo
-	1,  // 1: opens3.metadata.v1.ReserveCopyResponse.copy:type_name -> opens3.metadata.v1.PlacementCopyInfo
-	1,  // 2: opens3.metadata.v1.SwitchPlacementResponse.source_copy:type_name -> opens3.metadata.v1.PlacementCopyInfo
-	1,  // 3: opens3.metadata.v1.AbortCopyResponse.copy:type_name -> opens3.metadata.v1.PlacementCopyInfo
-	1,  // 4: opens3.metadata.v1.ListMigrationCopiesResponse.copies:type_name -> opens3.metadata.v1.PlacementCopyInfo
-	1,  // 5: opens3.metadata.v1.ListDueCleanupsResponse.copies:type_name -> opens3.metadata.v1.PlacementCopyInfo
-	1,  // 6: opens3.metadata.v1.CompleteCleanupResponse.copy:type_name -> opens3.metadata.v1.PlacementCopyInfo
-	2,  // 7: opens3.metadata.v1.PlacementService.GetPlacement:input_type -> opens3.metadata.v1.GetPlacementRequest
-	4,  // 8: opens3.metadata.v1.PlacementService.ReserveCopy:input_type -> opens3.metadata.v1.ReserveCopyRequest
-	6,  // 9: opens3.metadata.v1.PlacementService.SwitchPlacement:input_type -> opens3.metadata.v1.SwitchPlacementRequest
-	8,  // 10: opens3.metadata.v1.PlacementService.AbortCopy:input_type -> opens3.metadata.v1.AbortCopyRequest
-	10, // 11: opens3.metadata.v1.PlacementService.ListMigrationCopies:input_type -> opens3.metadata.v1.ListMigrationCopiesRequest
-	12, // 12: opens3.metadata.v1.PlacementService.ListDueCleanups:input_type -> opens3.metadata.v1.ListDueCleanupsRequest
-	14, // 13: opens3.metadata.v1.PlacementService.CompleteCleanup:input_type -> opens3.metadata.v1.CompleteCleanupRequest
-	3,  // 14: opens3.metadata.v1.PlacementService.GetPlacement:output_type -> opens3.metadata.v1.GetPlacementResponse
-	5,  // 15: opens3.metadata.v1.PlacementService.ReserveCopy:output_type -> opens3.metadata.v1.ReserveCopyResponse
-	7,  // 16: opens3.metadata.v1.PlacementService.SwitchPlacement:output_type -> opens3.metadata.v1.SwitchPlacementResponse
-	9,  // 17: opens3.metadata.v1.PlacementService.AbortCopy:output_type -> opens3.metadata.v1.AbortCopyResponse
-	11, // 18: opens3.metadata.v1.PlacementService.ListMigrationCopies:output_type -> opens3.metadata.v1.ListMigrationCopiesResponse
-	13, // 19: opens3.metadata.v1.PlacementService.ListDueCleanups:output_type -> opens3.metadata.v1.ListDueCleanupsResponse
-	15, // 20: opens3.metadata.v1.PlacementService.CompleteCleanup:output_type -> opens3.metadata.v1.CompleteCleanupResponse
-	14, // [14:21] is the sub-list for method output_type
-	7,  // [7:14] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	1,  // 0: opens3.metadata.v1.ListStorageClassesResponse.storage_classes:type_name -> opens3.metadata.v1.StorageClassInfo
+	0,  // 1: opens3.metadata.v1.ListPlacementsResponse.placements:type_name -> opens3.metadata.v1.PlacementInfo
+	0,  // 2: opens3.metadata.v1.GetPlacementResponse.placement:type_name -> opens3.metadata.v1.PlacementInfo
+	2,  // 3: opens3.metadata.v1.ReserveCopyResponse.copy:type_name -> opens3.metadata.v1.PlacementCopyInfo
+	2,  // 4: opens3.metadata.v1.SwitchPlacementResponse.source_copy:type_name -> opens3.metadata.v1.PlacementCopyInfo
+	2,  // 5: opens3.metadata.v1.AbortCopyResponse.copy:type_name -> opens3.metadata.v1.PlacementCopyInfo
+	2,  // 6: opens3.metadata.v1.ListMigrationCopiesResponse.copies:type_name -> opens3.metadata.v1.PlacementCopyInfo
+	2,  // 7: opens3.metadata.v1.ListDueCleanupsResponse.copies:type_name -> opens3.metadata.v1.PlacementCopyInfo
+	2,  // 8: opens3.metadata.v1.CompleteCleanupResponse.copy:type_name -> opens3.metadata.v1.PlacementCopyInfo
+	3,  // 9: opens3.metadata.v1.PlacementService.ListStorageClasses:input_type -> opens3.metadata.v1.ListStorageClassesRequest
+	5,  // 10: opens3.metadata.v1.PlacementService.ListPlacements:input_type -> opens3.metadata.v1.ListPlacementsRequest
+	7,  // 11: opens3.metadata.v1.PlacementService.GetPlacement:input_type -> opens3.metadata.v1.GetPlacementRequest
+	9,  // 12: opens3.metadata.v1.PlacementService.ReserveCopy:input_type -> opens3.metadata.v1.ReserveCopyRequest
+	11, // 13: opens3.metadata.v1.PlacementService.SwitchPlacement:input_type -> opens3.metadata.v1.SwitchPlacementRequest
+	13, // 14: opens3.metadata.v1.PlacementService.AbortCopy:input_type -> opens3.metadata.v1.AbortCopyRequest
+	15, // 15: opens3.metadata.v1.PlacementService.ListMigrationCopies:input_type -> opens3.metadata.v1.ListMigrationCopiesRequest
+	17, // 16: opens3.metadata.v1.PlacementService.ListDueCleanups:input_type -> opens3.metadata.v1.ListDueCleanupsRequest
+	19, // 17: opens3.metadata.v1.PlacementService.CompleteCleanup:input_type -> opens3.metadata.v1.CompleteCleanupRequest
+	4,  // 18: opens3.metadata.v1.PlacementService.ListStorageClasses:output_type -> opens3.metadata.v1.ListStorageClassesResponse
+	6,  // 19: opens3.metadata.v1.PlacementService.ListPlacements:output_type -> opens3.metadata.v1.ListPlacementsResponse
+	8,  // 20: opens3.metadata.v1.PlacementService.GetPlacement:output_type -> opens3.metadata.v1.GetPlacementResponse
+	10, // 21: opens3.metadata.v1.PlacementService.ReserveCopy:output_type -> opens3.metadata.v1.ReserveCopyResponse
+	12, // 22: opens3.metadata.v1.PlacementService.SwitchPlacement:output_type -> opens3.metadata.v1.SwitchPlacementResponse
+	14, // 23: opens3.metadata.v1.PlacementService.AbortCopy:output_type -> opens3.metadata.v1.AbortCopyResponse
+	16, // 24: opens3.metadata.v1.PlacementService.ListMigrationCopies:output_type -> opens3.metadata.v1.ListMigrationCopiesResponse
+	18, // 25: opens3.metadata.v1.PlacementService.ListDueCleanups:output_type -> opens3.metadata.v1.ListDueCleanupsResponse
+	20, // 26: opens3.metadata.v1.PlacementService.CompleteCleanup:output_type -> opens3.metadata.v1.CompleteCleanupResponse
+	18, // [18:27] is the sub-list for method output_type
+	9,  // [9:18] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_placement_proto_init() }
@@ -1205,7 +1554,7 @@ func file_placement_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_placement_proto_rawDesc), len(file_placement_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   16,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

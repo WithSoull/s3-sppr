@@ -12,7 +12,7 @@ import (
 	"github.com/jackc/pgx/v4"
 )
 
-const selectPlacement = `
+const selectPlacements = `
 SELECT vp.version_id,
        o.id AS object_id,
        b.name AS bucket_name,
@@ -22,17 +22,22 @@ SELECT vp.version_id,
        vp.blob_id,
        vp.generation,
        v.size_bytes,
-       vp.updated_at
+       vp.updated_at,
+       EXISTS (
+           SELECT 1 FROM placement_copies pc
+           WHERE pc.version_id = vp.version_id AND pc.state = 'reserved'
+       ) AS migration_in_progress
 FROM version_placements vp
 JOIN versions v ON v.id = vp.version_id
 JOIN objects o ON o.id = v.object_id
-JOIN buckets b ON b.id = o.bucket_id
-WHERE vp.version_id = $1`
+JOIN buckets b ON b.id = o.bucket_id`
+
+const selectPlacementByVersion = selectPlacements + "\nWHERE vp.version_id = $1"
 
 func (r *repo) Get(ctx context.Context, versionID string) (*model.Placement, error) {
 	return r.get(ctx, db.Query{
 		Name:     "placement_repository:Get",
-		QueryRaw: selectPlacement,
+		QueryRaw: selectPlacementByVersion,
 	}, versionID)
 }
 
@@ -41,7 +46,7 @@ func (r *repo) LockForChange(ctx context.Context, versionID string) (*model.Plac
 	// generation reflect the latest overwrite or switch.
 	return r.get(ctx, db.Query{
 		Name:     "placement_repository:LockForChange",
-		QueryRaw: selectPlacement + "\nFOR UPDATE OF o, vp",
+		QueryRaw: selectPlacementByVersion + "\nFOR UPDATE OF o, vp",
 	}, versionID)
 }
 
@@ -55,4 +60,29 @@ func (r *repo) get(ctx context.Context, q db.Query, versionID string) (*model.Pl
 	}
 
 	return converter.PlacementToDomain(&p), nil
+}
+
+// ListCurrent pages through current versions of active objects by version_id.
+func (r *repo) ListCurrent(ctx context.Context, afterVersionID string, limit int32) ([]*model.Placement, error) {
+	q := db.Query{
+		Name: "placement_repository:ListCurrent",
+		QueryRaw: selectPlacements + `
+WHERE o.current_version_id = v.id
+  AND o.status = 'active'
+  AND vp.version_id > COALESCE(NULLIF($1, '')::uuid, '00000000-0000-0000-0000-000000000000')
+ORDER BY vp.version_id
+LIMIT $2`,
+	}
+
+	var rows []repoModel.Placement
+	if err := r.db.DB().ScanAllContext(ctx, &rows, q, afterVersionID, limit); err != nil {
+		return nil, err
+	}
+
+	placements := make([]*model.Placement, 0, len(rows))
+	for i := range rows {
+		placements = append(placements, converter.PlacementToDomain(&rows[i]))
+	}
+
+	return placements, nil
 }

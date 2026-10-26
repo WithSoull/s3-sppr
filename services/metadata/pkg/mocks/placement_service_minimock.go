@@ -55,6 +55,20 @@ type PlacementServiceMock struct {
 	beforeListMigrationCopiesCounter uint64
 	ListMigrationCopiesMock          mPlacementServiceMockListMigrationCopies
 
+	funcListPlacements          func(ctx context.Context, pageSize int32, pageToken string) (ppa1 []*model.Placement, s1 string, err error)
+	funcListPlacementsOrigin    string
+	inspectFuncListPlacements   func(ctx context.Context, pageSize int32, pageToken string)
+	afterListPlacementsCounter  uint64
+	beforeListPlacementsCounter uint64
+	ListPlacementsMock          mPlacementServiceMockListPlacements
+
+	funcListStorageClasses          func(ctx context.Context) (spa1 []*model.StorageClassUsage, err error)
+	funcListStorageClassesOrigin    string
+	inspectFuncListStorageClasses   func(ctx context.Context)
+	afterListStorageClassesCounter  uint64
+	beforeListStorageClassesCounter uint64
+	ListStorageClassesMock          mPlacementServiceMockListStorageClasses
+
 	funcReserveCopy          func(ctx context.Context, migrationID string, versionID string, expectedGeneration int64, sourceClass model.StorageClass, targetClass model.StorageClass) (pp1 *model.PlacementCopy, err error)
 	funcReserveCopyOrigin    string
 	inspectFuncReserveCopy   func(ctx context.Context, migrationID string, versionID string, expectedGeneration int64, sourceClass model.StorageClass, targetClass model.StorageClass)
@@ -92,6 +106,12 @@ func NewPlacementServiceMock(t minimock.Tester) *PlacementServiceMock {
 
 	m.ListMigrationCopiesMock = mPlacementServiceMockListMigrationCopies{mock: m}
 	m.ListMigrationCopiesMock.callArgs = []*PlacementServiceMockListMigrationCopiesParams{}
+
+	m.ListPlacementsMock = mPlacementServiceMockListPlacements{mock: m}
+	m.ListPlacementsMock.callArgs = []*PlacementServiceMockListPlacementsParams{}
+
+	m.ListStorageClassesMock = mPlacementServiceMockListStorageClasses{mock: m}
+	m.ListStorageClassesMock.callArgs = []*PlacementServiceMockListStorageClassesParams{}
 
 	m.ReserveCopyMock = mPlacementServiceMockReserveCopy{mock: m}
 	m.ReserveCopyMock.callArgs = []*PlacementServiceMockReserveCopyParams{}
@@ -1912,6 +1932,693 @@ func (m *PlacementServiceMock) MinimockListMigrationCopiesInspect() {
 	}
 }
 
+type mPlacementServiceMockListPlacements struct {
+	optional           bool
+	mock               *PlacementServiceMock
+	defaultExpectation *PlacementServiceMockListPlacementsExpectation
+	expectations       []*PlacementServiceMockListPlacementsExpectation
+
+	callArgs []*PlacementServiceMockListPlacementsParams
+	mutex    sync.RWMutex
+
+	expectedInvocations       uint64
+	expectedInvocationsOrigin string
+}
+
+// PlacementServiceMockListPlacementsExpectation specifies expectation struct of the PlacementService.ListPlacements
+type PlacementServiceMockListPlacementsExpectation struct {
+	mock               *PlacementServiceMock
+	params             *PlacementServiceMockListPlacementsParams
+	paramPtrs          *PlacementServiceMockListPlacementsParamPtrs
+	expectationOrigins PlacementServiceMockListPlacementsExpectationOrigins
+	results            *PlacementServiceMockListPlacementsResults
+	returnOrigin       string
+	Counter            uint64
+}
+
+// PlacementServiceMockListPlacementsParams contains parameters of the PlacementService.ListPlacements
+type PlacementServiceMockListPlacementsParams struct {
+	ctx       context.Context
+	pageSize  int32
+	pageToken string
+}
+
+// PlacementServiceMockListPlacementsParamPtrs contains pointers to parameters of the PlacementService.ListPlacements
+type PlacementServiceMockListPlacementsParamPtrs struct {
+	ctx       *context.Context
+	pageSize  *int32
+	pageToken *string
+}
+
+// PlacementServiceMockListPlacementsResults contains results of the PlacementService.ListPlacements
+type PlacementServiceMockListPlacementsResults struct {
+	ppa1 []*model.Placement
+	s1   string
+	err  error
+}
+
+// PlacementServiceMockListPlacementsOrigins contains origins of expectations of the PlacementService.ListPlacements
+type PlacementServiceMockListPlacementsExpectationOrigins struct {
+	origin          string
+	originCtx       string
+	originPageSize  string
+	originPageToken string
+}
+
+// Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
+// the test will fail minimock's automatic final call check if the mocked method was not called at least once.
+// Optional() makes method check to work in '0 or more' mode.
+// It is NOT RECOMMENDED to use this option unless you really need it, as default behaviour helps to
+// catch the problems when the expected method call is totally skipped during test run.
+func (mmListPlacements *mPlacementServiceMockListPlacements) Optional() *mPlacementServiceMockListPlacements {
+	mmListPlacements.optional = true
+	return mmListPlacements
+}
+
+// Expect sets up expected params for PlacementService.ListPlacements
+func (mmListPlacements *mPlacementServiceMockListPlacements) Expect(ctx context.Context, pageSize int32, pageToken string) *mPlacementServiceMockListPlacements {
+	if mmListPlacements.mock.funcListPlacements != nil {
+		mmListPlacements.mock.t.Fatalf("PlacementServiceMock.ListPlacements mock is already set by Set")
+	}
+
+	if mmListPlacements.defaultExpectation == nil {
+		mmListPlacements.defaultExpectation = &PlacementServiceMockListPlacementsExpectation{}
+	}
+
+	if mmListPlacements.defaultExpectation.paramPtrs != nil {
+		mmListPlacements.mock.t.Fatalf("PlacementServiceMock.ListPlacements mock is already set by ExpectParams functions")
+	}
+
+	mmListPlacements.defaultExpectation.params = &PlacementServiceMockListPlacementsParams{ctx, pageSize, pageToken}
+	mmListPlacements.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
+	for _, e := range mmListPlacements.expectations {
+		if minimock.Equal(e.params, mmListPlacements.defaultExpectation.params) {
+			mmListPlacements.mock.t.Fatalf("Expectation set by When has same params: %#v", *mmListPlacements.defaultExpectation.params)
+		}
+	}
+
+	return mmListPlacements
+}
+
+// ExpectCtxParam1 sets up expected param ctx for PlacementService.ListPlacements
+func (mmListPlacements *mPlacementServiceMockListPlacements) ExpectCtxParam1(ctx context.Context) *mPlacementServiceMockListPlacements {
+	if mmListPlacements.mock.funcListPlacements != nil {
+		mmListPlacements.mock.t.Fatalf("PlacementServiceMock.ListPlacements mock is already set by Set")
+	}
+
+	if mmListPlacements.defaultExpectation == nil {
+		mmListPlacements.defaultExpectation = &PlacementServiceMockListPlacementsExpectation{}
+	}
+
+	if mmListPlacements.defaultExpectation.params != nil {
+		mmListPlacements.mock.t.Fatalf("PlacementServiceMock.ListPlacements mock is already set by Expect")
+	}
+
+	if mmListPlacements.defaultExpectation.paramPtrs == nil {
+		mmListPlacements.defaultExpectation.paramPtrs = &PlacementServiceMockListPlacementsParamPtrs{}
+	}
+	mmListPlacements.defaultExpectation.paramPtrs.ctx = &ctx
+	mmListPlacements.defaultExpectation.expectationOrigins.originCtx = minimock.CallerInfo(1)
+
+	return mmListPlacements
+}
+
+// ExpectPageSizeParam2 sets up expected param pageSize for PlacementService.ListPlacements
+func (mmListPlacements *mPlacementServiceMockListPlacements) ExpectPageSizeParam2(pageSize int32) *mPlacementServiceMockListPlacements {
+	if mmListPlacements.mock.funcListPlacements != nil {
+		mmListPlacements.mock.t.Fatalf("PlacementServiceMock.ListPlacements mock is already set by Set")
+	}
+
+	if mmListPlacements.defaultExpectation == nil {
+		mmListPlacements.defaultExpectation = &PlacementServiceMockListPlacementsExpectation{}
+	}
+
+	if mmListPlacements.defaultExpectation.params != nil {
+		mmListPlacements.mock.t.Fatalf("PlacementServiceMock.ListPlacements mock is already set by Expect")
+	}
+
+	if mmListPlacements.defaultExpectation.paramPtrs == nil {
+		mmListPlacements.defaultExpectation.paramPtrs = &PlacementServiceMockListPlacementsParamPtrs{}
+	}
+	mmListPlacements.defaultExpectation.paramPtrs.pageSize = &pageSize
+	mmListPlacements.defaultExpectation.expectationOrigins.originPageSize = minimock.CallerInfo(1)
+
+	return mmListPlacements
+}
+
+// ExpectPageTokenParam3 sets up expected param pageToken for PlacementService.ListPlacements
+func (mmListPlacements *mPlacementServiceMockListPlacements) ExpectPageTokenParam3(pageToken string) *mPlacementServiceMockListPlacements {
+	if mmListPlacements.mock.funcListPlacements != nil {
+		mmListPlacements.mock.t.Fatalf("PlacementServiceMock.ListPlacements mock is already set by Set")
+	}
+
+	if mmListPlacements.defaultExpectation == nil {
+		mmListPlacements.defaultExpectation = &PlacementServiceMockListPlacementsExpectation{}
+	}
+
+	if mmListPlacements.defaultExpectation.params != nil {
+		mmListPlacements.mock.t.Fatalf("PlacementServiceMock.ListPlacements mock is already set by Expect")
+	}
+
+	if mmListPlacements.defaultExpectation.paramPtrs == nil {
+		mmListPlacements.defaultExpectation.paramPtrs = &PlacementServiceMockListPlacementsParamPtrs{}
+	}
+	mmListPlacements.defaultExpectation.paramPtrs.pageToken = &pageToken
+	mmListPlacements.defaultExpectation.expectationOrigins.originPageToken = minimock.CallerInfo(1)
+
+	return mmListPlacements
+}
+
+// Inspect accepts an inspector function that has same arguments as the PlacementService.ListPlacements
+func (mmListPlacements *mPlacementServiceMockListPlacements) Inspect(f func(ctx context.Context, pageSize int32, pageToken string)) *mPlacementServiceMockListPlacements {
+	if mmListPlacements.mock.inspectFuncListPlacements != nil {
+		mmListPlacements.mock.t.Fatalf("Inspect function is already set for PlacementServiceMock.ListPlacements")
+	}
+
+	mmListPlacements.mock.inspectFuncListPlacements = f
+
+	return mmListPlacements
+}
+
+// Return sets up results that will be returned by PlacementService.ListPlacements
+func (mmListPlacements *mPlacementServiceMockListPlacements) Return(ppa1 []*model.Placement, s1 string, err error) *PlacementServiceMock {
+	if mmListPlacements.mock.funcListPlacements != nil {
+		mmListPlacements.mock.t.Fatalf("PlacementServiceMock.ListPlacements mock is already set by Set")
+	}
+
+	if mmListPlacements.defaultExpectation == nil {
+		mmListPlacements.defaultExpectation = &PlacementServiceMockListPlacementsExpectation{mock: mmListPlacements.mock}
+	}
+	mmListPlacements.defaultExpectation.results = &PlacementServiceMockListPlacementsResults{ppa1, s1, err}
+	mmListPlacements.defaultExpectation.returnOrigin = minimock.CallerInfo(1)
+	return mmListPlacements.mock
+}
+
+// Set uses given function f to mock the PlacementService.ListPlacements method
+func (mmListPlacements *mPlacementServiceMockListPlacements) Set(f func(ctx context.Context, pageSize int32, pageToken string) (ppa1 []*model.Placement, s1 string, err error)) *PlacementServiceMock {
+	if mmListPlacements.defaultExpectation != nil {
+		mmListPlacements.mock.t.Fatalf("Default expectation is already set for the PlacementService.ListPlacements method")
+	}
+
+	if len(mmListPlacements.expectations) > 0 {
+		mmListPlacements.mock.t.Fatalf("Some expectations are already set for the PlacementService.ListPlacements method")
+	}
+
+	mmListPlacements.mock.funcListPlacements = f
+	mmListPlacements.mock.funcListPlacementsOrigin = minimock.CallerInfo(1)
+	return mmListPlacements.mock
+}
+
+// When sets expectation for the PlacementService.ListPlacements which will trigger the result defined by the following
+// Then helper
+func (mmListPlacements *mPlacementServiceMockListPlacements) When(ctx context.Context, pageSize int32, pageToken string) *PlacementServiceMockListPlacementsExpectation {
+	if mmListPlacements.mock.funcListPlacements != nil {
+		mmListPlacements.mock.t.Fatalf("PlacementServiceMock.ListPlacements mock is already set by Set")
+	}
+
+	expectation := &PlacementServiceMockListPlacementsExpectation{
+		mock:               mmListPlacements.mock,
+		params:             &PlacementServiceMockListPlacementsParams{ctx, pageSize, pageToken},
+		expectationOrigins: PlacementServiceMockListPlacementsExpectationOrigins{origin: minimock.CallerInfo(1)},
+	}
+	mmListPlacements.expectations = append(mmListPlacements.expectations, expectation)
+	return expectation
+}
+
+// Then sets up PlacementService.ListPlacements return parameters for the expectation previously defined by the When method
+func (e *PlacementServiceMockListPlacementsExpectation) Then(ppa1 []*model.Placement, s1 string, err error) *PlacementServiceMock {
+	e.results = &PlacementServiceMockListPlacementsResults{ppa1, s1, err}
+	return e.mock
+}
+
+// Times sets number of times PlacementService.ListPlacements should be invoked
+func (mmListPlacements *mPlacementServiceMockListPlacements) Times(n uint64) *mPlacementServiceMockListPlacements {
+	if n == 0 {
+		mmListPlacements.mock.t.Fatalf("Times of PlacementServiceMock.ListPlacements mock can not be zero")
+	}
+	mm_atomic.StoreUint64(&mmListPlacements.expectedInvocations, n)
+	mmListPlacements.expectedInvocationsOrigin = minimock.CallerInfo(1)
+	return mmListPlacements
+}
+
+func (mmListPlacements *mPlacementServiceMockListPlacements) invocationsDone() bool {
+	if len(mmListPlacements.expectations) == 0 && mmListPlacements.defaultExpectation == nil && mmListPlacements.mock.funcListPlacements == nil {
+		return true
+	}
+
+	totalInvocations := mm_atomic.LoadUint64(&mmListPlacements.mock.afterListPlacementsCounter)
+	expectedInvocations := mm_atomic.LoadUint64(&mmListPlacements.expectedInvocations)
+
+	return totalInvocations > 0 && (expectedInvocations == 0 || expectedInvocations == totalInvocations)
+}
+
+// ListPlacements implements mm_service.PlacementService
+func (mmListPlacements *PlacementServiceMock) ListPlacements(ctx context.Context, pageSize int32, pageToken string) (ppa1 []*model.Placement, s1 string, err error) {
+	mm_atomic.AddUint64(&mmListPlacements.beforeListPlacementsCounter, 1)
+	defer mm_atomic.AddUint64(&mmListPlacements.afterListPlacementsCounter, 1)
+
+	mmListPlacements.t.Helper()
+
+	if mmListPlacements.inspectFuncListPlacements != nil {
+		mmListPlacements.inspectFuncListPlacements(ctx, pageSize, pageToken)
+	}
+
+	mm_params := PlacementServiceMockListPlacementsParams{ctx, pageSize, pageToken}
+
+	// Record call args
+	mmListPlacements.ListPlacementsMock.mutex.Lock()
+	mmListPlacements.ListPlacementsMock.callArgs = append(mmListPlacements.ListPlacementsMock.callArgs, &mm_params)
+	mmListPlacements.ListPlacementsMock.mutex.Unlock()
+
+	for _, e := range mmListPlacements.ListPlacementsMock.expectations {
+		if minimock.Equal(*e.params, mm_params) {
+			mm_atomic.AddUint64(&e.Counter, 1)
+			return e.results.ppa1, e.results.s1, e.results.err
+		}
+	}
+
+	if mmListPlacements.ListPlacementsMock.defaultExpectation != nil {
+		mm_atomic.AddUint64(&mmListPlacements.ListPlacementsMock.defaultExpectation.Counter, 1)
+		mm_want := mmListPlacements.ListPlacementsMock.defaultExpectation.params
+		mm_want_ptrs := mmListPlacements.ListPlacementsMock.defaultExpectation.paramPtrs
+
+		mm_got := PlacementServiceMockListPlacementsParams{ctx, pageSize, pageToken}
+
+		if mm_want_ptrs != nil {
+
+			if mm_want_ptrs.ctx != nil && !minimock.Equal(*mm_want_ptrs.ctx, mm_got.ctx) {
+				mmListPlacements.t.Errorf("PlacementServiceMock.ListPlacements got unexpected parameter ctx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmListPlacements.ListPlacementsMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
+			}
+
+			if mm_want_ptrs.pageSize != nil && !minimock.Equal(*mm_want_ptrs.pageSize, mm_got.pageSize) {
+				mmListPlacements.t.Errorf("PlacementServiceMock.ListPlacements got unexpected parameter pageSize, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmListPlacements.ListPlacementsMock.defaultExpectation.expectationOrigins.originPageSize, *mm_want_ptrs.pageSize, mm_got.pageSize, minimock.Diff(*mm_want_ptrs.pageSize, mm_got.pageSize))
+			}
+
+			if mm_want_ptrs.pageToken != nil && !minimock.Equal(*mm_want_ptrs.pageToken, mm_got.pageToken) {
+				mmListPlacements.t.Errorf("PlacementServiceMock.ListPlacements got unexpected parameter pageToken, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmListPlacements.ListPlacementsMock.defaultExpectation.expectationOrigins.originPageToken, *mm_want_ptrs.pageToken, mm_got.pageToken, minimock.Diff(*mm_want_ptrs.pageToken, mm_got.pageToken))
+			}
+
+		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
+			mmListPlacements.t.Errorf("PlacementServiceMock.ListPlacements got unexpected parameters, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+				mmListPlacements.ListPlacementsMock.defaultExpectation.expectationOrigins.origin, *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
+		}
+
+		mm_results := mmListPlacements.ListPlacementsMock.defaultExpectation.results
+		if mm_results == nil {
+			mmListPlacements.t.Fatal("No results are set for the PlacementServiceMock.ListPlacements")
+		}
+		return (*mm_results).ppa1, (*mm_results).s1, (*mm_results).err
+	}
+	if mmListPlacements.funcListPlacements != nil {
+		return mmListPlacements.funcListPlacements(ctx, pageSize, pageToken)
+	}
+	mmListPlacements.t.Fatalf("Unexpected call to PlacementServiceMock.ListPlacements. %v %v %v", ctx, pageSize, pageToken)
+	return
+}
+
+// ListPlacementsAfterCounter returns a count of finished PlacementServiceMock.ListPlacements invocations
+func (mmListPlacements *PlacementServiceMock) ListPlacementsAfterCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmListPlacements.afterListPlacementsCounter)
+}
+
+// ListPlacementsBeforeCounter returns a count of PlacementServiceMock.ListPlacements invocations
+func (mmListPlacements *PlacementServiceMock) ListPlacementsBeforeCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmListPlacements.beforeListPlacementsCounter)
+}
+
+// Calls returns a list of arguments used in each call to PlacementServiceMock.ListPlacements.
+// The list is in the same order as the calls were made (i.e. recent calls have a higher index)
+func (mmListPlacements *mPlacementServiceMockListPlacements) Calls() []*PlacementServiceMockListPlacementsParams {
+	mmListPlacements.mutex.RLock()
+
+	argCopy := make([]*PlacementServiceMockListPlacementsParams, len(mmListPlacements.callArgs))
+	copy(argCopy, mmListPlacements.callArgs)
+
+	mmListPlacements.mutex.RUnlock()
+
+	return argCopy
+}
+
+// MinimockListPlacementsDone returns true if the count of the ListPlacements invocations corresponds
+// the number of defined expectations
+func (m *PlacementServiceMock) MinimockListPlacementsDone() bool {
+	if m.ListPlacementsMock.optional {
+		// Optional methods provide '0 or more' call count restriction.
+		return true
+	}
+
+	for _, e := range m.ListPlacementsMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			return false
+		}
+	}
+
+	return m.ListPlacementsMock.invocationsDone()
+}
+
+// MinimockListPlacementsInspect logs each unmet expectation
+func (m *PlacementServiceMock) MinimockListPlacementsInspect() {
+	for _, e := range m.ListPlacementsMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			m.t.Errorf("Expected call to PlacementServiceMock.ListPlacements at\n%s with params: %#v", e.expectationOrigins.origin, *e.params)
+		}
+	}
+
+	afterListPlacementsCounter := mm_atomic.LoadUint64(&m.afterListPlacementsCounter)
+	// if default expectation was set then invocations count should be greater than zero
+	if m.ListPlacementsMock.defaultExpectation != nil && afterListPlacementsCounter < 1 {
+		if m.ListPlacementsMock.defaultExpectation.params == nil {
+			m.t.Errorf("Expected call to PlacementServiceMock.ListPlacements at\n%s", m.ListPlacementsMock.defaultExpectation.returnOrigin)
+		} else {
+			m.t.Errorf("Expected call to PlacementServiceMock.ListPlacements at\n%s with params: %#v", m.ListPlacementsMock.defaultExpectation.expectationOrigins.origin, *m.ListPlacementsMock.defaultExpectation.params)
+		}
+	}
+	// if func was set then invocations count should be greater than zero
+	if m.funcListPlacements != nil && afterListPlacementsCounter < 1 {
+		m.t.Errorf("Expected call to PlacementServiceMock.ListPlacements at\n%s", m.funcListPlacementsOrigin)
+	}
+
+	if !m.ListPlacementsMock.invocationsDone() && afterListPlacementsCounter > 0 {
+		m.t.Errorf("Expected %d calls to PlacementServiceMock.ListPlacements at\n%s but found %d calls",
+			mm_atomic.LoadUint64(&m.ListPlacementsMock.expectedInvocations), m.ListPlacementsMock.expectedInvocationsOrigin, afterListPlacementsCounter)
+	}
+}
+
+type mPlacementServiceMockListStorageClasses struct {
+	optional           bool
+	mock               *PlacementServiceMock
+	defaultExpectation *PlacementServiceMockListStorageClassesExpectation
+	expectations       []*PlacementServiceMockListStorageClassesExpectation
+
+	callArgs []*PlacementServiceMockListStorageClassesParams
+	mutex    sync.RWMutex
+
+	expectedInvocations       uint64
+	expectedInvocationsOrigin string
+}
+
+// PlacementServiceMockListStorageClassesExpectation specifies expectation struct of the PlacementService.ListStorageClasses
+type PlacementServiceMockListStorageClassesExpectation struct {
+	mock               *PlacementServiceMock
+	params             *PlacementServiceMockListStorageClassesParams
+	paramPtrs          *PlacementServiceMockListStorageClassesParamPtrs
+	expectationOrigins PlacementServiceMockListStorageClassesExpectationOrigins
+	results            *PlacementServiceMockListStorageClassesResults
+	returnOrigin       string
+	Counter            uint64
+}
+
+// PlacementServiceMockListStorageClassesParams contains parameters of the PlacementService.ListStorageClasses
+type PlacementServiceMockListStorageClassesParams struct {
+	ctx context.Context
+}
+
+// PlacementServiceMockListStorageClassesParamPtrs contains pointers to parameters of the PlacementService.ListStorageClasses
+type PlacementServiceMockListStorageClassesParamPtrs struct {
+	ctx *context.Context
+}
+
+// PlacementServiceMockListStorageClassesResults contains results of the PlacementService.ListStorageClasses
+type PlacementServiceMockListStorageClassesResults struct {
+	spa1 []*model.StorageClassUsage
+	err  error
+}
+
+// PlacementServiceMockListStorageClassesOrigins contains origins of expectations of the PlacementService.ListStorageClasses
+type PlacementServiceMockListStorageClassesExpectationOrigins struct {
+	origin    string
+	originCtx string
+}
+
+// Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
+// the test will fail minimock's automatic final call check if the mocked method was not called at least once.
+// Optional() makes method check to work in '0 or more' mode.
+// It is NOT RECOMMENDED to use this option unless you really need it, as default behaviour helps to
+// catch the problems when the expected method call is totally skipped during test run.
+func (mmListStorageClasses *mPlacementServiceMockListStorageClasses) Optional() *mPlacementServiceMockListStorageClasses {
+	mmListStorageClasses.optional = true
+	return mmListStorageClasses
+}
+
+// Expect sets up expected params for PlacementService.ListStorageClasses
+func (mmListStorageClasses *mPlacementServiceMockListStorageClasses) Expect(ctx context.Context) *mPlacementServiceMockListStorageClasses {
+	if mmListStorageClasses.mock.funcListStorageClasses != nil {
+		mmListStorageClasses.mock.t.Fatalf("PlacementServiceMock.ListStorageClasses mock is already set by Set")
+	}
+
+	if mmListStorageClasses.defaultExpectation == nil {
+		mmListStorageClasses.defaultExpectation = &PlacementServiceMockListStorageClassesExpectation{}
+	}
+
+	if mmListStorageClasses.defaultExpectation.paramPtrs != nil {
+		mmListStorageClasses.mock.t.Fatalf("PlacementServiceMock.ListStorageClasses mock is already set by ExpectParams functions")
+	}
+
+	mmListStorageClasses.defaultExpectation.params = &PlacementServiceMockListStorageClassesParams{ctx}
+	mmListStorageClasses.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
+	for _, e := range mmListStorageClasses.expectations {
+		if minimock.Equal(e.params, mmListStorageClasses.defaultExpectation.params) {
+			mmListStorageClasses.mock.t.Fatalf("Expectation set by When has same params: %#v", *mmListStorageClasses.defaultExpectation.params)
+		}
+	}
+
+	return mmListStorageClasses
+}
+
+// ExpectCtxParam1 sets up expected param ctx for PlacementService.ListStorageClasses
+func (mmListStorageClasses *mPlacementServiceMockListStorageClasses) ExpectCtxParam1(ctx context.Context) *mPlacementServiceMockListStorageClasses {
+	if mmListStorageClasses.mock.funcListStorageClasses != nil {
+		mmListStorageClasses.mock.t.Fatalf("PlacementServiceMock.ListStorageClasses mock is already set by Set")
+	}
+
+	if mmListStorageClasses.defaultExpectation == nil {
+		mmListStorageClasses.defaultExpectation = &PlacementServiceMockListStorageClassesExpectation{}
+	}
+
+	if mmListStorageClasses.defaultExpectation.params != nil {
+		mmListStorageClasses.mock.t.Fatalf("PlacementServiceMock.ListStorageClasses mock is already set by Expect")
+	}
+
+	if mmListStorageClasses.defaultExpectation.paramPtrs == nil {
+		mmListStorageClasses.defaultExpectation.paramPtrs = &PlacementServiceMockListStorageClassesParamPtrs{}
+	}
+	mmListStorageClasses.defaultExpectation.paramPtrs.ctx = &ctx
+	mmListStorageClasses.defaultExpectation.expectationOrigins.originCtx = minimock.CallerInfo(1)
+
+	return mmListStorageClasses
+}
+
+// Inspect accepts an inspector function that has same arguments as the PlacementService.ListStorageClasses
+func (mmListStorageClasses *mPlacementServiceMockListStorageClasses) Inspect(f func(ctx context.Context)) *mPlacementServiceMockListStorageClasses {
+	if mmListStorageClasses.mock.inspectFuncListStorageClasses != nil {
+		mmListStorageClasses.mock.t.Fatalf("Inspect function is already set for PlacementServiceMock.ListStorageClasses")
+	}
+
+	mmListStorageClasses.mock.inspectFuncListStorageClasses = f
+
+	return mmListStorageClasses
+}
+
+// Return sets up results that will be returned by PlacementService.ListStorageClasses
+func (mmListStorageClasses *mPlacementServiceMockListStorageClasses) Return(spa1 []*model.StorageClassUsage, err error) *PlacementServiceMock {
+	if mmListStorageClasses.mock.funcListStorageClasses != nil {
+		mmListStorageClasses.mock.t.Fatalf("PlacementServiceMock.ListStorageClasses mock is already set by Set")
+	}
+
+	if mmListStorageClasses.defaultExpectation == nil {
+		mmListStorageClasses.defaultExpectation = &PlacementServiceMockListStorageClassesExpectation{mock: mmListStorageClasses.mock}
+	}
+	mmListStorageClasses.defaultExpectation.results = &PlacementServiceMockListStorageClassesResults{spa1, err}
+	mmListStorageClasses.defaultExpectation.returnOrigin = minimock.CallerInfo(1)
+	return mmListStorageClasses.mock
+}
+
+// Set uses given function f to mock the PlacementService.ListStorageClasses method
+func (mmListStorageClasses *mPlacementServiceMockListStorageClasses) Set(f func(ctx context.Context) (spa1 []*model.StorageClassUsage, err error)) *PlacementServiceMock {
+	if mmListStorageClasses.defaultExpectation != nil {
+		mmListStorageClasses.mock.t.Fatalf("Default expectation is already set for the PlacementService.ListStorageClasses method")
+	}
+
+	if len(mmListStorageClasses.expectations) > 0 {
+		mmListStorageClasses.mock.t.Fatalf("Some expectations are already set for the PlacementService.ListStorageClasses method")
+	}
+
+	mmListStorageClasses.mock.funcListStorageClasses = f
+	mmListStorageClasses.mock.funcListStorageClassesOrigin = minimock.CallerInfo(1)
+	return mmListStorageClasses.mock
+}
+
+// When sets expectation for the PlacementService.ListStorageClasses which will trigger the result defined by the following
+// Then helper
+func (mmListStorageClasses *mPlacementServiceMockListStorageClasses) When(ctx context.Context) *PlacementServiceMockListStorageClassesExpectation {
+	if mmListStorageClasses.mock.funcListStorageClasses != nil {
+		mmListStorageClasses.mock.t.Fatalf("PlacementServiceMock.ListStorageClasses mock is already set by Set")
+	}
+
+	expectation := &PlacementServiceMockListStorageClassesExpectation{
+		mock:               mmListStorageClasses.mock,
+		params:             &PlacementServiceMockListStorageClassesParams{ctx},
+		expectationOrigins: PlacementServiceMockListStorageClassesExpectationOrigins{origin: minimock.CallerInfo(1)},
+	}
+	mmListStorageClasses.expectations = append(mmListStorageClasses.expectations, expectation)
+	return expectation
+}
+
+// Then sets up PlacementService.ListStorageClasses return parameters for the expectation previously defined by the When method
+func (e *PlacementServiceMockListStorageClassesExpectation) Then(spa1 []*model.StorageClassUsage, err error) *PlacementServiceMock {
+	e.results = &PlacementServiceMockListStorageClassesResults{spa1, err}
+	return e.mock
+}
+
+// Times sets number of times PlacementService.ListStorageClasses should be invoked
+func (mmListStorageClasses *mPlacementServiceMockListStorageClasses) Times(n uint64) *mPlacementServiceMockListStorageClasses {
+	if n == 0 {
+		mmListStorageClasses.mock.t.Fatalf("Times of PlacementServiceMock.ListStorageClasses mock can not be zero")
+	}
+	mm_atomic.StoreUint64(&mmListStorageClasses.expectedInvocations, n)
+	mmListStorageClasses.expectedInvocationsOrigin = minimock.CallerInfo(1)
+	return mmListStorageClasses
+}
+
+func (mmListStorageClasses *mPlacementServiceMockListStorageClasses) invocationsDone() bool {
+	if len(mmListStorageClasses.expectations) == 0 && mmListStorageClasses.defaultExpectation == nil && mmListStorageClasses.mock.funcListStorageClasses == nil {
+		return true
+	}
+
+	totalInvocations := mm_atomic.LoadUint64(&mmListStorageClasses.mock.afterListStorageClassesCounter)
+	expectedInvocations := mm_atomic.LoadUint64(&mmListStorageClasses.expectedInvocations)
+
+	return totalInvocations > 0 && (expectedInvocations == 0 || expectedInvocations == totalInvocations)
+}
+
+// ListStorageClasses implements mm_service.PlacementService
+func (mmListStorageClasses *PlacementServiceMock) ListStorageClasses(ctx context.Context) (spa1 []*model.StorageClassUsage, err error) {
+	mm_atomic.AddUint64(&mmListStorageClasses.beforeListStorageClassesCounter, 1)
+	defer mm_atomic.AddUint64(&mmListStorageClasses.afterListStorageClassesCounter, 1)
+
+	mmListStorageClasses.t.Helper()
+
+	if mmListStorageClasses.inspectFuncListStorageClasses != nil {
+		mmListStorageClasses.inspectFuncListStorageClasses(ctx)
+	}
+
+	mm_params := PlacementServiceMockListStorageClassesParams{ctx}
+
+	// Record call args
+	mmListStorageClasses.ListStorageClassesMock.mutex.Lock()
+	mmListStorageClasses.ListStorageClassesMock.callArgs = append(mmListStorageClasses.ListStorageClassesMock.callArgs, &mm_params)
+	mmListStorageClasses.ListStorageClassesMock.mutex.Unlock()
+
+	for _, e := range mmListStorageClasses.ListStorageClassesMock.expectations {
+		if minimock.Equal(*e.params, mm_params) {
+			mm_atomic.AddUint64(&e.Counter, 1)
+			return e.results.spa1, e.results.err
+		}
+	}
+
+	if mmListStorageClasses.ListStorageClassesMock.defaultExpectation != nil {
+		mm_atomic.AddUint64(&mmListStorageClasses.ListStorageClassesMock.defaultExpectation.Counter, 1)
+		mm_want := mmListStorageClasses.ListStorageClassesMock.defaultExpectation.params
+		mm_want_ptrs := mmListStorageClasses.ListStorageClassesMock.defaultExpectation.paramPtrs
+
+		mm_got := PlacementServiceMockListStorageClassesParams{ctx}
+
+		if mm_want_ptrs != nil {
+
+			if mm_want_ptrs.ctx != nil && !minimock.Equal(*mm_want_ptrs.ctx, mm_got.ctx) {
+				mmListStorageClasses.t.Errorf("PlacementServiceMock.ListStorageClasses got unexpected parameter ctx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmListStorageClasses.ListStorageClassesMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
+			}
+
+		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
+			mmListStorageClasses.t.Errorf("PlacementServiceMock.ListStorageClasses got unexpected parameters, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+				mmListStorageClasses.ListStorageClassesMock.defaultExpectation.expectationOrigins.origin, *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
+		}
+
+		mm_results := mmListStorageClasses.ListStorageClassesMock.defaultExpectation.results
+		if mm_results == nil {
+			mmListStorageClasses.t.Fatal("No results are set for the PlacementServiceMock.ListStorageClasses")
+		}
+		return (*mm_results).spa1, (*mm_results).err
+	}
+	if mmListStorageClasses.funcListStorageClasses != nil {
+		return mmListStorageClasses.funcListStorageClasses(ctx)
+	}
+	mmListStorageClasses.t.Fatalf("Unexpected call to PlacementServiceMock.ListStorageClasses. %v", ctx)
+	return
+}
+
+// ListStorageClassesAfterCounter returns a count of finished PlacementServiceMock.ListStorageClasses invocations
+func (mmListStorageClasses *PlacementServiceMock) ListStorageClassesAfterCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmListStorageClasses.afterListStorageClassesCounter)
+}
+
+// ListStorageClassesBeforeCounter returns a count of PlacementServiceMock.ListStorageClasses invocations
+func (mmListStorageClasses *PlacementServiceMock) ListStorageClassesBeforeCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmListStorageClasses.beforeListStorageClassesCounter)
+}
+
+// Calls returns a list of arguments used in each call to PlacementServiceMock.ListStorageClasses.
+// The list is in the same order as the calls were made (i.e. recent calls have a higher index)
+func (mmListStorageClasses *mPlacementServiceMockListStorageClasses) Calls() []*PlacementServiceMockListStorageClassesParams {
+	mmListStorageClasses.mutex.RLock()
+
+	argCopy := make([]*PlacementServiceMockListStorageClassesParams, len(mmListStorageClasses.callArgs))
+	copy(argCopy, mmListStorageClasses.callArgs)
+
+	mmListStorageClasses.mutex.RUnlock()
+
+	return argCopy
+}
+
+// MinimockListStorageClassesDone returns true if the count of the ListStorageClasses invocations corresponds
+// the number of defined expectations
+func (m *PlacementServiceMock) MinimockListStorageClassesDone() bool {
+	if m.ListStorageClassesMock.optional {
+		// Optional methods provide '0 or more' call count restriction.
+		return true
+	}
+
+	for _, e := range m.ListStorageClassesMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			return false
+		}
+	}
+
+	return m.ListStorageClassesMock.invocationsDone()
+}
+
+// MinimockListStorageClassesInspect logs each unmet expectation
+func (m *PlacementServiceMock) MinimockListStorageClassesInspect() {
+	for _, e := range m.ListStorageClassesMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			m.t.Errorf("Expected call to PlacementServiceMock.ListStorageClasses at\n%s with params: %#v", e.expectationOrigins.origin, *e.params)
+		}
+	}
+
+	afterListStorageClassesCounter := mm_atomic.LoadUint64(&m.afterListStorageClassesCounter)
+	// if default expectation was set then invocations count should be greater than zero
+	if m.ListStorageClassesMock.defaultExpectation != nil && afterListStorageClassesCounter < 1 {
+		if m.ListStorageClassesMock.defaultExpectation.params == nil {
+			m.t.Errorf("Expected call to PlacementServiceMock.ListStorageClasses at\n%s", m.ListStorageClassesMock.defaultExpectation.returnOrigin)
+		} else {
+			m.t.Errorf("Expected call to PlacementServiceMock.ListStorageClasses at\n%s with params: %#v", m.ListStorageClassesMock.defaultExpectation.expectationOrigins.origin, *m.ListStorageClassesMock.defaultExpectation.params)
+		}
+	}
+	// if func was set then invocations count should be greater than zero
+	if m.funcListStorageClasses != nil && afterListStorageClassesCounter < 1 {
+		m.t.Errorf("Expected call to PlacementServiceMock.ListStorageClasses at\n%s", m.funcListStorageClassesOrigin)
+	}
+
+	if !m.ListStorageClassesMock.invocationsDone() && afterListStorageClassesCounter > 0 {
+		m.t.Errorf("Expected %d calls to PlacementServiceMock.ListStorageClasses at\n%s but found %d calls",
+			mm_atomic.LoadUint64(&m.ListStorageClassesMock.expectedInvocations), m.ListStorageClassesMock.expectedInvocationsOrigin, afterListStorageClassesCounter)
+	}
+}
+
 type mPlacementServiceMockReserveCopy struct {
 	optional           bool
 	mock               *PlacementServiceMock
@@ -2829,6 +3536,10 @@ func (m *PlacementServiceMock) MinimockFinish() {
 
 			m.MinimockListMigrationCopiesInspect()
 
+			m.MinimockListPlacementsInspect()
+
+			m.MinimockListStorageClassesInspect()
+
 			m.MinimockReserveCopyInspect()
 
 			m.MinimockSwitchPlacementInspect()
@@ -2860,6 +3571,8 @@ func (m *PlacementServiceMock) minimockDone() bool {
 		m.MinimockGetPlacementDone() &&
 		m.MinimockListDueCleanupsDone() &&
 		m.MinimockListMigrationCopiesDone() &&
+		m.MinimockListPlacementsDone() &&
+		m.MinimockListStorageClassesDone() &&
 		m.MinimockReserveCopyDone() &&
 		m.MinimockSwitchPlacementDone()
 }

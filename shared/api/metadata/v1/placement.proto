@@ -6,8 +6,8 @@ option go_package = "github.com/alesplll/opens3-rebac/shared/pkg/go/metadata/v1;
 
 // PlacementService управляет расположением версий в классах хранения HOT/COLD.
 // Работает в процессе Metadata на том же порту, что и MetadataService.
-// Клиент — исполнитель миграций. Gateway читает расположение только через
-// MetadataService.GetObjectMeta.
+// Клиенты — СППР (каталог и занятость классов для Planner) и исполнитель миграций.
+// Gateway читает расположение только через MetadataService.GetObjectMeta.
 //
 // Инварианты:
 //   - у committed blob-версии ровно одна запись version_placements, чтение
@@ -25,6 +25,15 @@ option go_package = "github.com/alesplll/opens3-rebac/shared/pkg/go/metadata/v1;
 //
 // PostgreSQL: version_placements, storage_classes, placement_copies.
 service PlacementService {
+  // ListStorageClasses возвращает ёмкость и занятость классов. В занятость входят
+  // расположения всех версий (включая нетекущие) и копии, ещё занимающие место.
+  rpc ListStorageClasses(ListStorageClassesRequest) returns (ListStorageClassesResponse);
+
+  // ListPlacements постранично возвращает текущие версии активных объектов с их
+  // расположением — каталог для Planner. Порядок — по version_id.
+  // Ошибки: INVALID_ARGUMENT (page_token не UUID).
+  rpc ListPlacements(ListPlacementsRequest) returns (ListPlacementsResponse);
+
   // GetPlacement возвращает действующее расположение версии и признак текущей версии.
   // Ошибки: INVALID_ARGUMENT, NOT_FOUND.
   rpc GetPlacement(GetPlacementRequest) returns (GetPlacementResponse);
@@ -82,6 +91,21 @@ message PlacementInfo {
   int64  generation    = 8;  // растёт при каждом SwitchPlacement
   int64  size_bytes    = 9;
   int64  updated_at    = 10; // Unix timestamp в миллисекундах
+  // У версии есть зарезервированная целевая копия: перенос уже выполняется.
+  bool   migration_in_progress = 11;
+}
+
+message StorageClassInfo {
+  string name            = 1; // "HOT" или "COLD"
+  int64  capacity_bytes  = 2;
+  double max_utilization = 3; // доля ёмкости, доступная для размещения
+  int64  usable_bytes    = 4; // floor(capacity_bytes * max_utilization)
+  int64  placed_bytes    = 5; // версии с расположением в классе
+  int64  placed_versions = 6;
+  int64  copy_bytes      = 7; // копии в состояниях reserved, cleanup_pending, cleanup_failed
+  int64  copies          = 8;
+  int64  failed_cleanups = 9; // копии в cleanup_failed
+  int64  free_bytes      = 10; // usable - placed - copy; может быть отрицательным
 }
 
 message PlacementCopyInfo {
@@ -105,6 +129,22 @@ message PlacementCopyInfo {
 }
 
 // ─── RPC messages ─────────────────────────────────────────────────────────────
+
+message ListStorageClassesRequest {}
+
+message ListStorageClassesResponse {
+  repeated StorageClassInfo storage_classes = 1;
+}
+
+message ListPlacementsRequest {
+  int32  page_size  = 1; // по умолчанию и максимум 1000
+  string page_token = 2; // next_page_token предыдущего ответа; пусто — первая страница
+}
+
+message ListPlacementsResponse {
+  repeated PlacementInfo placements      = 1;
+  string                 next_page_token = 2; // пусто — страниц больше нет
+}
 
 message GetPlacementRequest {
   string version_id = 1;

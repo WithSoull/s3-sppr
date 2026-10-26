@@ -13,6 +13,8 @@ type Placement struct {
 	Generation   int64     `db:"generation"`
 	SizeBytes    int64     `db:"size_bytes"`
 	UpdatedAt    time.Time `db:"updated_at"`
+
+	MigrationInProgress bool `db:"migration_in_progress"`
 }
 
 type StorageClassUsage struct {

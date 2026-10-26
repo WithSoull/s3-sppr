@@ -19,6 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
+	PlacementService_ListStorageClasses_FullMethodName  = "/opens3.metadata.v1.PlacementService/ListStorageClasses"
+	PlacementService_ListPlacements_FullMethodName      = "/opens3.metadata.v1.PlacementService/ListPlacements"
 	PlacementService_GetPlacement_FullMethodName        = "/opens3.metadata.v1.PlacementService/GetPlacement"
 	PlacementService_ReserveCopy_FullMethodName         = "/opens3.metadata.v1.PlacementService/ReserveCopy"
 	PlacementService_SwitchPlacement_FullMethodName     = "/opens3.metadata.v1.PlacementService/SwitchPlacement"
@@ -34,8 +36,8 @@ const (
 //
 // PlacementService управляет расположением версий в классах хранения HOT/COLD.
 // Работает в процессе Metadata на том же порту, что и MetadataService.
-// Клиент — исполнитель миграций. Gateway читает расположение только через
-// MetadataService.GetObjectMeta.
+// Клиенты — СППР (каталог и занятость классов для Planner) и исполнитель миграций.
+// Gateway читает расположение только через MetadataService.GetObjectMeta.
 //
 // Инварианты:
 //   - у committed blob-версии ровно одна запись version_placements, чтение
@@ -55,6 +57,13 @@ const (
 //
 // PostgreSQL: version_placements, storage_classes, placement_copies.
 type PlacementServiceClient interface {
+	// ListStorageClasses возвращает ёмкость и занятость классов. В занятость входят
+	// расположения всех версий (включая нетекущие) и копии, ещё занимающие место.
+	ListStorageClasses(ctx context.Context, in *ListStorageClassesRequest, opts ...grpc.CallOption) (*ListStorageClassesResponse, error)
+	// ListPlacements постранично возвращает текущие версии активных объектов с их
+	// расположением — каталог для Planner. Порядок — по version_id.
+	// Ошибки: INVALID_ARGUMENT (page_token не UUID).
+	ListPlacements(ctx context.Context, in *ListPlacementsRequest, opts ...grpc.CallOption) (*ListPlacementsResponse, error)
 	// GetPlacement возвращает действующее расположение версии и признак текущей версии.
 	// Ошибки: INVALID_ARGUMENT, NOT_FOUND.
 	GetPlacement(ctx context.Context, in *GetPlacementRequest, opts ...grpc.CallOption) (*GetPlacementResponse, error)
@@ -101,6 +110,26 @@ type placementServiceClient struct {
 
 func NewPlacementServiceClient(cc grpc.ClientConnInterface) PlacementServiceClient {
 	return &placementServiceClient{cc}
+}
+
+func (c *placementServiceClient) ListStorageClasses(ctx context.Context, in *ListStorageClassesRequest, opts ...grpc.CallOption) (*ListStorageClassesResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListStorageClassesResponse)
+	err := c.cc.Invoke(ctx, PlacementService_ListStorageClasses_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *placementServiceClient) ListPlacements(ctx context.Context, in *ListPlacementsRequest, opts ...grpc.CallOption) (*ListPlacementsResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ListPlacementsResponse)
+	err := c.cc.Invoke(ctx, PlacementService_ListPlacements_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func (c *placementServiceClient) GetPlacement(ctx context.Context, in *GetPlacementRequest, opts ...grpc.CallOption) (*GetPlacementResponse, error) {
@@ -179,8 +208,8 @@ func (c *placementServiceClient) CompleteCleanup(ctx context.Context, in *Comple
 //
 // PlacementService управляет расположением версий в классах хранения HOT/COLD.
 // Работает в процессе Metadata на том же порту, что и MetadataService.
-// Клиент — исполнитель миграций. Gateway читает расположение только через
-// MetadataService.GetObjectMeta.
+// Клиенты — СППР (каталог и занятость классов для Planner) и исполнитель миграций.
+// Gateway читает расположение только через MetadataService.GetObjectMeta.
 //
 // Инварианты:
 //   - у committed blob-версии ровно одна запись version_placements, чтение
@@ -200,6 +229,13 @@ func (c *placementServiceClient) CompleteCleanup(ctx context.Context, in *Comple
 //
 // PostgreSQL: version_placements, storage_classes, placement_copies.
 type PlacementServiceServer interface {
+	// ListStorageClasses возвращает ёмкость и занятость классов. В занятость входят
+	// расположения всех версий (включая нетекущие) и копии, ещё занимающие место.
+	ListStorageClasses(context.Context, *ListStorageClassesRequest) (*ListStorageClassesResponse, error)
+	// ListPlacements постранично возвращает текущие версии активных объектов с их
+	// расположением — каталог для Planner. Порядок — по version_id.
+	// Ошибки: INVALID_ARGUMENT (page_token не UUID).
+	ListPlacements(context.Context, *ListPlacementsRequest) (*ListPlacementsResponse, error)
 	// GetPlacement возвращает действующее расположение версии и признак текущей версии.
 	// Ошибки: INVALID_ARGUMENT, NOT_FOUND.
 	GetPlacement(context.Context, *GetPlacementRequest) (*GetPlacementResponse, error)
@@ -248,6 +284,12 @@ type PlacementServiceServer interface {
 // pointer dereference when methods are called.
 type UnimplementedPlacementServiceServer struct{}
 
+func (UnimplementedPlacementServiceServer) ListStorageClasses(context.Context, *ListStorageClassesRequest) (*ListStorageClassesResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListStorageClasses not implemented")
+}
+func (UnimplementedPlacementServiceServer) ListPlacements(context.Context, *ListPlacementsRequest) (*ListPlacementsResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListPlacements not implemented")
+}
 func (UnimplementedPlacementServiceServer) GetPlacement(context.Context, *GetPlacementRequest) (*GetPlacementResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetPlacement not implemented")
 }
@@ -288,6 +330,42 @@ func RegisterPlacementServiceServer(s grpc.ServiceRegistrar, srv PlacementServic
 		t.testEmbeddedByValue()
 	}
 	s.RegisterService(&PlacementService_ServiceDesc, srv)
+}
+
+func _PlacementService_ListStorageClasses_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListStorageClassesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PlacementServiceServer).ListStorageClasses(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PlacementService_ListStorageClasses_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PlacementServiceServer).ListStorageClasses(ctx, req.(*ListStorageClassesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _PlacementService_ListPlacements_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListPlacementsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(PlacementServiceServer).ListPlacements(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: PlacementService_ListPlacements_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(PlacementServiceServer).ListPlacements(ctx, req.(*ListPlacementsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
 }
 
 func _PlacementService_GetPlacement_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
@@ -423,6 +501,14 @@ var PlacementService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "opens3.metadata.v1.PlacementService",
 	HandlerType: (*PlacementServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "ListStorageClasses",
+			Handler:    _PlacementService_ListStorageClasses_Handler,
+		},
+		{
+			MethodName: "ListPlacements",
+			Handler:    _PlacementService_ListPlacements_Handler,
+		},
 		{
 			MethodName: "GetPlacement",
 			Handler:    _PlacementService_GetPlacement_Handler,
