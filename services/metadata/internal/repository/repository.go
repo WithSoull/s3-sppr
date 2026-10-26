@@ -27,4 +27,26 @@ type ObjectRepository interface {
 
 type PlacementRepository interface {
 	Create(ctx context.Context, versionID, blobID string, storageClass model.StorageClass) error
+	Get(ctx context.Context, versionID string) (*model.Placement, error)
+	// LockForChange locks the object and placement rows of the version until the
+	// transaction ends, so overwrites and other switches wait for the caller.
+	LockForChange(ctx context.Context, versionID string) (*model.Placement, error)
+	CompareAndSwap(ctx context.Context, versionID string, expectedGeneration int64, expectedClass, newClass model.StorageClass, newBlobID string) (int64, error)
+	// LockStorageClass serializes capacity checks of one class.
+	LockStorageClass(ctx context.Context, storageClass model.StorageClass) error
+	GetUsage(ctx context.Context, storageClass model.StorageClass) (*model.StorageClassUsage, error)
+}
+
+type CopyRepository interface {
+	InsertTarget(ctx context.Context, migrationID string, placement *model.Placement, targetClass model.StorageClass) (*model.PlacementCopy, error)
+	InsertSource(ctx context.Context, migrationID string, placement *model.Placement, cleanupDelay time.Duration) (*model.PlacementCopy, error)
+	GetByMigration(ctx context.Context, migrationID string, role model.CopyRole) (*model.PlacementCopy, error)
+	LockByMigration(ctx context.Context, migrationID string, role model.CopyRole) (*model.PlacementCopy, error)
+	LockByID(ctx context.Context, copyID string) (*model.PlacementCopy, error)
+	ListByMigration(ctx context.Context, migrationID string) ([]*model.PlacementCopy, error)
+	ListDueCleanups(ctx context.Context, limit int32) ([]*model.PlacementCopy, error)
+	Promote(ctx context.Context, copyID, verifiedMD5 string) error
+	ScheduleCleanup(ctx context.Context, copyID string, delay time.Duration, reason string) (*model.PlacementCopy, error)
+	MarkDeleted(ctx context.Context, copyID string) (*model.PlacementCopy, error)
+	MarkCleanupFailed(ctx context.Context, copyID, reason string) (*model.PlacementCopy, error)
 }

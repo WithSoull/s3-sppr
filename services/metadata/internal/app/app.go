@@ -121,11 +121,13 @@ func (a *App) initGRPCServer(ctx context.Context) error {
 	healthServer := health.NewServer()
 	grpc_health_v1.RegisterHealthServer(a.grpcServer, healthServer)
 	healthServer.SetServingStatus("opens3.metadata.v1.MetadataService", grpc_health_v1.HealthCheckResponse_SERVING)
+	healthServer.SetServingStatus("opens3.metadata.v1.PlacementService", grpc_health_v1.HealthCheckResponse_SERVING)
 	healthServer.SetServingStatus("", grpc_health_v1.HealthCheckResponse_SERVING)
 
 	reflection.Register(a.grpcServer)
 
 	metadatav1.RegisterMetadataServiceServer(a.grpcServer, a.serviceProvider.MetadataHandler(ctx))
+	metadatav1.RegisterPlacementServiceServer(a.grpcServer, a.serviceProvider.PlacementHandler(ctx))
 
 	return nil
 }
