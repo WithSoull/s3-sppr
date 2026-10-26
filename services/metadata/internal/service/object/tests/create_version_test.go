@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alesplll/opens3-rebac/services/metadata/internal/model"
 	objectService "github.com/alesplll/opens3-rebac/services/metadata/internal/service/object"
 	"github.com/alesplll/opens3-rebac/services/metadata/pkg/mocks"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/client/db"
@@ -47,6 +48,7 @@ func TestCreateObjectVersion(t *testing.T) {
 		wantErr             error
 		wantValidationError bool
 		buildRepoMock       func(mc *minimock.Controller) *mocks.ObjectRepositoryMock
+		buildPlacementMock  func(mc *minimock.Controller) *mocks.PlacementRepositoryMock
 		buildTxMock         func(mc *minimock.Controller) *mocks.TxManagerMock
 	}{
 		{
@@ -77,6 +79,11 @@ func TestCreateObjectVersion(t *testing.T) {
 					require.Equal(t, wantObjectID, objectID)
 					require.Equal(t, wantVersionID, versionID)
 				}).Return(nil)
+				return m
+			},
+			buildPlacementMock: func(mc *minimock.Controller) *mocks.PlacementRepositoryMock {
+				m := mocks.NewPlacementRepositoryMock(mc)
+				m.CreateMock.Expect(minimock.AnyContext, wantVersionID, "blob-uuid-1", model.StorageClassCold).Return(nil)
 				return m
 			},
 			buildTxMock: executingTx,
@@ -148,6 +155,28 @@ func TestCreateObjectVersion(t *testing.T) {
 				m.SetCurrentVersionMock.Return(errors.New("set current version error"))
 				return m
 			},
+			buildPlacementMock: func(mc *minimock.Controller) *mocks.PlacementRepositoryMock {
+				m := mocks.NewPlacementRepositoryMock(mc)
+				m.CreateMock.Return(nil)
+				return m
+			},
+			buildTxMock: executingTx,
+		},
+		{
+			name:    "error: placement Create fails",
+			args:    args{ctx: ctx, bucketName: "my-bucket", key: "photos/cat.jpg", blobID: "blob-uuid-1"},
+			wantErr: errors.New("create placement error"),
+			buildRepoMock: func(mc *minimock.Controller) *mocks.ObjectRepositoryMock {
+				m := mocks.NewObjectRepositoryMock(mc)
+				m.UpsertObjectMock.Return(wantObjectID, nil)
+				m.InsertVersionMock.Return(wantVersionID, wantCreatedAt, nil)
+				return m
+			},
+			buildPlacementMock: func(mc *minimock.Controller) *mocks.PlacementRepositoryMock {
+				m := mocks.NewPlacementRepositoryMock(mc)
+				m.CreateMock.Return(errors.New("create placement error"))
+				return m
+			},
 			buildTxMock: executingTx,
 		},
 	}
@@ -157,10 +186,14 @@ func TestCreateObjectVersion(t *testing.T) {
 			mc := minimock.NewController(t)
 
 			repoMock := tt.buildRepoMock(mc)
+			placementMock := mocks.NewPlacementRepositoryMock(mc)
+			if tt.buildPlacementMock != nil {
+				placementMock = tt.buildPlacementMock(mc)
+			}
 			txMock := tt.buildTxMock(mc)
 			producerMock := mocks.NewProducerMock(mc)
 
-			svc := objectService.NewService(repoMock, txMock, producerMock, nil, nil)
+			svc := objectService.NewService(repoMock, placementMock, txMock, producerMock, nil, nil)
 
 			objectID, versionID, createdAt, err := svc.CreateObjectVersion(
 				tt.args.ctx,

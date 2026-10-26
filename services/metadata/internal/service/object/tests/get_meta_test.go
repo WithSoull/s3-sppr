@@ -84,7 +84,7 @@ func TestGetObjectMeta(t *testing.T) {
 			txMock := mocks.NewTxManagerMock(mc)
 			producerMock := mocks.NewProducerMock(mc)
 
-			svc := objectService.NewService(repoMock, txMock, producerMock, nil, nil)
+			svc := objectService.NewService(repoMock, mocks.NewPlacementRepositoryMock(mc), txMock, producerMock, nil, nil)
 
 			got, err := svc.GetObjectMeta(tt.args.ctx, tt.args.bucketName, tt.args.key, tt.args.versionID)
 

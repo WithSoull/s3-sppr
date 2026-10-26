@@ -10,6 +10,7 @@ import (
 
 type objectService struct {
 	repo          repository.ObjectRepository
+	placementRepo repository.PlacementRepository
 	txManager     db.TxManager
 	objectDeleted kafka.Producer
 	pgClient      db.Client
@@ -18,6 +19,7 @@ type objectService struct {
 
 func NewService(
 	repo repository.ObjectRepository,
+	placementRepo repository.PlacementRepository,
 	txManager db.TxManager,
 	objectDeleted kafka.Producer,
 	pgClient db.Client,
@@ -25,6 +27,7 @@ func NewService(
 ) service.ObjectService {
 	return &objectService{
 		repo:          repo,
+		placementRepo: placementRepo,
 		txManager:     txManager,
 		objectDeleted: objectDeleted,
 		pgClient:      pgClient,

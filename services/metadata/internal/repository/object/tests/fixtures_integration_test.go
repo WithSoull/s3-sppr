@@ -228,3 +228,37 @@ func (s *ObjectRepositorySuite) mustRecreateListFixture() {
 	s.mustSetCurrentVersion(otherObjectID, otherVersionID)
 	s.mustSetCurrentVersion(deletedObjectID, deletedVersionID)
 }
+
+func (s *ObjectRepositorySuite) mustCreatePlacement(versionID, storageClass, blobID string, generation int64) {
+	s.T().Helper()
+
+	s.MustExec(`
+		INSERT INTO version_placements (version_id, storage_class, blob_id, generation)
+		VALUES ($1, $2, $3, $4)
+	`, versionID, storageClass, blobID, generation)
+}
+
+// mustRecreateMigratedObject creates an active object whose current version was
+// uploaded as one blob and later moved to HOT under a different blob.
+func (s *ObjectRepositorySuite) mustRecreateMigratedObject(placementBlobID string) {
+	s.T().Helper()
+
+	objectID := s.objectID(objectRoleActive)
+	versionID := s.versionID(objectRoleActive)
+
+	s.mustRecreateBucket(s.bucketID(), s.bucketName(), s.ownerID())
+	s.mustRecreateObject(objectID, s.bucketID(), s.objectKey(objectRoleActive), nil, "active")
+	s.mustRecreateVersion(
+		versionID,
+		objectID,
+		strPtr(s.blobID(objectRoleActive)),
+		100,
+		`"etag-1"`,
+		"image/jpeg",
+		1,
+		"blob",
+		"committed",
+	)
+	s.mustCreatePlacement(versionID, "HOT", placementBlobID, 3)
+	s.mustSetCurrentVersion(objectID, versionID)
+}

@@ -9,6 +9,7 @@ import (
 	metadataHandler "github.com/alesplll/opens3-rebac/services/metadata/internal/handler/metadata"
 	bucketRepo "github.com/alesplll/opens3-rebac/services/metadata/internal/repository/bucket"
 	objectRepo "github.com/alesplll/opens3-rebac/services/metadata/internal/repository/object"
+	placementRepo "github.com/alesplll/opens3-rebac/services/metadata/internal/repository/placement"
 	"github.com/alesplll/opens3-rebac/services/metadata/internal/repository"
 	"github.com/alesplll/opens3-rebac/services/metadata/internal/service"
 	bucketSvc "github.com/alesplll/opens3-rebac/services/metadata/internal/service/bucket"
@@ -29,8 +30,9 @@ type serviceProvider struct {
 	saramaClient sarama.Client
 	syncProducer sarama.SyncProducer
 
-	bucketRepository repository.BucketRepository
-	objectRepository repository.ObjectRepository
+	bucketRepository    repository.BucketRepository
+	objectRepository    repository.ObjectRepository
+	placementRepository repository.PlacementRepository
 
 	objectDeletedProducer kafka.Producer
 	bucketDeletedProducer kafka.Producer
@@ -154,6 +156,14 @@ func (s *serviceProvider) ObjectRepository(ctx context.Context) repository.Objec
 	return s.objectRepository
 }
 
+func (s *serviceProvider) PlacementRepository(ctx context.Context) repository.PlacementRepository {
+	if s.placementRepository == nil {
+		s.placementRepository = placementRepo.NewRepository(s.PGClient(ctx))
+	}
+
+	return s.placementRepository
+}
+
 func (s *serviceProvider) BucketService(ctx context.Context) service.BucketService {
 	if s.bucketService == nil {
 		s.bucketService = bucketSvc.NewService(
@@ -170,6 +180,7 @@ func (s *serviceProvider) ObjectService(ctx context.Context) service.ObjectServi
 	if s.objectService == nil {
 		s.objectService = objectSvc.NewService(
 			s.ObjectRepository(ctx),
+			s.PlacementRepository(ctx),
 			s.TxManager(ctx),
 			s.ObjectDeletedProducer(ctx),
 			s.PGClient(ctx),

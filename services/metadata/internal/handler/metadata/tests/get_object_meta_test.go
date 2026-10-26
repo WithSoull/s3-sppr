@@ -23,13 +23,15 @@ func TestGetObjectMeta(t *testing.T) {
 		objectServiceMock.GetObjectMetaMock.
 			Expect(ctx, "photos", "cats/1.jpg", "version-1").
 			Return(&model.ObjectMeta{
-				ObjectID:     "object-1",
-				VersionID:    "version-1",
-				BlobID:       "blob-1",
-				SizeBytes:    123,
-				Etag:         "\"etag-1\"",
-				ContentType:  "image/jpeg",
-				LastModified: lastModified,
+				ObjectID:            "object-1",
+				VersionID:           "version-1",
+				BlobID:              "blob-1",
+				SizeBytes:           123,
+				Etag:                "\"etag-1\"",
+				ContentType:         "image/jpeg",
+				LastModified:        lastModified,
+				StorageClass:        model.StorageClassHot,
+				PlacementGeneration: 2,
 			}, nil)
 
 		handler := newHandler(nil, objectServiceMock)
@@ -42,13 +44,15 @@ func TestGetObjectMeta(t *testing.T) {
 
 		require.NoError(t, err)
 		require.Equal(t, &metadatav1.GetObjectMetaResponse{
-			ObjectId:     "object-1",
-			VersionId:    "version-1",
-			BlobId:       "blob-1",
-			SizeBytes:    123,
-			Etag:         "\"etag-1\"",
-			ContentType:  "image/jpeg",
-			LastModified: lastModified.UnixMilli(),
+			ObjectId:            "object-1",
+			VersionId:           "version-1",
+			BlobId:              "blob-1",
+			SizeBytes:           123,
+			Etag:                "\"etag-1\"",
+			ContentType:         "image/jpeg",
+			LastModified:        lastModified.UnixMilli(),
+			StorageClass:        "HOT",
+			PlacementGeneration: 2,
 		}, res)
 	})
 

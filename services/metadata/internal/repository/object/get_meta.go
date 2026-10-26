@@ -20,14 +20,17 @@ func (r *repo) GetMeta(ctx context.Context, bucketName, key, versionID string) (
 		rawSQL = `
 SELECT o.id AS object_id,
        v.id AS version_id,
-       v.blob_id,
+       vp.blob_id,
        v.size_bytes,
        v.etag,
        v.content_type,
-       v.created_at AS last_modified
+       v.created_at AS last_modified,
+       vp.storage_class,
+       vp.generation AS placement_generation
 FROM objects o
 JOIN buckets b ON o.bucket_id = b.id
 JOIN versions v ON v.id = $3
+JOIN version_placements vp ON vp.version_id = v.id
 WHERE b.name = $1
   AND o.key = $2
   AND o.status = '` + string(model.ObjectStatusActive) + `'
@@ -39,14 +42,17 @@ WHERE b.name = $1
 		rawSQL = `
 SELECT o.id AS object_id,
        v.id AS version_id,
-       v.blob_id,
+       vp.blob_id,
        v.size_bytes,
        v.etag,
        v.content_type,
-       v.created_at AS last_modified
+       v.created_at AS last_modified,
+       vp.storage_class,
+       vp.generation AS placement_generation
 FROM objects o
 JOIN buckets b ON o.bucket_id = b.id
 JOIN versions v ON v.id = o.current_version_id
+JOIN version_placements vp ON vp.version_id = v.id
 WHERE b.name = $1
   AND o.key = $2
   AND o.status = '` + string(model.ObjectStatusActive) + `'

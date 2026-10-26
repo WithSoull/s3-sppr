@@ -5,7 +5,7 @@ import warnings
 
 from . import metadata_pb2 as metadata__pb2
 
-GRPC_GENERATED_VERSION = '1.80.0'
+GRPC_GENERATED_VERSION = '1.74.0'
 GRPC_VERSION = grpc.__version__
 _version_not_supported = False
 
@@ -18,7 +18,7 @@ except ImportError:
 if _version_not_supported:
     raise RuntimeError(
         f'The grpc package installed is at version {GRPC_VERSION},'
-        + ' but the generated code in metadata_pb2_grpc.py depends on'
+        + f' but the generated code in metadata_pb2_grpc.py depends on'
         + f' grpcio>={GRPC_GENERATED_VERSION}.'
         + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
         + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
@@ -34,14 +34,20 @@ class MetadataServiceStub(object):
 
     PostgreSQL схема:
     buckets (id UUID, name TEXT UNIQUE, owner_id UUID, created_at TIMESTAMPTZ)
-    objects (id UUID, bucket_id UUID→buckets, key TEXT, current_version_id UUID, UNIQUE(bucket_id, key))
-    versions (id UUID, object_id UUID→objects, blob_id UUID, size_bytes BIGINT,
-    etag TEXT, content_type TEXT, created_at TIMESTAMPTZ, is_deleted BOOLEAN)
+    objects (id UUID, bucket_id UUID→buckets, key TEXT, current_version_id UUID,
+    pending_version_id UUID, status TEXT, UNIQUE(bucket_id, key))
+    versions (id UUID, object_id UUID→objects, blob_id UUID NULL, size_bytes BIGINT,
+    etag TEXT, content_type TEXT, version_number BIGINT,
+    kind version_kind, state version_state,
+    created_at TIMESTAMPTZ, committed_at TIMESTAMPTZ, aborted_at TIMESTAMPTZ)
+    storage_classes (name TEXT PK, capacity_bytes BIGINT, max_utilization NUMERIC)
+    version_placements (version_id UUID PK→versions, storage_class TEXT→storage_classes,
+    blob_id UUID, generation BIGINT, updated_at TIMESTAMPTZ)
 
     Kafka:
     Публикует → object-deleted: при DeleteObjectMeta (запускает async-очистку в Data Node и AuthZ)
     Публикует → bucket-deleted: при DeleteBucket (запускает async-очистку графа в AuthZ)
-    Потребляет ← object-stored: резервный путь для подтверждения версии объекта
+    Consumer для object-stored / pending upload flow пока не реализован в этом сервисе
     ─── Bucket Management ────────────────────────────────────────────────────
     """
 
@@ -112,14 +118,20 @@ class MetadataServiceServicer(object):
 
     PostgreSQL схема:
     buckets (id UUID, name TEXT UNIQUE, owner_id UUID, created_at TIMESTAMPTZ)
-    objects (id UUID, bucket_id UUID→buckets, key TEXT, current_version_id UUID, UNIQUE(bucket_id, key))
-    versions (id UUID, object_id UUID→objects, blob_id UUID, size_bytes BIGINT,
-    etag TEXT, content_type TEXT, created_at TIMESTAMPTZ, is_deleted BOOLEAN)
+    objects (id UUID, bucket_id UUID→buckets, key TEXT, current_version_id UUID,
+    pending_version_id UUID, status TEXT, UNIQUE(bucket_id, key))
+    versions (id UUID, object_id UUID→objects, blob_id UUID NULL, size_bytes BIGINT,
+    etag TEXT, content_type TEXT, version_number BIGINT,
+    kind version_kind, state version_state,
+    created_at TIMESTAMPTZ, committed_at TIMESTAMPTZ, aborted_at TIMESTAMPTZ)
+    storage_classes (name TEXT PK, capacity_bytes BIGINT, max_utilization NUMERIC)
+    version_placements (version_id UUID PK→versions, storage_class TEXT→storage_classes,
+    blob_id UUID, generation BIGINT, updated_at TIMESTAMPTZ)
 
     Kafka:
     Публикует → object-deleted: при DeleteObjectMeta (запускает async-очистку в Data Node и AuthZ)
     Публикует → bucket-deleted: при DeleteBucket (запускает async-очистку графа в AuthZ)
-    Потребляет ← object-stored: резервный путь для подтверждения версии объекта
+    Consumer для object-stored / pending upload flow пока не реализован в этом сервисе
     ─── Bucket Management ────────────────────────────────────────────────────
     """
 
@@ -165,8 +177,10 @@ class MetadataServiceServicer(object):
     def CreateObjectVersion(self, request, context):
         """─── Object Management ────────────────────────────────────────────────────
 
-        CreateObjectVersion регистрирует новую версию объекта после того, как Data Node
-        подтвердил запись blob'а на диск. Вызывается Gateway сразу после StoreObject.
+        CreateObjectVersion регистрирует новую committed-версию объекта после того,
+        как Storage уже сохранил blob. Текущая реализация сразу обновляет current_version_id.
+        Новая версия получает расположение в классе COLD.
+        Полный pending/finalize flow через pending_version_id ещё не реализован.
         Ошибки: NOT_FOUND (бакет не существует), INVALID_ARGUMENT.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -175,7 +189,9 @@ class MetadataServiceServicer(object):
 
     def GetObjectMeta(self, request, context):
         """GetObjectMeta возвращает метаданные актуальной (или конкретной) версии объекта.
-        blob_id в ответе используется Gateway для вызова Data Node RetrieveObject.
+        blob_id и storage_class берутся из действующего расположения версии
+        (version_placements), а не из versions.blob_id: после переноса между классами
+        версия читается из новой копии.
         Ошибки: NOT_FOUND (бакет или объект не существуют).
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -183,8 +199,9 @@ class MetadataServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def DeleteObjectMeta(self, request, context):
-        """DeleteObjectMeta помечает объект удалённым и публикует ObjectDeleted в Kafka.
-        Асинхронно запускает: удаление файла в Data Node + очистку графа в AuthZ.
+        """DeleteObjectMeta удаляет метаданные объекта и публикует object-deleted в Kafka.
+        Асинхронно запускает: удаление файла в Storage + очистку графа в AuthZ.
+        Delete marker flow ещё не реализован.
         Ошибки: NOT_FOUND.
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
@@ -279,14 +296,20 @@ class MetadataService(object):
 
     PostgreSQL схема:
     buckets (id UUID, name TEXT UNIQUE, owner_id UUID, created_at TIMESTAMPTZ)
-    objects (id UUID, bucket_id UUID→buckets, key TEXT, current_version_id UUID, UNIQUE(bucket_id, key))
-    versions (id UUID, object_id UUID→objects, blob_id UUID, size_bytes BIGINT,
-    etag TEXT, content_type TEXT, created_at TIMESTAMPTZ, is_deleted BOOLEAN)
+    objects (id UUID, bucket_id UUID→buckets, key TEXT, current_version_id UUID,
+    pending_version_id UUID, status TEXT, UNIQUE(bucket_id, key))
+    versions (id UUID, object_id UUID→objects, blob_id UUID NULL, size_bytes BIGINT,
+    etag TEXT, content_type TEXT, version_number BIGINT,
+    kind version_kind, state version_state,
+    created_at TIMESTAMPTZ, committed_at TIMESTAMPTZ, aborted_at TIMESTAMPTZ)
+    storage_classes (name TEXT PK, capacity_bytes BIGINT, max_utilization NUMERIC)
+    version_placements (version_id UUID PK→versions, storage_class TEXT→storage_classes,
+    blob_id UUID, generation BIGINT, updated_at TIMESTAMPTZ)
 
     Kafka:
     Публикует → object-deleted: при DeleteObjectMeta (запускает async-очистку в Data Node и AuthZ)
     Публикует → bucket-deleted: при DeleteBucket (запускает async-очистку графа в AuthZ)
-    Потребляет ← object-stored: резервный путь для подтверждения версии объекта
+    Consumer для object-stored / pending upload flow пока не реализован в этом сервисе
     ─── Bucket Management ────────────────────────────────────────────────────
     """
 

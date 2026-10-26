@@ -24,3 +24,7 @@ type ObjectRepository interface {
 	Delete(ctx context.Context, bucketName, key string) (string, string, error)
 	List(ctx context.Context, bucketName, prefix, continuationToken string, maxKeys int32) ([]*model.ObjectListItem, string, bool, error)
 }
+
+type PlacementRepository interface {
+	Create(ctx context.Context, versionID, blobID string, storageClass model.StorageClass) error
+}
