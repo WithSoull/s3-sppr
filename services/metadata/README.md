@@ -1,7 +1,8 @@
 # Metadata Service
 
-Go 1.24.1 gRPC-сервис каталога объектного хранилища: buckets, object keys, versions
-и ссылки на blobs в PostgreSQL. Порт локального стенда — `50052`.
+Go 1.24.1 gRPC-сервис каталога объектного хранилища: buckets, object keys, versions,
+расположение версий в классах хранения HOT/COLD и ссылки на blobs в PostgreSQL.
+Порт локального стенда — `50052`.
 
 ## Назначение и возможности
 
@@ -10,19 +11,33 @@ Go 1.24.1 gRPC-сервис каталога объектного хранили
 - получение текущей или конкретной committed версии;
 - постраничный список объектов с фильтром prefix;
 - удаление метаданных и публикация событий удаления;
+- действующее расположение каждой committed blob-версии: класс HOT/COLD, blob_id
+  и поколение записи; новые версии попадают в COLD;
+- API безопасного переноса версии между классами для исполнителя миграций:
+  резервирование места под копию, переключение расположения CAS, отмена и учёт
+  очистки старых blobs (`PlacementService`);
+- занятость классов с учётом временных копий и каталог текущих версий для СППР;
 - custom проверка PostgreSQL/Kafka, standard gRPC health, metrics и tracing.
 
 Сервис не хранит байты, не проверяет JWT/ReBAC и не вызывает Storage. Переданный
-`blob_id` связывается с версией без проверки наличия файла на Storage.
+`blob_id` связывается с версией без проверки наличия файла на Storage. Копирование
+и сверку MD5 при переносе выполняет исполнитель миграций; Metadata хранит только
+состояние и переключает расположение.
 
 ## Архитектура и зависимости
 
 ```text
-gRPC MetadataService → handler/metadata
-                         ├── service/bucket → repository/bucket → PostgreSQL
-                         └── service/object → repository/object → PostgreSQL
-                                  └── Kafka producer (delete events)
+gRPC MetadataService  → handler/metadata
+                          ├── service/bucket → repository/bucket → PostgreSQL
+                          └── service/object → repository/object,
+                                   │           repository/placement → PostgreSQL
+                                   └── Kafka producer (delete events)
+gRPC PlacementService → handler/placement
+                          └── service/placement → repository/placement,
+                                                  repository/placementcopy → PostgreSQL
 ```
+
+Оба gRPC-сервиса работают в одном процессе на одном порту.
 
 Service задаёт транзакционные границы, repository выполняет SQL, handler переводит
 запросы/ответы и ошибки. Общие DB client, transaction manager, Kafka producer и
@@ -43,11 +58,15 @@ Users использует другую PostgreSQL. Между БД Users и Met
 cmd/server/                        точка входа
 internal/app/                      wiring и lifecycle
 internal/config/                   env configuration
-internal/handler/metadata/         transport всех RPC
+internal/handler/metadata/         transport MetadataService
+internal/handler/placement/        transport PlacementService
 internal/service/bucket/           bucket operations
 internal/service/object/           version/catalog operations
+internal/service/placement/        протокол переноса и каталог расположений
 internal/repository/bucket/        SQL buckets
 internal/repository/object/        SQL objects/versions
+internal/repository/placement/     SQL version_placements, занятость классов
+internal/repository/placementcopy/ SQL placement_copies
 internal/model/                    domain model
 pkg/mocks/                         minimock dependencies
 migrations/                        PostgreSQL schema (goose)
@@ -55,8 +74,10 @@ migrations/                        PostgreSQL schema (goose)
 
 ## API
 
-Wire-контракт: [metadata.proto](../../shared/api/metadata/v1/metadata.proto),
-`opens3.metadata.v1.MetadataService`. Комментарии proto о будущем Gateway/cleanup
+Wire-контракты: [metadata.proto](../../shared/api/metadata/v1/metadata.proto),
+`opens3.metadata.v1.MetadataService`, и
+[placement.proto](../../shared/api/metadata/v1/placement.proto),
+`opens3.metadata.v1.PlacementService`. Комментарии proto о будущем Gateway/cleanup
 не подтверждают наличие этих consumers; текущее поведение описано ниже.
 
 | RPC | Вход / результат |
@@ -67,10 +88,35 @@ Wire-контракт: [metadata.proto](../../shared/api/metadata/v1/metadata.pr
 | `ListBuckets` | owner_id → список принадлежащих ему buckets |
 | `DeleteBucket` | bucket_name → success после проверки числа objects |
 | `CreateObjectVersion` | bucket_name, key, blob_id, size_bytes, etag, content_type → object_id, version_id |
-| `GetObjectMeta` | bucket_name, key, необязательный version_id → blob_id и metadata |
+| `GetObjectMeta` | bucket_name, key, необязательный version_id → blob_id, storage_class, placement_generation и metadata |
 | `ListObjects` | bucket_name, prefix, continuation_token, max_keys → объекты и следующий token |
 | `DeleteObjectMeta` | bucket_name + key → object_id, текущий blob_id, success |
 | `HealthCheck` | пустой запрос → SERVING / NOT_SERVING по PostgreSQL и Kafka |
+
+`GetObjectMeta` и `DeleteObjectMeta` берут `blob_id` из действующего расположения
+(`version_placements`), а не из `versions.blob_id`: после переноса версия читается
+из новой копии.
+
+`PlacementService` (клиенты — СППР и исполнитель миграций):
+
+| RPC | Вход / результат |
+|---|---|
+| `ListStorageClasses` | → ёмкость, допустимая доля, занятость расположениями и копиями, свободное место |
+| `ListPlacements` | page_size, page_token → текущие версии активных объектов с классом и поколением |
+| `GetPlacement` | version_id → расположение и признак текущей версии |
+| `ReserveCopy` | migration_id, version_id, expected_generation, source_class, target_class → целевая копия с новым blob_id |
+| `SwitchPlacement` | migration_id, проверенные размер и MD5, пауза до удаления источника → новое поколение и копия-источник |
+| `AbortCopy` | migration_id, reason → целевая копия в cleanup_pending |
+| `ListMigrationCopies` | migration_id → копии миграции для восстановления после перезапуска |
+| `ListDueCleanups` | limit → копии, blob которых пора удалить |
+| `CompleteCleanup` | copy_id, deleted, error_message → deleted или cleanup_failed |
+
+Повтор `ReserveCopy` и `SwitchPlacement` с тем же migration_id возвращает уже
+сохранённый результат и не начинает вторую миграцию. Коды отказов: `ABORTED`
+(версия не текущая, расположение изменилось, у версии уже есть зарезервированная
+копия), `RESOURCE_EXHAUSTED` (в целевом классе нет места), `FAILED_PRECONDITION`
+(недопустимое состояние копии, несовпадение размера, повторное использование
+migration_id с другими параметрами).
 
 `last_modified` сейчас берётся из `versions.created_at`. ListObjects выбирает
 active objects с current committed blob version, сортирует по key; token — последний
@@ -90,12 +136,29 @@ buckets (id, name UNIQUE, owner_id)
         └── versions (id, object_id, version_number, kind, state,
                       blob_id, size_bytes, etag, content_type,
                       created_at, committed_at, aborted_at)
+              ├── version_placements (version_id PK, storage_class, blob_id,
+              │                       generation, updated_at)
+              └── placement_copies (copy_id, migration_id, version_id NULL, role,
+                                    storage_class, blob_id, size_bytes,
+                                    expected_generation, expected_class, state,
+                                    verified_md5, cleanup_after, cleanup_attempts,
+                                    last_error)
+storage_classes (name PK, capacity_bytes, max_utilization)
 ```
 
 [Миграция](migrations/20260423000000_init.sql) определяет `kind=blob/delete_marker`,
 `state=pending/committed/aborted`, deferred FK указателей версий и уникальность
 `(object_id, version_number)`. Наличие полей pending/delete_marker не означает
 реализованные RPC finalize/abort/versioning lifecycle.
+
+[Миграция расположений](migrations/20261026000000_version_placements.sql) создаёт
+классы HOT и COLD и назначает существующим committed blob-версиям расположение в
+COLD с тем же blob_id. Ёмкость классов в миграции — значения для разработки
+(HOT 1 GiB × 0,9, COLD 64 GiB × 0,95); стенд эксперимента задаёт свои значения.
+`versions.blob_id` остаётся blob, записанным при загрузке.
+[Миграция копий](migrations/20261026010000_placement_copies.sql) добавляет
+`placement_copies`. Строки копий не удаляются вместе с версией (`version_id`
+становится NULL), чтобы удаление объекта во время переноса не скрыло blob.
 
 ### Регистрация версии
 
@@ -104,7 +167,8 @@ buckets (id, name UNIQUE, owner_id)
 1. Upsert объекта по bucket/key.
 2. Блокировку строки объекта и выделение `MAX(version_number)+1`.
 3. Insert committed blob version с `committed_at`.
-4. Обновление `current_version_id`.
+4. Insert расположения в COLD с тем же blob_id и generation 1.
+5. Обновление `current_version_id`.
 
 Блокировка и INSERT должны оставаться в одной транзакции. Старые версии не
 удаляются при overwrite. Повтор CreateObjectVersion создаёт новую версию:
@@ -113,6 +177,54 @@ buckets (id, name UNIQUE, owner_id)
 Будущий coordinator сначала получает успешный Storage commit, затем регистрирует
 Metadata version и только после этого возвращает внешний успех. Это целевой
 межсервисный flow; атомарной транзакции между файлом и PostgreSQL сейчас нет.
+
+### Перенос версии между классами
+
+Инварианты протокола из диплома: у версии ровно одно действующее расположение;
+оно меняется только после проверки копии; переключение — CAS по поколению и
+исходному классу; источник удаляется после паузы, превышающей время чтения в
+Gateway.
+
+```text
+GetPlacement ─► ReserveCopy ─► запись blob_id в Storage целевого класса
+             ─► сверка размера и MD5 с источником ─► SwitchPlacement
+             ─► (cleanup_after) удаление старого blob ─► CompleteCleanup
+Ошибка до SwitchPlacement: AbortCopy ─► удаление целевого blob ─► CompleteCleanup
+```
+
+1. `ReserveCopy` в одной транзакции: блокирует строки объекта и расположения,
+   проверяет, что версия текущая, а поколение и класс равны ожидаемым; блокирует
+   строку целевого класса, считает занятость и вставляет целевую копию
+   `reserved`. Блокировка класса сериализует резервирования: без неё
+   параллельные запросы переполняют HOT (проверено integration-тестом).
+2. Поколение и исходный класс сохраняются в целевой копии. `SwitchPlacement`
+   повторно блокирует объект и расположение и обновляет запись только при
+   совпадении с ними (`UPDATE ... WHERE generation = $2 AND storage_class = $3`).
+   Перезапись объекта блокирует ту же строку объекта, поэтому не может
+   проскочить между проверкой и переключением.
+3. При успехе целевая копия становится `promoted`, прежний blob записывается
+   копией-источником `cleanup_pending` с `cleanup_after = now() + пауза`.
+4. Конфликт оставляет расположение и копии без изменений; исполнитель вызывает
+   `AbortCopy`, и целевая копия сразу становится доступной для очистки.
+
+Состояния копии:
+
+| Состояние | Место занято | Переходы |
+|---|---|---|
+| `reserved` | да | → `promoted` (SwitchPlacement), → `cleanup_pending` (AbortCopy) |
+| `promoted` | учитывается расположением | конечное |
+| `cleanup_pending` | да | → `deleted` или `cleanup_failed` (CompleteCleanup) |
+| `cleanup_failed` | да | → `deleted` или снова `cleanup_failed` |
+| `deleted` | нет | конечное |
+
+Занятость класса = размеры всех версий с расположением в классе (включая
+нетекущие) + размеры копий в `reserved`, `cleanup_pending`, `cleanup_failed`.
+Допустимый объём — `floor(capacity_bytes × max_utilization)`. Неудачная очистка
+остаётся видимой в `ListStorageClasses` и продолжает занимать место.
+
+После перезапуска исполнитель восстанавливает шаг по `ListMigrationCopies`:
+`reserved` — переключения не было, `promoted` и копия-источник — CAS выполнен,
+осталась очистка.
 
 ### Удаление и Kafka
 
@@ -206,6 +318,25 @@ grpcurl -plaintext -d '{"bucket_name":"docs-demo","max_keys":10}' \
   localhost:50052 opens3.metadata.v1.MetadataService/ListObjects
 ```
 
+Перенос версии в HOT без Storage (Metadata не проверяет blobs, MD5 здесь условный).
+Значение `versionId` возьмите из ответа CreateObjectVersion:
+
+```bash
+grpcurl -plaintext -d '{"bucket_name":"docs-demo","key":"example.txt"}' \
+  localhost:50052 opens3.metadata.v1.MetadataService/GetObjectMeta   # storageClass COLD, generation 1
+grpcurl -plaintext -d '{"migration_id":"22222222-2222-4222-8222-222222222222","version_id":"<version-id>","expected_generation":1,"source_class":"COLD","target_class":"HOT"}' \
+  localhost:50052 opens3.metadata.v1.PlacementService/ReserveCopy
+grpcurl -plaintext -d '{}' localhost:50052 opens3.metadata.v1.PlacementService/ListStorageClasses
+grpcurl -plaintext -d '{"migration_id":"22222222-2222-4222-8222-222222222222","verified_size_bytes":3,"verified_md5":"9e107d9d372bb6826bd81d3542a419d6","source_cleanup_delay_ms":60000}' \
+  localhost:50052 opens3.metadata.v1.PlacementService/SwitchPlacement
+grpcurl -plaintext -d '{"bucket_name":"docs-demo","key":"example.txt"}' \
+  localhost:50052 opens3.metadata.v1.MetadataService/GetObjectMeta   # storageClass HOT, generation 2
+```
+
+Повтор ReserveCopy с другим migration_id и `expected_generation: 1` вернёт
+`ABORTED: placement generation or class changed`. Через минуту
+`ListDueCleanups` вернёт старый blob в COLD.
+
 Удаление demo metadata через DeleteObjectMeta не удалит blob автоматически:
 cleanup-сценарий ещё не собран. Для ручной уборки сохраните blob_id и удалите blob
 отдельным Storage DeleteObject, затем metadata и пустой bucket.
@@ -241,7 +372,11 @@ make down-e2e
 ```
 
 Без автоматического запуска контейнера: `make up-e2e`, затем
-`make test-metadata-integration`. Пакеты запускаются последовательно (`-p 1`),
+`make test-metadata-integration`. Кроме repository suites, команда запускает
+[сценарии протокола переноса](internal/service/placement/tests/protocol_integration_test.go)
+с настоящими транзакциями: цикл COLD → HOT → COLD, повторы команд, учёт копий в
+ёмкости, конкурентные резервирования, перезапись и удаление объекта во время
+переноса. Пакеты запускаются последовательно (`-p 1`),
 поскольку используют одну тестовую БД. Не запускайте несколько таких команд
 одновременно против этой БД. Suite пересоздаёт схему и чистит таблицы —
 используйте конфигурацию [e2e](../../e2e/README.md), а не development/рабочую БД.
@@ -258,7 +393,14 @@ Generated outputs вручную не редактируются.
 - нет межсервисной аутентификации или проверки owner_id по identity;
 - prefix/pagination имеют описанные выше отличия от внешнего S3-контракта;
 - проверка непустоты bucket и конкурентное создание объектов требуют согласования
-  lifecycle; наличие транзакции само по себе не доказывает нужную сериализацию.
+  lifecycle; наличие транзакции само по себе не доказывает нужную сериализацию;
+- Gateway пока читает и пишет через один экземпляр Storage и не выбирает его по
+  `storage_class`; событие `object-deleted` не содержит класс хранения;
+- ёмкость классов задаётся миграцией или SQL, RPC для настройки нет; адреса
+  экземпляров Storage в `storage_classes` не хранятся;
+- исполнителя миграций нет: протокол проверен вызовами API и тестами;
+- удаление объекта не превращает расположения его версий в копии для очистки:
+  blob текущей версии передаётся в `object-deleted`, старые версии не учитываются.
 
 ## Связанные документы
 

@@ -12,7 +12,7 @@
 | Auth | credentials через Users, выпуск и проверка JWT | [README](../services/auth/README.md) |
 | Users | учётные записи и password hashes | [README](../services/users/README.md) |
 | AuthZ | ReBAC graph и decision cache | [README](../services/authz/README.md) |
-| Metadata | buckets, keys и версии | [README](../services/metadata/README.md) |
+| Metadata | buckets, keys, версии и их расположение HOT/COLD | [README](../services/metadata/README.md) |
 | Storage | blob bytes и multipart | [README](../services/storage/README.md) |
 | Quota | резервирование и учёт квот | [README](../services/quota/README.md) |
 | Gateway | локальный HTTP PUT/GET | [README](../services/gateway/README.md) |
