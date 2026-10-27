@@ -5,17 +5,21 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"testing"
+	"time"
 
 	"github.com/alesplll/opens3-rebac/services/gateway/internal/handler/httpapi"
 	"github.com/alesplll/opens3-rebac/services/gateway/internal/testkit"
 	"github.com/stretchr/testify/require"
 )
 
+const testMaxReadDuration = time.Minute
+
 func newGatewayHandler(t *testing.T) (http.Handler, *testkit.Upstream) {
 	t.Helper()
 	upstream := testkit.New()
-	return httpapi.NewHandler(upstream.ObjectService(t)), upstream
+	return httpapi.NewHandler(upstream.ObjectService(t), testMaxReadDuration), upstream
 }
 
 // newGateway serves the real handler over HTTP on top of the in-process Metadata and Storage fakes.
@@ -45,3 +49,5 @@ func do(t *testing.T, server *httptest.Server, method, path string, body io.Read
 type failedReader struct{}
 
 func (failedReader) Read([]byte) (int, error) { return 0, errors.New("storage stream failed") }
+
+func itoa(n int) string { return strconv.Itoa(n) }

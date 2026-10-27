@@ -13,6 +13,7 @@ import (
 	storageclient "github.com/alesplll/opens3-rebac/services/gateway/internal/client/storage"
 	"github.com/alesplll/opens3-rebac/services/gateway/internal/config"
 	"github.com/alesplll/opens3-rebac/services/gateway/internal/handler/httpapi"
+	"github.com/alesplll/opens3-rebac/services/gateway/internal/model"
 	"github.com/alesplll/opens3-rebac/services/gateway/internal/service"
 	objectservice "github.com/alesplll/opens3-rebac/services/gateway/internal/service/object"
 	accessproducer "github.com/alesplll/opens3-rebac/services/gateway/internal/service/producer/access"
@@ -35,9 +36,9 @@ type serviceProvider struct {
 	closer *closer.Closer
 
 	metadataConn   *grpc.ClientConn
-	storageConn    *grpc.ClientConn
+	storageConns   []*grpc.ClientConn
 	metadataClient client.MetadataClient
-	storageClient  client.StorageClient
+	storageClients map[model.StorageClass]client.StorageClient
 
 	asyncProducer         sarama.AsyncProducer
 	objectReadProducer    kafka.Producer
@@ -70,23 +71,32 @@ func (s *serviceProvider) MetadataClient() (client.MetadataClient, error) {
 	return s.metadataClient, nil
 }
 
-func (s *serviceProvider) StorageClient() (client.StorageClient, error) {
-	if s.storageClient == nil {
-		conn, err := grpc.NewClient(
-			s.config.Storage.Address(),
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-			grpc.WithStreamInterceptor(tracing.StreamClientInterceptor("gateway.storage")),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("create Storage client: %w", err)
+// StorageClients connects to one Storage instance per storage class.
+func (s *serviceProvider) StorageClients() (map[model.StorageClass]client.StorageClient, error) {
+	if s.storageClients == nil {
+		addresses := map[model.StorageClass]string{
+			model.StorageClassHot:  s.config.Storage.HotAddress(),
+			model.StorageClassCold: s.config.Storage.ColdAddress(),
 		}
-		s.storageConn = conn
-		s.storageClient = storageclient.NewClient(
-			storagev1.NewDataStorageServiceClient(conn),
-			s.config.Storage.RetrieveChunkSizeBytes(),
-		)
+		clients := make(map[model.StorageClass]client.StorageClient, len(addresses))
+		for class, address := range addresses {
+			conn, err := grpc.NewClient(
+				address,
+				grpc.WithTransportCredentials(insecure.NewCredentials()),
+				grpc.WithStreamInterceptor(tracing.StreamClientInterceptor("gateway.storage")),
+			)
+			if err != nil {
+				return nil, fmt.Errorf("create %s Storage client: %w", class, err)
+			}
+			s.storageConns = append(s.storageConns, conn)
+			clients[class] = storageclient.NewClient(
+				storagev1.NewDataStorageServiceClient(conn),
+				s.config.Storage.RetrieveChunkSizeBytes(),
+			)
+		}
+		s.storageClients = clients
 	}
-	return s.storageClient, nil
+	return s.storageClients, nil
 }
 
 // AsyncProducer is shared by both topics. Its buffer is flushed by Close, which
@@ -166,7 +176,7 @@ func (s *serviceProvider) ObjectService() (service.ObjectService, error) {
 		if err != nil {
 			return nil, err
 		}
-		storage, err := s.StorageClient()
+		storage, err := s.StorageClients()
 		if err != nil {
 			return nil, err
 		}
@@ -189,7 +199,7 @@ func (s *serviceProvider) ObjectHandler() (http.Handler, error) {
 		if err != nil {
 			return nil, err
 		}
-		s.objectHandler = httpapi.NewHandler(objects)
+		s.objectHandler = httpapi.NewHandler(objects, s.config.HTTP.MaxReadDuration())
 	}
 	return s.objectHandler, nil
 }
@@ -197,9 +207,9 @@ func (s *serviceProvider) ObjectHandler() (http.Handler, error) {
 func (s *serviceProvider) Close() error {
 	s.closeOnce.Do(func() {
 		var errs []error
-		if s.storageConn != nil {
-			if err := s.storageConn.Close(); err != nil {
-				errs = append(errs, fmt.Errorf("close Storage client: %w", err))
+		for _, conn := range s.storageConns {
+			if err := conn.Close(); err != nil {
+				errs = append(errs, fmt.Errorf("close Storage client %s: %w", conn.Target(), err))
 			}
 		}
 		if s.metadataConn != nil {

@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alesplll/opens3-rebac/services/metadata/internal/model"
 	"github.com/alesplll/opens3-rebac/services/metadata/pkg/mocks"
 	metadatav1 "github.com/alesplll/opens3-rebac/shared/pkg/go/metadata/v1"
 	"github.com/gojuno/minimock/v3"
@@ -20,18 +21,19 @@ func TestCreateObjectVersion(t *testing.T) {
 
 		objectServiceMock := mocks.NewObjectServiceMock(mc)
 		objectServiceMock.CreateObjectVersionMock.
-			Expect(ctx, "photos", "cats/1.jpg", "blob-1", int64(123), "\"etag-1\"", "image/jpeg").
+			Expect(ctx, "photos", "cats/1.jpg", "blob-1", int64(123), "\"etag-1\"", "image/jpeg", model.StorageClassHot).
 			Return("object-1", "version-1", createdAt, nil)
 
 		handler := newHandler(nil, objectServiceMock)
 
 		res, err := handler.CreateObjectVersion(ctx, &metadatav1.CreateObjectVersionRequest{
-			BucketName:  "photos",
-			Key:         "cats/1.jpg",
-			BlobId:      "blob-1",
-			SizeBytes:   123,
-			Etag:        "\"etag-1\"",
-			ContentType: "image/jpeg",
+			BucketName:   "photos",
+			Key:          "cats/1.jpg",
+			BlobId:       "blob-1",
+			SizeBytes:    123,
+			Etag:         "\"etag-1\"",
+			ContentType:  "image/jpeg",
+			StorageClass: "HOT",
 		})
 
 		require.NoError(t, err)
@@ -49,7 +51,7 @@ func TestCreateObjectVersion(t *testing.T) {
 
 		objectServiceMock := mocks.NewObjectServiceMock(mc)
 		objectServiceMock.CreateObjectVersionMock.
-			Expect(ctx, "photos", "cats/1.jpg", "", int64(0), "", "").
+			Expect(ctx, "photos", "cats/1.jpg", "", int64(0), "", "", model.StorageClass("")).
 			Return("", "", time.Time{}, serviceErr)
 
 		handler := newHandler(nil, objectServiceMock)

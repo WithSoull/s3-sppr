@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	_ "github.com/alesplll/opens3-rebac/services/gateway/docs"
 	"github.com/alesplll/opens3-rebac/services/gateway/internal/service"
@@ -11,14 +12,16 @@ import (
 )
 
 type Handler struct {
-	objects service.ObjectService
-	swagger http.Handler
+	objects         service.ObjectService
+	maxReadDuration time.Duration
+	swagger         http.Handler
 }
 
-func NewHandler(objects service.ObjectService) http.Handler {
+func NewHandler(objects service.ObjectService, maxReadDuration time.Duration) http.Handler {
 	return &Handler{
-		objects: objects,
-		swagger: httpSwagger.Handler(httpSwagger.URL("/swagger/doc.json")),
+		objects:         objects,
+		maxReadDuration: maxReadDuration,
+		swagger:         httpSwagger.Handler(httpSwagger.URL("/swagger/doc.json")),
 	}
 }
 
@@ -42,12 +45,14 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.PutObject(w, r)
 	case http.MethodGet:
 		h.GetObject(w, r)
+	case http.MethodDelete:
+		h.DeleteObject(w, r)
 	default:
 		if _, _, ok := objectPath(r.URL.Path); !ok {
 			http.NotFound(w, r)
 			return
 		}
-		w.Header().Set("Allow", "GET, PUT")
+		w.Header().Set("Allow", "GET, PUT, DELETE")
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 }

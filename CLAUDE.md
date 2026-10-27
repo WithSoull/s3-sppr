@@ -23,12 +23,12 @@ Repo: https://github.com/alesplll/opens3-rebac
 
 | Service | Lang | Port | Owner | Status |
 |---|---|---|---|---|
-| **Gateway** | Go | `:8080` HTTP | Max | 🟡 Local PUT/GET MVP; Auth/AuthZ/Quota pending |
+| **Gateway** | Go | `:8080` HTTP | Max | 🟡 Local PUT/GET/DELETE with Range and HOT/COLD routing; Auth/AuthZ/Quota pending |
 | **SPPR** | Go | `:8086` health HTTP | — | Kafka Ingestor; standalone profile `sppr` |
 | **Auth** | Go | `:50050` gRPC | — | ✅ Complete |
 | **AuthZ (ReBAC)** | Python | `:50051` gRPC | Alexa | ✅ Complete |
 | **Metadata** | Go | `:50052` gRPC | Anya | ✅ Complete; HOT/COLD placements + PlacementService |
-| **Storage** | Go | `:50053` gRPC | Ilya | ✅ Complete |
+| **Storage** | Go | `:50053` gRPC (`storage-cold`), host `:50056` (`storage-hot`) | Ilya | ✅ Complete; two instances on separate volumes |
 | **Users** | Go | `:50054` gRPC | — | ✅ Complete |
 | **Quota** | Rust | `:50055` gRPC | — | ✅ Complete |
 
@@ -91,7 +91,10 @@ without waiting for it; see [Kafka spec](docs/kafka-spec.md).
 ### HOT/COLD placement
 
 Metadata is the source of truth for where each version is stored:
-`version_placements` (class, blob_id, generation). New versions go to COLD.
+`version_placements` (class, blob_id, generation). Before writing, Gateway asks
+`ChooseWriteClass`: a new key goes to COLD; an overwrite of a HOT key with known
+size stays in HOT if it fits (no reservation). Gateway reads and writes through
+`storage-hot` or `storage-cold` by that class; their addresses are Gateway config.
 `PlacementService` (same port as MetadataService) lets the migration executor
 reserve a copy, switch the placement by CAS and record cleanup. See
 [Metadata README](services/metadata/README.md#перенос-версии-между-классами).

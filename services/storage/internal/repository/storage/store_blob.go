@@ -15,7 +15,7 @@ import (
 	"github.com/alesplll/opens3-rebac/services/storage/internal/model"
 )
 
-func (r *repo) StoreBlob(ctx context.Context, blobID string, reader io.Reader) (*model.BlobMeta, error) {
+func (r *repo) StoreBlob(ctx context.Context, blobID string, reader io.Reader, expectedSize *int64) (*model.BlobMeta, error) {
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
@@ -36,6 +36,10 @@ func (r *repo) StoreBlob(ctx context.Context, blobID string, reader io.Reader) (
 	result, err := writeAtomically(ctx, r.singlePartObjectPath(blobID), reader, "staged blob")
 	if err != nil {
 		return nil, err
+	}
+	if expectedSize != nil && result.sizeBytes != *expectedSize {
+		r.cleanupSinglePartStagingBestEffort(blobID)
+		return nil, fmt.Errorf("%w: expected %d bytes, received %d", domainerrors.ErrInvalidBlobSize, *expectedSize, result.sizeBytes)
 	}
 
 	if err := ensureDirReady(filepath.Dir(r.blobPath(blobID))); err != nil {

@@ -172,7 +172,7 @@ require-gateway-access-producer:
 	@test -f services/gateway/internal/service/producer/access/service.go || { echo 'Gateway producer is supplied by PR #1; merge both PRs for the combined smoke.' >&2; exit 1; }
 
 up-sppr-gateway: require-gateway-access-producer
-	ACCESS_EVENTS_ENABLED=true docker compose --profile services --profile sppr up --build -d gateway sppr metadata storage
+	ACCESS_EVENTS_ENABLED=true docker compose --profile services --profile sppr up --build -d gateway sppr metadata storage-hot storage-cold
 
 smoke-sppr: require-gateway-access-producer
 	SPPR_SMOKE_PG_DSN="$${SPPR_SMOKE_PG_DSN:-postgres://sppr_user:sppr_password@localhost:$${SPPR_DB_PORT:-5436}/sppr_db?sslmode=disable}" go run ./services/sppr/cmd/smoke
@@ -209,7 +209,7 @@ up-services:
 	docker compose --profile services up -d
 
 up-gateway:
-	docker compose --profile services up --build -d gateway metadata storage
+	docker compose --profile services up --build -d gateway metadata storage-hot storage-cold
 
 up-e2e:
 	docker compose --env-file e2e/.env --profile e2e up -d --wait --force-recreate postgres-metadata-e2e

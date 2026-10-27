@@ -20,9 +20,16 @@ type ObjectServiceMock struct {
 	t          minimock.Tester
 	finishOnce sync.Once
 
-	funcCreateObjectVersion          func(ctx context.Context, bucketName string, key string, blobID string, sizeBytes int64, etag string, contentType string) (objectID string, versionID string, createdAt time.Time, err error)
+	funcChooseWriteClass          func(ctx context.Context, bucketName string, key string, sizeBytes *int64) (wp1 *model.WriteClassDecision, err error)
+	funcChooseWriteClassOrigin    string
+	inspectFuncChooseWriteClass   func(ctx context.Context, bucketName string, key string, sizeBytes *int64)
+	afterChooseWriteClassCounter  uint64
+	beforeChooseWriteClassCounter uint64
+	ChooseWriteClassMock          mObjectServiceMockChooseWriteClass
+
+	funcCreateObjectVersion          func(ctx context.Context, bucketName string, key string, blobID string, sizeBytes int64, etag string, contentType string, storageClass model.StorageClass) (objectID string, versionID string, createdAt time.Time, err error)
 	funcCreateObjectVersionOrigin    string
-	inspectFuncCreateObjectVersion   func(ctx context.Context, bucketName string, key string, blobID string, sizeBytes int64, etag string, contentType string)
+	inspectFuncCreateObjectVersion   func(ctx context.Context, bucketName string, key string, blobID string, sizeBytes int64, etag string, contentType string, storageClass model.StorageClass)
 	afterCreateObjectVersionCounter  uint64
 	beforeCreateObjectVersionCounter uint64
 	CreateObjectVersionMock          mObjectServiceMockCreateObjectVersion
@@ -64,6 +71,9 @@ func NewObjectServiceMock(t minimock.Tester) *ObjectServiceMock {
 		controller.RegisterMocker(m)
 	}
 
+	m.ChooseWriteClassMock = mObjectServiceMockChooseWriteClass{mock: m}
+	m.ChooseWriteClassMock.callArgs = []*ObjectServiceMockChooseWriteClassParams{}
+
 	m.CreateObjectVersionMock = mObjectServiceMockCreateObjectVersion{mock: m}
 	m.CreateObjectVersionMock.callArgs = []*ObjectServiceMockCreateObjectVersionParams{}
 
@@ -82,6 +92,411 @@ func NewObjectServiceMock(t minimock.Tester) *ObjectServiceMock {
 	t.Cleanup(m.MinimockFinish)
 
 	return m
+}
+
+type mObjectServiceMockChooseWriteClass struct {
+	optional           bool
+	mock               *ObjectServiceMock
+	defaultExpectation *ObjectServiceMockChooseWriteClassExpectation
+	expectations       []*ObjectServiceMockChooseWriteClassExpectation
+
+	callArgs []*ObjectServiceMockChooseWriteClassParams
+	mutex    sync.RWMutex
+
+	expectedInvocations       uint64
+	expectedInvocationsOrigin string
+}
+
+// ObjectServiceMockChooseWriteClassExpectation specifies expectation struct of the ObjectService.ChooseWriteClass
+type ObjectServiceMockChooseWriteClassExpectation struct {
+	mock               *ObjectServiceMock
+	params             *ObjectServiceMockChooseWriteClassParams
+	paramPtrs          *ObjectServiceMockChooseWriteClassParamPtrs
+	expectationOrigins ObjectServiceMockChooseWriteClassExpectationOrigins
+	results            *ObjectServiceMockChooseWriteClassResults
+	returnOrigin       string
+	Counter            uint64
+}
+
+// ObjectServiceMockChooseWriteClassParams contains parameters of the ObjectService.ChooseWriteClass
+type ObjectServiceMockChooseWriteClassParams struct {
+	ctx        context.Context
+	bucketName string
+	key        string
+	sizeBytes  *int64
+}
+
+// ObjectServiceMockChooseWriteClassParamPtrs contains pointers to parameters of the ObjectService.ChooseWriteClass
+type ObjectServiceMockChooseWriteClassParamPtrs struct {
+	ctx        *context.Context
+	bucketName *string
+	key        *string
+	sizeBytes  **int64
+}
+
+// ObjectServiceMockChooseWriteClassResults contains results of the ObjectService.ChooseWriteClass
+type ObjectServiceMockChooseWriteClassResults struct {
+	wp1 *model.WriteClassDecision
+	err error
+}
+
+// ObjectServiceMockChooseWriteClassOrigins contains origins of expectations of the ObjectService.ChooseWriteClass
+type ObjectServiceMockChooseWriteClassExpectationOrigins struct {
+	origin           string
+	originCtx        string
+	originBucketName string
+	originKey        string
+	originSizeBytes  string
+}
+
+// Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
+// the test will fail minimock's automatic final call check if the mocked method was not called at least once.
+// Optional() makes method check to work in '0 or more' mode.
+// It is NOT RECOMMENDED to use this option unless you really need it, as default behaviour helps to
+// catch the problems when the expected method call is totally skipped during test run.
+func (mmChooseWriteClass *mObjectServiceMockChooseWriteClass) Optional() *mObjectServiceMockChooseWriteClass {
+	mmChooseWriteClass.optional = true
+	return mmChooseWriteClass
+}
+
+// Expect sets up expected params for ObjectService.ChooseWriteClass
+func (mmChooseWriteClass *mObjectServiceMockChooseWriteClass) Expect(ctx context.Context, bucketName string, key string, sizeBytes *int64) *mObjectServiceMockChooseWriteClass {
+	if mmChooseWriteClass.mock.funcChooseWriteClass != nil {
+		mmChooseWriteClass.mock.t.Fatalf("ObjectServiceMock.ChooseWriteClass mock is already set by Set")
+	}
+
+	if mmChooseWriteClass.defaultExpectation == nil {
+		mmChooseWriteClass.defaultExpectation = &ObjectServiceMockChooseWriteClassExpectation{}
+	}
+
+	if mmChooseWriteClass.defaultExpectation.paramPtrs != nil {
+		mmChooseWriteClass.mock.t.Fatalf("ObjectServiceMock.ChooseWriteClass mock is already set by ExpectParams functions")
+	}
+
+	mmChooseWriteClass.defaultExpectation.params = &ObjectServiceMockChooseWriteClassParams{ctx, bucketName, key, sizeBytes}
+	mmChooseWriteClass.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
+	for _, e := range mmChooseWriteClass.expectations {
+		if minimock.Equal(e.params, mmChooseWriteClass.defaultExpectation.params) {
+			mmChooseWriteClass.mock.t.Fatalf("Expectation set by When has same params: %#v", *mmChooseWriteClass.defaultExpectation.params)
+		}
+	}
+
+	return mmChooseWriteClass
+}
+
+// ExpectCtxParam1 sets up expected param ctx for ObjectService.ChooseWriteClass
+func (mmChooseWriteClass *mObjectServiceMockChooseWriteClass) ExpectCtxParam1(ctx context.Context) *mObjectServiceMockChooseWriteClass {
+	if mmChooseWriteClass.mock.funcChooseWriteClass != nil {
+		mmChooseWriteClass.mock.t.Fatalf("ObjectServiceMock.ChooseWriteClass mock is already set by Set")
+	}
+
+	if mmChooseWriteClass.defaultExpectation == nil {
+		mmChooseWriteClass.defaultExpectation = &ObjectServiceMockChooseWriteClassExpectation{}
+	}
+
+	if mmChooseWriteClass.defaultExpectation.params != nil {
+		mmChooseWriteClass.mock.t.Fatalf("ObjectServiceMock.ChooseWriteClass mock is already set by Expect")
+	}
+
+	if mmChooseWriteClass.defaultExpectation.paramPtrs == nil {
+		mmChooseWriteClass.defaultExpectation.paramPtrs = &ObjectServiceMockChooseWriteClassParamPtrs{}
+	}
+	mmChooseWriteClass.defaultExpectation.paramPtrs.ctx = &ctx
+	mmChooseWriteClass.defaultExpectation.expectationOrigins.originCtx = minimock.CallerInfo(1)
+
+	return mmChooseWriteClass
+}
+
+// ExpectBucketNameParam2 sets up expected param bucketName for ObjectService.ChooseWriteClass
+func (mmChooseWriteClass *mObjectServiceMockChooseWriteClass) ExpectBucketNameParam2(bucketName string) *mObjectServiceMockChooseWriteClass {
+	if mmChooseWriteClass.mock.funcChooseWriteClass != nil {
+		mmChooseWriteClass.mock.t.Fatalf("ObjectServiceMock.ChooseWriteClass mock is already set by Set")
+	}
+
+	if mmChooseWriteClass.defaultExpectation == nil {
+		mmChooseWriteClass.defaultExpectation = &ObjectServiceMockChooseWriteClassExpectation{}
+	}
+
+	if mmChooseWriteClass.defaultExpectation.params != nil {
+		mmChooseWriteClass.mock.t.Fatalf("ObjectServiceMock.ChooseWriteClass mock is already set by Expect")
+	}
+
+	if mmChooseWriteClass.defaultExpectation.paramPtrs == nil {
+		mmChooseWriteClass.defaultExpectation.paramPtrs = &ObjectServiceMockChooseWriteClassParamPtrs{}
+	}
+	mmChooseWriteClass.defaultExpectation.paramPtrs.bucketName = &bucketName
+	mmChooseWriteClass.defaultExpectation.expectationOrigins.originBucketName = minimock.CallerInfo(1)
+
+	return mmChooseWriteClass
+}
+
+// ExpectKeyParam3 sets up expected param key for ObjectService.ChooseWriteClass
+func (mmChooseWriteClass *mObjectServiceMockChooseWriteClass) ExpectKeyParam3(key string) *mObjectServiceMockChooseWriteClass {
+	if mmChooseWriteClass.mock.funcChooseWriteClass != nil {
+		mmChooseWriteClass.mock.t.Fatalf("ObjectServiceMock.ChooseWriteClass mock is already set by Set")
+	}
+
+	if mmChooseWriteClass.defaultExpectation == nil {
+		mmChooseWriteClass.defaultExpectation = &ObjectServiceMockChooseWriteClassExpectation{}
+	}
+
+	if mmChooseWriteClass.defaultExpectation.params != nil {
+		mmChooseWriteClass.mock.t.Fatalf("ObjectServiceMock.ChooseWriteClass mock is already set by Expect")
+	}
+
+	if mmChooseWriteClass.defaultExpectation.paramPtrs == nil {
+		mmChooseWriteClass.defaultExpectation.paramPtrs = &ObjectServiceMockChooseWriteClassParamPtrs{}
+	}
+	mmChooseWriteClass.defaultExpectation.paramPtrs.key = &key
+	mmChooseWriteClass.defaultExpectation.expectationOrigins.originKey = minimock.CallerInfo(1)
+
+	return mmChooseWriteClass
+}
+
+// ExpectSizeBytesParam4 sets up expected param sizeBytes for ObjectService.ChooseWriteClass
+func (mmChooseWriteClass *mObjectServiceMockChooseWriteClass) ExpectSizeBytesParam4(sizeBytes *int64) *mObjectServiceMockChooseWriteClass {
+	if mmChooseWriteClass.mock.funcChooseWriteClass != nil {
+		mmChooseWriteClass.mock.t.Fatalf("ObjectServiceMock.ChooseWriteClass mock is already set by Set")
+	}
+
+	if mmChooseWriteClass.defaultExpectation == nil {
+		mmChooseWriteClass.defaultExpectation = &ObjectServiceMockChooseWriteClassExpectation{}
+	}
+
+	if mmChooseWriteClass.defaultExpectation.params != nil {
+		mmChooseWriteClass.mock.t.Fatalf("ObjectServiceMock.ChooseWriteClass mock is already set by Expect")
+	}
+
+	if mmChooseWriteClass.defaultExpectation.paramPtrs == nil {
+		mmChooseWriteClass.defaultExpectation.paramPtrs = &ObjectServiceMockChooseWriteClassParamPtrs{}
+	}
+	mmChooseWriteClass.defaultExpectation.paramPtrs.sizeBytes = &sizeBytes
+	mmChooseWriteClass.defaultExpectation.expectationOrigins.originSizeBytes = minimock.CallerInfo(1)
+
+	return mmChooseWriteClass
+}
+
+// Inspect accepts an inspector function that has same arguments as the ObjectService.ChooseWriteClass
+func (mmChooseWriteClass *mObjectServiceMockChooseWriteClass) Inspect(f func(ctx context.Context, bucketName string, key string, sizeBytes *int64)) *mObjectServiceMockChooseWriteClass {
+	if mmChooseWriteClass.mock.inspectFuncChooseWriteClass != nil {
+		mmChooseWriteClass.mock.t.Fatalf("Inspect function is already set for ObjectServiceMock.ChooseWriteClass")
+	}
+
+	mmChooseWriteClass.mock.inspectFuncChooseWriteClass = f
+
+	return mmChooseWriteClass
+}
+
+// Return sets up results that will be returned by ObjectService.ChooseWriteClass
+func (mmChooseWriteClass *mObjectServiceMockChooseWriteClass) Return(wp1 *model.WriteClassDecision, err error) *ObjectServiceMock {
+	if mmChooseWriteClass.mock.funcChooseWriteClass != nil {
+		mmChooseWriteClass.mock.t.Fatalf("ObjectServiceMock.ChooseWriteClass mock is already set by Set")
+	}
+
+	if mmChooseWriteClass.defaultExpectation == nil {
+		mmChooseWriteClass.defaultExpectation = &ObjectServiceMockChooseWriteClassExpectation{mock: mmChooseWriteClass.mock}
+	}
+	mmChooseWriteClass.defaultExpectation.results = &ObjectServiceMockChooseWriteClassResults{wp1, err}
+	mmChooseWriteClass.defaultExpectation.returnOrigin = minimock.CallerInfo(1)
+	return mmChooseWriteClass.mock
+}
+
+// Set uses given function f to mock the ObjectService.ChooseWriteClass method
+func (mmChooseWriteClass *mObjectServiceMockChooseWriteClass) Set(f func(ctx context.Context, bucketName string, key string, sizeBytes *int64) (wp1 *model.WriteClassDecision, err error)) *ObjectServiceMock {
+	if mmChooseWriteClass.defaultExpectation != nil {
+		mmChooseWriteClass.mock.t.Fatalf("Default expectation is already set for the ObjectService.ChooseWriteClass method")
+	}
+
+	if len(mmChooseWriteClass.expectations) > 0 {
+		mmChooseWriteClass.mock.t.Fatalf("Some expectations are already set for the ObjectService.ChooseWriteClass method")
+	}
+
+	mmChooseWriteClass.mock.funcChooseWriteClass = f
+	mmChooseWriteClass.mock.funcChooseWriteClassOrigin = minimock.CallerInfo(1)
+	return mmChooseWriteClass.mock
+}
+
+// When sets expectation for the ObjectService.ChooseWriteClass which will trigger the result defined by the following
+// Then helper
+func (mmChooseWriteClass *mObjectServiceMockChooseWriteClass) When(ctx context.Context, bucketName string, key string, sizeBytes *int64) *ObjectServiceMockChooseWriteClassExpectation {
+	if mmChooseWriteClass.mock.funcChooseWriteClass != nil {
+		mmChooseWriteClass.mock.t.Fatalf("ObjectServiceMock.ChooseWriteClass mock is already set by Set")
+	}
+
+	expectation := &ObjectServiceMockChooseWriteClassExpectation{
+		mock:               mmChooseWriteClass.mock,
+		params:             &ObjectServiceMockChooseWriteClassParams{ctx, bucketName, key, sizeBytes},
+		expectationOrigins: ObjectServiceMockChooseWriteClassExpectationOrigins{origin: minimock.CallerInfo(1)},
+	}
+	mmChooseWriteClass.expectations = append(mmChooseWriteClass.expectations, expectation)
+	return expectation
+}
+
+// Then sets up ObjectService.ChooseWriteClass return parameters for the expectation previously defined by the When method
+func (e *ObjectServiceMockChooseWriteClassExpectation) Then(wp1 *model.WriteClassDecision, err error) *ObjectServiceMock {
+	e.results = &ObjectServiceMockChooseWriteClassResults{wp1, err}
+	return e.mock
+}
+
+// Times sets number of times ObjectService.ChooseWriteClass should be invoked
+func (mmChooseWriteClass *mObjectServiceMockChooseWriteClass) Times(n uint64) *mObjectServiceMockChooseWriteClass {
+	if n == 0 {
+		mmChooseWriteClass.mock.t.Fatalf("Times of ObjectServiceMock.ChooseWriteClass mock can not be zero")
+	}
+	mm_atomic.StoreUint64(&mmChooseWriteClass.expectedInvocations, n)
+	mmChooseWriteClass.expectedInvocationsOrigin = minimock.CallerInfo(1)
+	return mmChooseWriteClass
+}
+
+func (mmChooseWriteClass *mObjectServiceMockChooseWriteClass) invocationsDone() bool {
+	if len(mmChooseWriteClass.expectations) == 0 && mmChooseWriteClass.defaultExpectation == nil && mmChooseWriteClass.mock.funcChooseWriteClass == nil {
+		return true
+	}
+
+	totalInvocations := mm_atomic.LoadUint64(&mmChooseWriteClass.mock.afterChooseWriteClassCounter)
+	expectedInvocations := mm_atomic.LoadUint64(&mmChooseWriteClass.expectedInvocations)
+
+	return totalInvocations > 0 && (expectedInvocations == 0 || expectedInvocations == totalInvocations)
+}
+
+// ChooseWriteClass implements mm_service.ObjectService
+func (mmChooseWriteClass *ObjectServiceMock) ChooseWriteClass(ctx context.Context, bucketName string, key string, sizeBytes *int64) (wp1 *model.WriteClassDecision, err error) {
+	mm_atomic.AddUint64(&mmChooseWriteClass.beforeChooseWriteClassCounter, 1)
+	defer mm_atomic.AddUint64(&mmChooseWriteClass.afterChooseWriteClassCounter, 1)
+
+	mmChooseWriteClass.t.Helper()
+
+	if mmChooseWriteClass.inspectFuncChooseWriteClass != nil {
+		mmChooseWriteClass.inspectFuncChooseWriteClass(ctx, bucketName, key, sizeBytes)
+	}
+
+	mm_params := ObjectServiceMockChooseWriteClassParams{ctx, bucketName, key, sizeBytes}
+
+	// Record call args
+	mmChooseWriteClass.ChooseWriteClassMock.mutex.Lock()
+	mmChooseWriteClass.ChooseWriteClassMock.callArgs = append(mmChooseWriteClass.ChooseWriteClassMock.callArgs, &mm_params)
+	mmChooseWriteClass.ChooseWriteClassMock.mutex.Unlock()
+
+	for _, e := range mmChooseWriteClass.ChooseWriteClassMock.expectations {
+		if minimock.Equal(*e.params, mm_params) {
+			mm_atomic.AddUint64(&e.Counter, 1)
+			return e.results.wp1, e.results.err
+		}
+	}
+
+	if mmChooseWriteClass.ChooseWriteClassMock.defaultExpectation != nil {
+		mm_atomic.AddUint64(&mmChooseWriteClass.ChooseWriteClassMock.defaultExpectation.Counter, 1)
+		mm_want := mmChooseWriteClass.ChooseWriteClassMock.defaultExpectation.params
+		mm_want_ptrs := mmChooseWriteClass.ChooseWriteClassMock.defaultExpectation.paramPtrs
+
+		mm_got := ObjectServiceMockChooseWriteClassParams{ctx, bucketName, key, sizeBytes}
+
+		if mm_want_ptrs != nil {
+
+			if mm_want_ptrs.ctx != nil && !minimock.Equal(*mm_want_ptrs.ctx, mm_got.ctx) {
+				mmChooseWriteClass.t.Errorf("ObjectServiceMock.ChooseWriteClass got unexpected parameter ctx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmChooseWriteClass.ChooseWriteClassMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
+			}
+
+			if mm_want_ptrs.bucketName != nil && !minimock.Equal(*mm_want_ptrs.bucketName, mm_got.bucketName) {
+				mmChooseWriteClass.t.Errorf("ObjectServiceMock.ChooseWriteClass got unexpected parameter bucketName, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmChooseWriteClass.ChooseWriteClassMock.defaultExpectation.expectationOrigins.originBucketName, *mm_want_ptrs.bucketName, mm_got.bucketName, minimock.Diff(*mm_want_ptrs.bucketName, mm_got.bucketName))
+			}
+
+			if mm_want_ptrs.key != nil && !minimock.Equal(*mm_want_ptrs.key, mm_got.key) {
+				mmChooseWriteClass.t.Errorf("ObjectServiceMock.ChooseWriteClass got unexpected parameter key, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmChooseWriteClass.ChooseWriteClassMock.defaultExpectation.expectationOrigins.originKey, *mm_want_ptrs.key, mm_got.key, minimock.Diff(*mm_want_ptrs.key, mm_got.key))
+			}
+
+			if mm_want_ptrs.sizeBytes != nil && !minimock.Equal(*mm_want_ptrs.sizeBytes, mm_got.sizeBytes) {
+				mmChooseWriteClass.t.Errorf("ObjectServiceMock.ChooseWriteClass got unexpected parameter sizeBytes, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmChooseWriteClass.ChooseWriteClassMock.defaultExpectation.expectationOrigins.originSizeBytes, *mm_want_ptrs.sizeBytes, mm_got.sizeBytes, minimock.Diff(*mm_want_ptrs.sizeBytes, mm_got.sizeBytes))
+			}
+
+		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
+			mmChooseWriteClass.t.Errorf("ObjectServiceMock.ChooseWriteClass got unexpected parameters, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+				mmChooseWriteClass.ChooseWriteClassMock.defaultExpectation.expectationOrigins.origin, *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
+		}
+
+		mm_results := mmChooseWriteClass.ChooseWriteClassMock.defaultExpectation.results
+		if mm_results == nil {
+			mmChooseWriteClass.t.Fatal("No results are set for the ObjectServiceMock.ChooseWriteClass")
+		}
+		return (*mm_results).wp1, (*mm_results).err
+	}
+	if mmChooseWriteClass.funcChooseWriteClass != nil {
+		return mmChooseWriteClass.funcChooseWriteClass(ctx, bucketName, key, sizeBytes)
+	}
+	mmChooseWriteClass.t.Fatalf("Unexpected call to ObjectServiceMock.ChooseWriteClass. %v %v %v %v", ctx, bucketName, key, sizeBytes)
+	return
+}
+
+// ChooseWriteClassAfterCounter returns a count of finished ObjectServiceMock.ChooseWriteClass invocations
+func (mmChooseWriteClass *ObjectServiceMock) ChooseWriteClassAfterCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmChooseWriteClass.afterChooseWriteClassCounter)
+}
+
+// ChooseWriteClassBeforeCounter returns a count of ObjectServiceMock.ChooseWriteClass invocations
+func (mmChooseWriteClass *ObjectServiceMock) ChooseWriteClassBeforeCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmChooseWriteClass.beforeChooseWriteClassCounter)
+}
+
+// Calls returns a list of arguments used in each call to ObjectServiceMock.ChooseWriteClass.
+// The list is in the same order as the calls were made (i.e. recent calls have a higher index)
+func (mmChooseWriteClass *mObjectServiceMockChooseWriteClass) Calls() []*ObjectServiceMockChooseWriteClassParams {
+	mmChooseWriteClass.mutex.RLock()
+
+	argCopy := make([]*ObjectServiceMockChooseWriteClassParams, len(mmChooseWriteClass.callArgs))
+	copy(argCopy, mmChooseWriteClass.callArgs)
+
+	mmChooseWriteClass.mutex.RUnlock()
+
+	return argCopy
+}
+
+// MinimockChooseWriteClassDone returns true if the count of the ChooseWriteClass invocations corresponds
+// the number of defined expectations
+func (m *ObjectServiceMock) MinimockChooseWriteClassDone() bool {
+	if m.ChooseWriteClassMock.optional {
+		// Optional methods provide '0 or more' call count restriction.
+		return true
+	}
+
+	for _, e := range m.ChooseWriteClassMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			return false
+		}
+	}
+
+	return m.ChooseWriteClassMock.invocationsDone()
+}
+
+// MinimockChooseWriteClassInspect logs each unmet expectation
+func (m *ObjectServiceMock) MinimockChooseWriteClassInspect() {
+	for _, e := range m.ChooseWriteClassMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			m.t.Errorf("Expected call to ObjectServiceMock.ChooseWriteClass at\n%s with params: %#v", e.expectationOrigins.origin, *e.params)
+		}
+	}
+
+	afterChooseWriteClassCounter := mm_atomic.LoadUint64(&m.afterChooseWriteClassCounter)
+	// if default expectation was set then invocations count should be greater than zero
+	if m.ChooseWriteClassMock.defaultExpectation != nil && afterChooseWriteClassCounter < 1 {
+		if m.ChooseWriteClassMock.defaultExpectation.params == nil {
+			m.t.Errorf("Expected call to ObjectServiceMock.ChooseWriteClass at\n%s", m.ChooseWriteClassMock.defaultExpectation.returnOrigin)
+		} else {
+			m.t.Errorf("Expected call to ObjectServiceMock.ChooseWriteClass at\n%s with params: %#v", m.ChooseWriteClassMock.defaultExpectation.expectationOrigins.origin, *m.ChooseWriteClassMock.defaultExpectation.params)
+		}
+	}
+	// if func was set then invocations count should be greater than zero
+	if m.funcChooseWriteClass != nil && afterChooseWriteClassCounter < 1 {
+		m.t.Errorf("Expected call to ObjectServiceMock.ChooseWriteClass at\n%s", m.funcChooseWriteClassOrigin)
+	}
+
+	if !m.ChooseWriteClassMock.invocationsDone() && afterChooseWriteClassCounter > 0 {
+		m.t.Errorf("Expected %d calls to ObjectServiceMock.ChooseWriteClass at\n%s but found %d calls",
+			mm_atomic.LoadUint64(&m.ChooseWriteClassMock.expectedInvocations), m.ChooseWriteClassMock.expectedInvocationsOrigin, afterChooseWriteClassCounter)
+	}
 }
 
 type mObjectServiceMockCreateObjectVersion struct {
@@ -110,24 +525,26 @@ type ObjectServiceMockCreateObjectVersionExpectation struct {
 
 // ObjectServiceMockCreateObjectVersionParams contains parameters of the ObjectService.CreateObjectVersion
 type ObjectServiceMockCreateObjectVersionParams struct {
-	ctx         context.Context
-	bucketName  string
-	key         string
-	blobID      string
-	sizeBytes   int64
-	etag        string
-	contentType string
+	ctx          context.Context
+	bucketName   string
+	key          string
+	blobID       string
+	sizeBytes    int64
+	etag         string
+	contentType  string
+	storageClass model.StorageClass
 }
 
 // ObjectServiceMockCreateObjectVersionParamPtrs contains pointers to parameters of the ObjectService.CreateObjectVersion
 type ObjectServiceMockCreateObjectVersionParamPtrs struct {
-	ctx         *context.Context
-	bucketName  *string
-	key         *string
-	blobID      *string
-	sizeBytes   *int64
-	etag        *string
-	contentType *string
+	ctx          *context.Context
+	bucketName   *string
+	key          *string
+	blobID       *string
+	sizeBytes    *int64
+	etag         *string
+	contentType  *string
+	storageClass *model.StorageClass
 }
 
 // ObjectServiceMockCreateObjectVersionResults contains results of the ObjectService.CreateObjectVersion
@@ -140,14 +557,15 @@ type ObjectServiceMockCreateObjectVersionResults struct {
 
 // ObjectServiceMockCreateObjectVersionOrigins contains origins of expectations of the ObjectService.CreateObjectVersion
 type ObjectServiceMockCreateObjectVersionExpectationOrigins struct {
-	origin            string
-	originCtx         string
-	originBucketName  string
-	originKey         string
-	originBlobID      string
-	originSizeBytes   string
-	originEtag        string
-	originContentType string
+	origin             string
+	originCtx          string
+	originBucketName   string
+	originKey          string
+	originBlobID       string
+	originSizeBytes    string
+	originEtag         string
+	originContentType  string
+	originStorageClass string
 }
 
 // Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
@@ -161,7 +579,7 @@ func (mmCreateObjectVersion *mObjectServiceMockCreateObjectVersion) Optional() *
 }
 
 // Expect sets up expected params for ObjectService.CreateObjectVersion
-func (mmCreateObjectVersion *mObjectServiceMockCreateObjectVersion) Expect(ctx context.Context, bucketName string, key string, blobID string, sizeBytes int64, etag string, contentType string) *mObjectServiceMockCreateObjectVersion {
+func (mmCreateObjectVersion *mObjectServiceMockCreateObjectVersion) Expect(ctx context.Context, bucketName string, key string, blobID string, sizeBytes int64, etag string, contentType string, storageClass model.StorageClass) *mObjectServiceMockCreateObjectVersion {
 	if mmCreateObjectVersion.mock.funcCreateObjectVersion != nil {
 		mmCreateObjectVersion.mock.t.Fatalf("ObjectServiceMock.CreateObjectVersion mock is already set by Set")
 	}
@@ -174,7 +592,7 @@ func (mmCreateObjectVersion *mObjectServiceMockCreateObjectVersion) Expect(ctx c
 		mmCreateObjectVersion.mock.t.Fatalf("ObjectServiceMock.CreateObjectVersion mock is already set by ExpectParams functions")
 	}
 
-	mmCreateObjectVersion.defaultExpectation.params = &ObjectServiceMockCreateObjectVersionParams{ctx, bucketName, key, blobID, sizeBytes, etag, contentType}
+	mmCreateObjectVersion.defaultExpectation.params = &ObjectServiceMockCreateObjectVersionParams{ctx, bucketName, key, blobID, sizeBytes, etag, contentType, storageClass}
 	mmCreateObjectVersion.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
 	for _, e := range mmCreateObjectVersion.expectations {
 		if minimock.Equal(e.params, mmCreateObjectVersion.defaultExpectation.params) {
@@ -346,8 +764,31 @@ func (mmCreateObjectVersion *mObjectServiceMockCreateObjectVersion) ExpectConten
 	return mmCreateObjectVersion
 }
 
+// ExpectStorageClassParam8 sets up expected param storageClass for ObjectService.CreateObjectVersion
+func (mmCreateObjectVersion *mObjectServiceMockCreateObjectVersion) ExpectStorageClassParam8(storageClass model.StorageClass) *mObjectServiceMockCreateObjectVersion {
+	if mmCreateObjectVersion.mock.funcCreateObjectVersion != nil {
+		mmCreateObjectVersion.mock.t.Fatalf("ObjectServiceMock.CreateObjectVersion mock is already set by Set")
+	}
+
+	if mmCreateObjectVersion.defaultExpectation == nil {
+		mmCreateObjectVersion.defaultExpectation = &ObjectServiceMockCreateObjectVersionExpectation{}
+	}
+
+	if mmCreateObjectVersion.defaultExpectation.params != nil {
+		mmCreateObjectVersion.mock.t.Fatalf("ObjectServiceMock.CreateObjectVersion mock is already set by Expect")
+	}
+
+	if mmCreateObjectVersion.defaultExpectation.paramPtrs == nil {
+		mmCreateObjectVersion.defaultExpectation.paramPtrs = &ObjectServiceMockCreateObjectVersionParamPtrs{}
+	}
+	mmCreateObjectVersion.defaultExpectation.paramPtrs.storageClass = &storageClass
+	mmCreateObjectVersion.defaultExpectation.expectationOrigins.originStorageClass = minimock.CallerInfo(1)
+
+	return mmCreateObjectVersion
+}
+
 // Inspect accepts an inspector function that has same arguments as the ObjectService.CreateObjectVersion
-func (mmCreateObjectVersion *mObjectServiceMockCreateObjectVersion) Inspect(f func(ctx context.Context, bucketName string, key string, blobID string, sizeBytes int64, etag string, contentType string)) *mObjectServiceMockCreateObjectVersion {
+func (mmCreateObjectVersion *mObjectServiceMockCreateObjectVersion) Inspect(f func(ctx context.Context, bucketName string, key string, blobID string, sizeBytes int64, etag string, contentType string, storageClass model.StorageClass)) *mObjectServiceMockCreateObjectVersion {
 	if mmCreateObjectVersion.mock.inspectFuncCreateObjectVersion != nil {
 		mmCreateObjectVersion.mock.t.Fatalf("Inspect function is already set for ObjectServiceMock.CreateObjectVersion")
 	}
@@ -372,7 +813,7 @@ func (mmCreateObjectVersion *mObjectServiceMockCreateObjectVersion) Return(objec
 }
 
 // Set uses given function f to mock the ObjectService.CreateObjectVersion method
-func (mmCreateObjectVersion *mObjectServiceMockCreateObjectVersion) Set(f func(ctx context.Context, bucketName string, key string, blobID string, sizeBytes int64, etag string, contentType string) (objectID string, versionID string, createdAt time.Time, err error)) *ObjectServiceMock {
+func (mmCreateObjectVersion *mObjectServiceMockCreateObjectVersion) Set(f func(ctx context.Context, bucketName string, key string, blobID string, sizeBytes int64, etag string, contentType string, storageClass model.StorageClass) (objectID string, versionID string, createdAt time.Time, err error)) *ObjectServiceMock {
 	if mmCreateObjectVersion.defaultExpectation != nil {
 		mmCreateObjectVersion.mock.t.Fatalf("Default expectation is already set for the ObjectService.CreateObjectVersion method")
 	}
@@ -388,14 +829,14 @@ func (mmCreateObjectVersion *mObjectServiceMockCreateObjectVersion) Set(f func(c
 
 // When sets expectation for the ObjectService.CreateObjectVersion which will trigger the result defined by the following
 // Then helper
-func (mmCreateObjectVersion *mObjectServiceMockCreateObjectVersion) When(ctx context.Context, bucketName string, key string, blobID string, sizeBytes int64, etag string, contentType string) *ObjectServiceMockCreateObjectVersionExpectation {
+func (mmCreateObjectVersion *mObjectServiceMockCreateObjectVersion) When(ctx context.Context, bucketName string, key string, blobID string, sizeBytes int64, etag string, contentType string, storageClass model.StorageClass) *ObjectServiceMockCreateObjectVersionExpectation {
 	if mmCreateObjectVersion.mock.funcCreateObjectVersion != nil {
 		mmCreateObjectVersion.mock.t.Fatalf("ObjectServiceMock.CreateObjectVersion mock is already set by Set")
 	}
 
 	expectation := &ObjectServiceMockCreateObjectVersionExpectation{
 		mock:               mmCreateObjectVersion.mock,
-		params:             &ObjectServiceMockCreateObjectVersionParams{ctx, bucketName, key, blobID, sizeBytes, etag, contentType},
+		params:             &ObjectServiceMockCreateObjectVersionParams{ctx, bucketName, key, blobID, sizeBytes, etag, contentType, storageClass},
 		expectationOrigins: ObjectServiceMockCreateObjectVersionExpectationOrigins{origin: minimock.CallerInfo(1)},
 	}
 	mmCreateObjectVersion.expectations = append(mmCreateObjectVersion.expectations, expectation)
@@ -430,17 +871,17 @@ func (mmCreateObjectVersion *mObjectServiceMockCreateObjectVersion) invocationsD
 }
 
 // CreateObjectVersion implements mm_service.ObjectService
-func (mmCreateObjectVersion *ObjectServiceMock) CreateObjectVersion(ctx context.Context, bucketName string, key string, blobID string, sizeBytes int64, etag string, contentType string) (objectID string, versionID string, createdAt time.Time, err error) {
+func (mmCreateObjectVersion *ObjectServiceMock) CreateObjectVersion(ctx context.Context, bucketName string, key string, blobID string, sizeBytes int64, etag string, contentType string, storageClass model.StorageClass) (objectID string, versionID string, createdAt time.Time, err error) {
 	mm_atomic.AddUint64(&mmCreateObjectVersion.beforeCreateObjectVersionCounter, 1)
 	defer mm_atomic.AddUint64(&mmCreateObjectVersion.afterCreateObjectVersionCounter, 1)
 
 	mmCreateObjectVersion.t.Helper()
 
 	if mmCreateObjectVersion.inspectFuncCreateObjectVersion != nil {
-		mmCreateObjectVersion.inspectFuncCreateObjectVersion(ctx, bucketName, key, blobID, sizeBytes, etag, contentType)
+		mmCreateObjectVersion.inspectFuncCreateObjectVersion(ctx, bucketName, key, blobID, sizeBytes, etag, contentType, storageClass)
 	}
 
-	mm_params := ObjectServiceMockCreateObjectVersionParams{ctx, bucketName, key, blobID, sizeBytes, etag, contentType}
+	mm_params := ObjectServiceMockCreateObjectVersionParams{ctx, bucketName, key, blobID, sizeBytes, etag, contentType, storageClass}
 
 	// Record call args
 	mmCreateObjectVersion.CreateObjectVersionMock.mutex.Lock()
@@ -459,7 +900,7 @@ func (mmCreateObjectVersion *ObjectServiceMock) CreateObjectVersion(ctx context.
 		mm_want := mmCreateObjectVersion.CreateObjectVersionMock.defaultExpectation.params
 		mm_want_ptrs := mmCreateObjectVersion.CreateObjectVersionMock.defaultExpectation.paramPtrs
 
-		mm_got := ObjectServiceMockCreateObjectVersionParams{ctx, bucketName, key, blobID, sizeBytes, etag, contentType}
+		mm_got := ObjectServiceMockCreateObjectVersionParams{ctx, bucketName, key, blobID, sizeBytes, etag, contentType, storageClass}
 
 		if mm_want_ptrs != nil {
 
@@ -498,6 +939,11 @@ func (mmCreateObjectVersion *ObjectServiceMock) CreateObjectVersion(ctx context.
 					mmCreateObjectVersion.CreateObjectVersionMock.defaultExpectation.expectationOrigins.originContentType, *mm_want_ptrs.contentType, mm_got.contentType, minimock.Diff(*mm_want_ptrs.contentType, mm_got.contentType))
 			}
 
+			if mm_want_ptrs.storageClass != nil && !minimock.Equal(*mm_want_ptrs.storageClass, mm_got.storageClass) {
+				mmCreateObjectVersion.t.Errorf("ObjectServiceMock.CreateObjectVersion got unexpected parameter storageClass, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmCreateObjectVersion.CreateObjectVersionMock.defaultExpectation.expectationOrigins.originStorageClass, *mm_want_ptrs.storageClass, mm_got.storageClass, minimock.Diff(*mm_want_ptrs.storageClass, mm_got.storageClass))
+			}
+
 		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
 			mmCreateObjectVersion.t.Errorf("ObjectServiceMock.CreateObjectVersion got unexpected parameters, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
 				mmCreateObjectVersion.CreateObjectVersionMock.defaultExpectation.expectationOrigins.origin, *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
@@ -510,9 +956,9 @@ func (mmCreateObjectVersion *ObjectServiceMock) CreateObjectVersion(ctx context.
 		return (*mm_results).objectID, (*mm_results).versionID, (*mm_results).createdAt, (*mm_results).err
 	}
 	if mmCreateObjectVersion.funcCreateObjectVersion != nil {
-		return mmCreateObjectVersion.funcCreateObjectVersion(ctx, bucketName, key, blobID, sizeBytes, etag, contentType)
+		return mmCreateObjectVersion.funcCreateObjectVersion(ctx, bucketName, key, blobID, sizeBytes, etag, contentType, storageClass)
 	}
-	mmCreateObjectVersion.t.Fatalf("Unexpected call to ObjectServiceMock.CreateObjectVersion. %v %v %v %v %v %v %v", ctx, bucketName, key, blobID, sizeBytes, etag, contentType)
+	mmCreateObjectVersion.t.Fatalf("Unexpected call to ObjectServiceMock.CreateObjectVersion. %v %v %v %v %v %v %v %v", ctx, bucketName, key, blobID, sizeBytes, etag, contentType, storageClass)
 	return
 }
 
@@ -2118,6 +2564,8 @@ func (m *ObjectServiceMock) MinimockListObjectsInspect() {
 func (m *ObjectServiceMock) MinimockFinish() {
 	m.finishOnce.Do(func() {
 		if !m.minimockDone() {
+			m.MinimockChooseWriteClassInspect()
+
 			m.MinimockCreateObjectVersionInspect()
 
 			m.MinimockDeleteObjectMetaInspect()
@@ -2150,6 +2598,7 @@ func (m *ObjectServiceMock) MinimockWait(timeout mm_time.Duration) {
 func (m *ObjectServiceMock) minimockDone() bool {
 	done := true
 	return done &&
+		m.MinimockChooseWriteClassDone() &&
 		m.MinimockCreateObjectVersionDone() &&
 		m.MinimockDeleteObjectMetaDone() &&
 		m.MinimockGetObjectMetaDone() &&

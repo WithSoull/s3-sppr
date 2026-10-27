@@ -9,5 +9,8 @@ import (
 
 type ObjectService interface {
 	Put(ctx context.Context, bucket, key string, body io.Reader, size *int64, contentType string) (model.PutResult, error)
-	Get(ctx context.Context, bucket, key string) (model.GetResult, error)
+	// Get reads the whole current version when byteRange is nil.
+	Get(ctx context.Context, bucket, key string, byteRange *model.ByteRange) (model.GetResult, error)
+	// Delete removes the object from the catalog; its blobs stay in Storage.
+	Delete(ctx context.Context, bucket, key string) error
 }

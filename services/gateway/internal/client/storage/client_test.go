@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	domainerrors "github.com/alesplll/opens3-rebac/services/gateway/internal/errors/domain_errors"
+	"github.com/alesplll/opens3-rebac/services/gateway/internal/model"
 	"github.com/alesplll/opens3-rebac/services/gateway/internal/testkit"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -57,7 +58,7 @@ func TestRetrieveErrors(t *testing.T) {
 	ctx := context.Background()
 	t.Run("blob lost", func(t *testing.T) {
 		_, storage := testkit.New().Clients(t)
-		_, err := storage.Retrieve(ctx, "missing", 4)
+		_, err := storage.Retrieve(ctx, "missing", 4, nil)
 		require.ErrorIs(t, err, domainerrors.ErrBlobMissing)
 		require.Equal(t, codes.NotFound, status.Code(err))
 	})
@@ -65,14 +66,14 @@ func TestRetrieveErrors(t *testing.T) {
 		upstream := testkit.New()
 		upstream.Blobs["blob"] = nil
 		_, storage := upstream.Clients(t)
-		_, err := storage.Retrieve(ctx, "blob", 1)
+		_, err := storage.Retrieve(ctx, "blob", 1, nil)
 		require.ErrorIs(t, err, domainerrors.ErrEmptyStorageStream)
 	})
 	t.Run("empty stream for empty object", func(t *testing.T) {
 		upstream := testkit.New()
 		upstream.Blobs["blob"] = nil
 		_, storage := upstream.Clients(t)
-		body, err := storage.Retrieve(ctx, "blob", 0)
+		body, err := storage.Retrieve(ctx, "blob", 0, nil)
 		require.NoError(t, err)
 		defer body.Close()
 		data, err := io.ReadAll(body)
@@ -84,19 +85,30 @@ func TestRetrieveErrors(t *testing.T) {
 		want := strings.Repeat("x", 2*testkit.RetrieveChunkSize+1)
 		upstream.Blobs["blob"] = []byte(want)
 		_, storage := upstream.Clients(t)
-		body, err := storage.Retrieve(ctx, "blob", int64(len(want)))
+		body, err := storage.Retrieve(ctx, "blob", int64(len(want)), nil)
 		require.NoError(t, err)
 		defer body.Close()
 		data, err := io.ReadAll(body)
 		require.NoError(t, err)
 		require.True(t, want == string(data), "retrieved %d bytes, want %d", len(data), len(want))
 	})
+	t.Run("range is passed to Storage", func(t *testing.T) {
+		upstream := testkit.New()
+		upstream.Blobs["blob"] = []byte("0123456789")
+		_, storage := upstream.Clients(t)
+		body, err := storage.Retrieve(ctx, "blob", 10, &model.ContentRange{Offset: 2, Length: 3})
+		require.NoError(t, err)
+		defer body.Close()
+		data, err := io.ReadAll(body)
+		require.NoError(t, err)
+		require.Equal(t, "234", string(data))
+	})
 	t.Run("failure after the last chunk reaches the reader", func(t *testing.T) {
 		upstream := testkit.New()
 		upstream.Blobs["blob"] = []byte("data")
 		upstream.FailRetrieve = status.Error(codes.Internal, "disk error")
 		_, storage := upstream.Clients(t)
-		body, err := storage.Retrieve(ctx, "blob", 4)
+		body, err := storage.Retrieve(ctx, "blob", 4, nil)
 		require.NoError(t, err)
 		defer body.Close()
 		_, err = io.ReadAll(body)

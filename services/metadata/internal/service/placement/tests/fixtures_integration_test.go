@@ -44,6 +44,7 @@ func (s *PlacementProtocolSuite) mustUpload(key, role string) string {
 		objectSize,
 		`"etag"`,
 		"text/plain",
+		"",
 	)
 	s.Require().NoError(err)
 

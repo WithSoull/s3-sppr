@@ -63,7 +63,7 @@ func TestUpstreamFailures(t *testing.T) {
 			name:   "get: blob missing in storage",
 			method: http.MethodGet,
 			prepare: func(u *testkit.Upstream) {
-				u.Meta["key"] = &metadatav1.GetObjectMetaResponse{BlobId: "missing", SizeBytes: 4}
+				u.Meta["key"] = &metadatav1.GetObjectMetaResponse{BlobId: "missing", SizeBytes: 4, StorageClass: "COLD"}
 			},
 			wantStatus: http.StatusBadGateway,
 		},

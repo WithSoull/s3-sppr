@@ -19,15 +19,24 @@ func (s *objectService) Put(ctx context.Context, bucket, key string, body io.Rea
 		return model.PutResult{}, domainerrors.ErrBucketNotFound
 	}
 
-	stored, err := s.storage.Store(ctx, body, size, contentType)
+	class, err := s.metadata.ChooseWriteClass(ctx, bucket, key, size)
+	if err != nil {
+		return model.PutResult{}, err
+	}
+	storage, err := s.storageFor(class)
+	if err != nil {
+		return model.PutResult{}, err
+	}
+	stored, err := storage.Store(ctx, body, size, contentType)
 	if err != nil {
 		return model.PutResult{}, err
 	}
 	// The blob is already committed; a client disconnect must not leave it without a catalog entry.
-	versionID, err := s.metadata.CreateVersion(context.WithoutCancel(ctx), bucket, key, stored.BlobID, stored.Size, stored.ETag, contentType)
+	versionID, err := s.metadata.CreateVersion(context.WithoutCancel(ctx), bucket, key, stored.BlobID, stored.Size, stored.ETag, contentType, class)
 	if err != nil {
 		logger.Error(ctx, "metadata registration failed after blob commit",
-			zap.String("blob_id", stored.BlobID), zap.String("bucket", bucket), zap.String("key", key), zap.Error(err))
+			zap.String("blob_id", stored.BlobID), zap.String("storage_class", string(class)),
+			zap.String("bucket", bucket), zap.String("key", key), zap.Error(err))
 		return model.PutResult{}, err
 	}
 	s.access.ProduceObjectWritten(ctx, model.ObjectWrittenEvent{

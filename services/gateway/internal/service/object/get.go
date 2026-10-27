@@ -3,15 +3,35 @@ package object
 import (
 	"context"
 
+	domainerrors "github.com/alesplll/opens3-rebac/services/gateway/internal/errors/domain_errors"
 	"github.com/alesplll/opens3-rebac/services/gateway/internal/model"
 )
 
-func (s *objectService) Get(ctx context.Context, bucket, key string) (model.GetResult, error) {
+func (s *objectService) Get(ctx context.Context, bucket, key string, byteRange *model.ByteRange) (model.GetResult, error) {
 	meta, err := s.metadata.GetObject(ctx, bucket, key)
 	if err != nil {
 		return model.GetResult{}, err
 	}
-	body, err := s.storage.Retrieve(ctx, meta.BlobID, meta.Size)
+	// A client resuming a download of another version must get the whole object,
+	// or it would splice parts of two versions.
+	if byteRange != nil && byteRange.IfRangeETag != "" && byteRange.IfRangeETag != meta.ETag {
+		byteRange = nil
+	}
+	length := meta.Size
+	var contentRange *model.ContentRange
+	if byteRange != nil {
+		offset, rangeLength, ok := byteRange.Resolve(meta.Size)
+		if !ok {
+			return model.GetResult{}, &domainerrors.RangeNotSatisfiableError{Size: meta.Size}
+		}
+		length = rangeLength
+		contentRange = &model.ContentRange{Offset: offset, Length: length}
+	}
+	storage, err := s.storageFor(meta.StorageClass)
+	if err != nil {
+		return model.GetResult{}, err
+	}
+	body, err := storage.Retrieve(ctx, meta.BlobID, meta.Size, contentRange)
 	if err != nil {
 		return model.GetResult{}, err
 	}
@@ -20,12 +40,13 @@ func (s *objectService) Get(ctx context.Context, bucket, key string) (model.GetR
 		Bucket:    bucket,
 		ObjectKey: key,
 		VersionID: meta.VersionID,
-		Bytes:     meta.Size,
+		Bytes:     length,
 		Origin:    model.OriginClient,
 	})
 	return model.GetResult{
 		Body:        body,
 		Size:        meta.Size,
+		Range:       contentRange,
 		ETag:        meta.ETag,
 		VersionID:   meta.VersionID,
 		ContentType: meta.ContentType,

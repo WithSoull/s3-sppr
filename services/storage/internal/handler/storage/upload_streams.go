@@ -9,6 +9,7 @@ import (
 )
 
 type storeObjectStreamPayload struct {
+	blobID      string
 	size        *int64
 	contentType string
 	reader      io.Reader
@@ -37,6 +38,7 @@ func readStoreObjectStream(stream desc.DataStorageService_StoreObjectServer) (*s
 	})
 
 	return &storeObjectStreamPayload{
+		blobID:      firstHeader.GetBlobId(),
 		size:        firstHeader.Size,
 		contentType: firstHeader.GetContentType(),
 		reader:      reader,

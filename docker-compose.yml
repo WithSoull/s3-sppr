@@ -10,6 +10,7 @@ volumes:
   neo4j-logs:
   neo4j-plugins:
   storage-data:
+  storage-hot-data:
   jaeger-data:
   prometheus-data:
   grafana-data:
@@ -335,7 +336,10 @@ services:
       migrator-metadata:
         condition: service_completed_successfully
 
-  storage:
+  # Два экземпляра Storage на разных томах: класс хранения версии хранит Metadata,
+  # Gateway выбирает экземпляр по нему. COLD остаётся на прежнем томе storage-data:
+  # миграция Metadata отнесла все существующие версии к COLD.
+  storage-cold:
     profiles: [services]
     build:
       context: .
@@ -346,8 +350,33 @@ services:
       - services/storage/.env
     environment:
       STORAGE_RETRIEVE_CHUNK_SIZE_BYTES: "${STORAGE_RETRIEVE_CHUNK_SIZE_BYTES:-1048576}"
+      OTEL_SERVICE_NAME: "storage_cold"
     volumes:
       - storage-data:/data
+    networks:
+      - opens3-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "50053"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
+
+  storage-hot:
+    profiles: [services]
+    build:
+      context: .
+      dockerfile: services/storage/Dockerfile
+    ports:
+      - "50056:50053"
+    env_file:
+      - services/storage/.env
+    environment:
+      STORAGE_RETRIEVE_CHUNK_SIZE_BYTES: "${STORAGE_RETRIEVE_CHUNK_SIZE_BYTES:-1048576}"
+      OTEL_SERVICE_NAME: "storage_hot"
+    volumes:
+      - storage-hot-data:/data
     networks:
       - opens3-network
     restart: unless-stopped
@@ -400,7 +429,9 @@ services:
       KAFKA_OBJECT_WRITTEN_TOPIC: "${KAFKA_OBJECT_WRITTEN_TOPIC:-object-written}"
       METADATA_GRPC_ADDR: "metadata:50052"
       METADATA_RPC_TIMEOUT: "${METADATA_RPC_TIMEOUT:-5s}"
-      STORAGE_GRPC_ADDR: "storage:50053"
+      STORAGE_HOT_GRPC_ADDR: "storage-hot:50053"
+      STORAGE_COLD_GRPC_ADDR: "storage-cold:50053"
+      GATEWAY_MAX_READ_DURATION: "${GATEWAY_MAX_READ_DURATION:-5m}"
       STORAGE_RETRIEVE_CHUNK_SIZE_BYTES: "${STORAGE_RETRIEVE_CHUNK_SIZE_BYTES:-1048576}"
       LOGGER_LEVEL: "${GATEWAY_LOGGER_LEVEL:-info}"
       LOGGER_AS_JSON: "${GATEWAY_LOGGER_AS_JSON:-false}"
@@ -417,7 +448,9 @@ services:
     depends_on:
       metadata:
         condition: service_started
-      storage:
+      storage-hot:
+        condition: service_healthy
+      storage-cold:
         condition: service_healthy
       kafka:
         condition: service_healthy

@@ -9,7 +9,15 @@ var (
 	ErrInsufficientStorage = errors.New("insufficient storage")
 	ErrMetadataOverloaded  = errors.New("metadata is overloaded")
 	ErrBlobMissing         = errors.New("object data is missing in storage")
+	ErrUnknownStorageClass = errors.New("unknown storage class")
+	ErrRangeNotSatisfiable = errors.New("range not satisfiable")
 )
+
+// RangeNotSatisfiableError carries the object size for the Content-Range of a 416 response.
+type RangeNotSatisfiableError struct{ Size int64 }
+
+func (e *RangeNotSatisfiableError) Error() string        { return ErrRangeNotSatisfiable.Error() }
+func (e *RangeNotSatisfiableError) Is(target error) bool { return target == ErrRangeNotSatisfiable }
 
 type BodyReadError struct{ Err error }
 

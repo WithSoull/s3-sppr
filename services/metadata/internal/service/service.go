@@ -16,7 +16,10 @@ type BucketService interface {
 }
 
 type ObjectService interface {
-	CreateObjectVersion(ctx context.Context, bucketName, key, blobID string, sizeBytes int64, etag, contentType string) (objectID, versionID string, createdAt time.Time, err error)
+	// ChooseWriteClass picks the class for a new version before its bytes are written.
+	// sizeBytes is nil when the client did not send Content-Length.
+	ChooseWriteClass(ctx context.Context, bucketName, key string, sizeBytes *int64) (*model.WriteClassDecision, error)
+	CreateObjectVersion(ctx context.Context, bucketName, key, blobID string, sizeBytes int64, etag, contentType string, storageClass model.StorageClass) (objectID, versionID string, createdAt time.Time, err error)
 	GetObjectMeta(ctx context.Context, bucketName, key, versionID string) (*model.ObjectMeta, error)
 	DeleteObjectMeta(ctx context.Context, bucketName, key string) (objectID, blobID string, err error)
 	ListObjects(ctx context.Context, bucketName, prefix, continuationToken string, maxKeys int32) ([]*model.ObjectListItem, string, bool, error)

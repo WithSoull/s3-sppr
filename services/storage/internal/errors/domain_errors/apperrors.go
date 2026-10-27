@@ -10,6 +10,7 @@ var (
 	ErrUploadNotFound = sys.NewCommonError("upload not found", codes.NotFound)
 
 	ErrInvalidBlobSize   = sys.NewCommonError("invalid blob size", codes.InvalidArgument)
+	ErrInvalidBlobID     = sys.NewCommonError("blob_id must be a canonical UUID", codes.InvalidArgument)
 	ErrInvalidUpload     = sys.NewCommonError("invalid upload", codes.InvalidArgument)
 	ErrInvalidParts      = sys.NewCommonError("invalid parts", codes.InvalidArgument)
 	ErrInvalidPartNumber = sys.NewCommonError("invalid part number", codes.InvalidArgument)

@@ -8,7 +8,7 @@ import (
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/sys/validate"
 )
 
-func (s *objectService) CreateObjectVersion(ctx context.Context, bucketName, key, blobID string, sizeBytes int64, etag, contentType string) (string, string, time.Time, error) {
+func (s *objectService) CreateObjectVersion(ctx context.Context, bucketName, key, blobID string, sizeBytes int64, etag, contentType string, storageClass model.StorageClass) (string, string, time.Time, error) {
 	if err := validate.Validate(ctx,
 		func(ctx context.Context) error {
 			if bucketName == "" {
@@ -28,8 +28,18 @@ func (s *objectService) CreateObjectVersion(ctx context.Context, bucketName, key
 			}
 			return nil
 		},
+		func(ctx context.Context) error {
+			if storageClass != "" && !storageClass.Valid() {
+				return validate.NewValidationErrors("storage_class must be HOT or COLD")
+			}
+			return nil
+		},
 	); err != nil {
 		return "", "", time.Time{}, err
+	}
+
+	if storageClass == "" {
+		storageClass = model.StorageClassCold
 	}
 
 	var objectID, versionID string
@@ -47,8 +57,8 @@ func (s *objectService) CreateObjectVersion(ctx context.Context, bucketName, key
 			return err
 		}
 
-		// New versions start in COLD so uploads never fill HOT outside an approved plan.
-		if err := s.placementRepo.Create(ctx, versionID, blobID, model.StorageClassCold); err != nil {
+		// The blob is already in this class, so capacity is not re-checked here.
+		if err := s.placementRepo.Create(ctx, versionID, blobID, storageClass); err != nil {
 			return err
 		}
 

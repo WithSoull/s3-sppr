@@ -12,7 +12,8 @@ Go 1.24.1 gRPC-сервис каталога объектного хранили
 - постраничный список объектов с фильтром prefix;
 - удаление метаданных и публикация событий удаления;
 - действующее расположение каждой committed blob-версии: класс HOT/COLD, blob_id
-  и поколение записи; новые версии попадают в COLD;
+  и поколение записи; выбор класса новой версии (`ChooseWriteClass`): новый ключ —
+  COLD, перезапись HOT-ключа остаётся в HOT, если размер известен и есть место;
 - API безопасного переноса версии между классами для исполнителя миграций:
   резервирование места под копию, переключение расположения CAS, отмена и учёт
   очистки старых blobs (`PlacementService`);
@@ -87,11 +88,27 @@ Wire-контракты: [metadata.proto](../../shared/api/metadata/v1/metadata.
 | `HeadBucket` | bucket_name → exists, bucket_id, owner_id |
 | `ListBuckets` | owner_id → список принадлежащих ему buckets |
 | `DeleteBucket` | bucket_name → success после проверки числа objects |
-| `CreateObjectVersion` | bucket_name, key, blob_id, size_bytes, etag, content_type → object_id, version_id |
+| `ChooseWriteClass` | bucket_name, key, необязательный size_bytes → storage_class (`HOT`/`COLD`), reason |
+| `CreateObjectVersion` | bucket_name, key, blob_id, size_bytes, etag, content_type, storage_class (пусто — COLD) → object_id, version_id |
 | `GetObjectMeta` | bucket_name, key, необязательный version_id → blob_id, storage_class, placement_generation и metadata |
 | `ListObjects` | bucket_name, prefix, continuation_token, max_keys → объекты и следующий token |
 | `DeleteObjectMeta` | bucket_name + key → object_id, текущий blob_id, success |
 | `HealthCheck` | пустой запрос → SERVING / NOT_SERVING по PostgreSQL и Kafka |
+
+`ChooseWriteClass` вызывается до записи байтов, потому что Gateway должен знать,
+в какой экземпляр Storage писать. Ответ HOT (`reason=inherited`) только если
+текущая версия ключа лежит в HOT, размер передан и `free_bytes` HOT не меньше
+него. Иначе COLD с причиной: `new_key`, `previous_cold`, `size_unknown`
+(клиент не передал Content-Length) или `hot_full`. Место не резервируется:
+одновременные перезаписи могут превысить `usable_bytes`, и `free_bytes` станет
+отрицательным; это поглощает запас `max_utilization`, а исправляет Planner.
+Решение «перезапись HOT-ключа остаётся в HOT» опирается на то, что администратор
+уже одобрил HOT для этого ключа. Без него новая версия часто читаемого ключа
+читалась бы из COLD до следующего плана. Прежняя версия остаётся в HOT как
+нетекущая, пока её не выселит Planner.
+
+`CreateObjectVersion` сохраняет класс, переданный Gateway, и ёмкость повторно не
+проверяет: blob к этому моменту уже записан в Storage этого класса.
 
 `GetObjectMeta` и `DeleteObjectMeta` берут `blob_id` из действующего расположения
 (`version_placements`), а не из `versions.blob_id`: после переноса версия читается
@@ -167,7 +184,8 @@ COLD с тем же blob_id. Ёмкость классов в миграции �
 1. Upsert объекта по bucket/key.
 2. Блокировку строки объекта и выделение `MAX(version_number)+1`.
 3. Insert committed blob version с `committed_at`.
-4. Insert расположения в COLD с тем же blob_id и generation 1.
+4. Insert расположения в переданном классе (по умолчанию COLD) с тем же blob_id
+   и generation 1.
 5. Обновление `current_version_id`.
 
 Блокировка и INSERT должны оставаться в одной транзакции. Старые версии не
@@ -376,7 +394,8 @@ make down-e2e
 [сценарии протокола переноса](internal/service/placement/tests/protocol_integration_test.go)
 с настоящими транзакциями: цикл COLD → HOT → COLD, повторы команд, учёт копий в
 ёмкости, конкурентные резервирования, перезапись и удаление объекта во время
-переноса. Пакеты запускаются последовательно (`-p 1`),
+переноса, [выбор класса записи](internal/service/placement/tests/write_class_integration_test.go)
+(наследование HOT при перезаписи, COLD без размера и при нехватке места). Пакеты запускаются последовательно (`-p 1`),
 поскольку используют одну тестовую БД. Не запускайте несколько таких команд
 одновременно против этой БД. Suite пересоздаёт схему и чистит таблицы —
 используйте конфигурацию [e2e](../../e2e/README.md), а не development/рабочую БД.
@@ -394,8 +413,11 @@ Generated outputs вручную не редактируются.
 - prefix/pagination имеют описанные выше отличия от внешнего S3-контракта;
 - проверка непустоты bucket и конкурентное создание объектов требуют согласования
   lifecycle; наличие транзакции само по себе не доказывает нужную сериализацию;
-- Gateway пока читает и пишет через один экземпляр Storage и не выбирает его по
-  `storage_class`; событие `object-deleted` не содержит класс хранения;
+- событие `object-deleted` не содержит класс хранения, а удаление каскадно убирает
+  расположения версий, поэтому их blobs (в том числе в HOT) перестают учитываться
+  в занятости, хотя файлы остаются в Storage;
+- `ListPlacements` отдаёт только текущие версии; нетекущие версии в HOT Planner
+  пока не видит и выселить не может (нужно для этапа Planner);
 - ёмкость классов задаётся миграцией или SQL, RPC для настройки нет; адреса
   экземпляров Storage в `storage_classes` не хранятся;
 - исполнителя миграций нет: протокол проверен вызовами API и тестами;

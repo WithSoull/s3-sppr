@@ -17,7 +17,7 @@ const docTemplate = `{
     "paths": {
         "/objects/{bucket}/{key}": {
             "get": {
-                "description": "Development-only API. Streams object bytes; range and version selection are not supported.",
+                "description": "Development-only API. Streams object bytes from the Storage of the version's class. Supports one byte range; a Range header with several ranges or invalid syntax is ignored. Version selection is not supported. The whole request is bounded by GATEWAY_MAX_READ_DURATION.",
                 "produces": [
                     "application/octet-stream"
                 ],
@@ -39,11 +39,29 @@ const docTemplate = `{
                         "name": "key",
                         "in": "path",
                         "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "One byte range: bytes=first-last, bytes=first- or bytes=-suffix",
+                        "name": "Range",
+                        "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Strong ETag; the range applies only to the version with this ETag, otherwise the whole object is returned",
+                        "name": "If-Range",
+                        "in": "header"
                     }
                 ],
                 "responses": {
                     "200": {
                         "description": "OK",
+                        "schema": {
+                            "type": "file"
+                        }
+                    },
+                    "206": {
+                        "description": "Partial Content",
                         "schema": {
                             "type": "file"
                         }
@@ -56,6 +74,12 @@ const docTemplate = `{
                     },
                     "404": {
                         "description": "Not Found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "416": {
+                        "description": "Requested Range Not Satisfiable",
                         "schema": {
                             "type": "string"
                         }
@@ -156,6 +180,58 @@ const docTemplate = `{
                     },
                     "507": {
                         "description": "Insufficient Storage",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            },
+            "delete": {
+                "description": "Development-only API. Removes the object from Metadata, so later GET returns 404. Blobs stay in Storage: cleanup is not implemented yet.",
+                "tags": [
+                    "objects"
+                ],
+                "summary": "Delete an object from the catalog",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bucket name",
+                        "name": "bucket",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Object key (may contain slashes)",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "204": {
+                        "description": "No Content"
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "502": {
+                        "description": "Bad Gateway",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    "504": {
+                        "description": "Gateway Timeout",
                         "schema": {
                             "type": "string"
                         }

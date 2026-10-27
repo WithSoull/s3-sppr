@@ -47,6 +47,8 @@ internal/repository/
 ## Key details
 
 - Blobs stored by `blob_id` (UUID), not by object key — mapping is in Metadata service
+- `StoreObject` takes an optional canonical-UUID `blob_id` (migration copies); a repeat replaces the file
+- Compose runs two instances, `storage-hot` and `storage-cold`; the service itself does not know its class
 - Streaming: StoreObject uses client-streaming, RetrieveObject uses server-streaming
 - Multipart: initiate → upload parts → complete/abort
 
@@ -55,7 +57,7 @@ internal/repository/
 | Does | Does NOT |
 |------|----------|
 | Store/retrieve/delete raw bytes | Know about object keys or metadata |
-| Generate blob_ids | Check permissions |
+| Generate blob_ids (unless the caller passes one) | Check permissions |
 | Support multipart uploads | Know about S3 API |
 
 ## Commands

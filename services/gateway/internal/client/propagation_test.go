@@ -35,7 +35,7 @@ func TestCallerDeadlineReachesMetadataAndStorage(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
 	expected, _ := ctx.Deadline()
-	result, err := objects.Get(ctx, testkit.Bucket, "key")
+	result, err := objects.Get(ctx, testkit.Bucket, "key", nil)
 	require.NoError(t, err)
 	defer result.Body.Close()
 

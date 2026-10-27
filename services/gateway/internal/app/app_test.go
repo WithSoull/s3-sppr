@@ -33,11 +33,12 @@ func setTestEnv(t *testing.T, env map[string]string) {
 	address := listener.Addr().String()
 	require.NoError(t, listener.Close())
 	settings := map[string]string{
-		"GATEWAY_HTTP_ADDR":  address,
-		"METADATA_GRPC_ADDR": "127.0.0.1:1",
-		"STORAGE_GRPC_ADDR":  "127.0.0.1:1",
-		"OTEL_ENABLED":       "false",
-		"LOGGER_ENABLE_OLTP": "false",
+		"GATEWAY_HTTP_ADDR":      address,
+		"METADATA_GRPC_ADDR":     "127.0.0.1:1",
+		"STORAGE_HOT_GRPC_ADDR":  "127.0.0.1:2",
+		"STORAGE_COLD_GRPC_ADDR": "127.0.0.1:3",
+		"OTEL_ENABLED":           "false",
+		"LOGGER_ENABLE_OLTP":     "false",
 	}
 	for key, value := range env {
 		settings[key] = value
@@ -61,13 +62,21 @@ func TestConfiguredClientsAreReused(t *testing.T) {
 	require.NoError(t, err)
 	m2, err := a.serviceProvider.MetadataClient()
 	require.NoError(t, err)
-	s1, err := a.serviceProvider.StorageClient()
+	s1, err := a.serviceProvider.StorageClients()
 	require.NoError(t, err)
-	s2, err := a.serviceProvider.StorageClient()
+	s2, err := a.serviceProvider.StorageClients()
 	require.NoError(t, err)
-	require.True(t, m1 == m2 && s1 == s2, "downstream clients are not reused")
+	require.True(t, m1 == m2, "Metadata client is not reused")
+	require.Len(t, s1, 2)
+	for class, storage := range s1 {
+		require.True(t, storage == s2[class], "%s Storage client is not reused", class)
+	}
 	require.Equal(t, a.config.Metadata.Address(), a.serviceProvider.metadataConn.Target())
-	require.Equal(t, a.config.Storage.Address(), a.serviceProvider.storageConn.Target())
+	targets := make([]string, 0, len(a.serviceProvider.storageConns))
+	for _, conn := range a.serviceProvider.storageConns {
+		targets = append(targets, conn.Target())
+	}
+	require.ElementsMatch(t, []string{a.config.Storage.HotAddress(), a.config.Storage.ColdAddress()}, targets)
 }
 
 func TestDisabledAccessEventsCreateNoKafkaClient(t *testing.T) {
@@ -161,7 +170,9 @@ func TestShutdownDrainsActiveRequestBeforeClosingClients(t *testing.T) {
 		t.Fatalf("shutdown returned before request completion: %v", err)
 	case <-time.After(100 * time.Millisecond):
 	}
-	require.NotEqual(t, connectivity.Shutdown, a.serviceProvider.storageConn.GetState(), "Storage client closed before drain")
+	for _, conn := range a.serviceProvider.storageConns {
+		require.NotEqual(t, connectivity.Shutdown, conn.GetState(), "Storage client closed before drain")
+	}
 	require.NotEqual(t, connectivity.Shutdown, a.serviceProvider.metadataConn.GetState(), "Metadata client closed before drain")
 	close(release)
 	select {
@@ -176,6 +187,8 @@ func TestShutdownDrainsActiveRequestBeforeClosingClients(t *testing.T) {
 	case <-time.After(3 * time.Second):
 		t.Fatal("shutdown did not finish")
 	}
-	require.Equal(t, connectivity.Shutdown, a.serviceProvider.storageConn.GetState(), "Storage client not closed")
+	for _, conn := range a.serviceProvider.storageConns {
+		require.Equal(t, connectivity.Shutdown, conn.GetState(), "Storage client not closed")
+	}
 	require.Equal(t, connectivity.Shutdown, a.serviceProvider.metadataConn.GetState(), "Metadata client not closed")
 }

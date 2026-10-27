@@ -1,4 +1,5 @@
-// Command smoke checks the running HTTP -> Gateway -> Metadata/Storage slice.
+// Command smoke checks the running HTTP -> Gateway -> Metadata/Storage slice,
+// including routing between the HOT and COLD Storage instances.
 package main
 
 import (
@@ -24,22 +25,34 @@ import (
 func main() {
 	gateway := flag.String("gateway", "http://127.0.0.1:8080", "Gateway HTTP URL")
 	metadata := flag.String("metadata", "127.0.0.1:50052", "Metadata gRPC address")
+	storageHot := flag.String("storage-hot", "127.0.0.1:50056", "HOT Storage gRPC address")
+	storageCold := flag.String("storage-cold", "127.0.0.1:50053", "COLD Storage gRPC address")
 	timeout := flag.Duration("timeout", 2*time.Minute, "whole smoke test timeout, including readiness")
 	flag.Parse()
 	ctx, cancel := context.WithTimeout(context.Background(), *timeout)
 	defer cancel()
-	if err := run(ctx, strings.TrimRight(*gateway, "/"), *metadata); err != nil {
+	if err := run(ctx, strings.TrimRight(*gateway, "/"), *metadata, *storageHot, *storageCold); err != nil {
 		fmt.Fprintln(os.Stderr, "smoke failed:", err)
 		os.Exit(1)
 	}
 }
 
-func run(ctx context.Context, gateway, metadata string) error {
+func run(ctx context.Context, gateway, metadata, storageHot, storageCold string) error {
 	conn, err := grpc.NewClient(metadata, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
+	hotConn, err := grpc.NewClient(storageHot, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return err
+	}
+	defer hotConn.Close()
+	coldConn, err := grpc.NewClient(storageCold, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return err
+	}
+	defer coldConn.Close()
 	client := metadatav1.NewMetadataServiceClient(conn)
 	bucket := "gateway-smoke-" + uuid.NewString()
 	httpClient := &http.Client{Timeout: 30 * time.Second}
@@ -89,7 +102,7 @@ func run(ctx context.Context, gateway, metadata string) error {
 		}
 		fmt.Printf("PASS %s: %d bytes, chunked=%v\n", tc.key, tc.size, tc.chunked)
 	}
-	return nil
+	return storageClasses(ctx, httpClient, gateway, bucket, conn, hotConn, coldConn)
 }
 
 func roundTrip(ctx context.Context, client *http.Client, url string, size int64, seed byte, chunked bool) error {

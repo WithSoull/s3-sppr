@@ -14,17 +14,24 @@ import (
 
 const defaultContentType = "application/octet-stream"
 
-func (s *storageService) StoreObject(ctx context.Context, reader io.Reader, size *int64, contentType string) (*model.BlobMeta, error) {
+func (s *storageService) StoreObject(ctx context.Context, blobID string, reader io.Reader, size *int64, contentType string) (*model.BlobMeta, error) {
 	if size != nil && *size < 0 {
 		return nil, domainerrors.ErrInvalidBlobSize
+	}
+	// The ID becomes a file path, so only the canonical UUID form is accepted.
+	if blobID != "" {
+		if parsed, err := uuid.Parse(blobID); err != nil || parsed.String() != blobID {
+			return nil, domainerrors.ErrInvalidBlobID
+		}
+	} else {
+		blobID = uuid.New().String()
 	}
 
 	if contentType == "" {
 		contentType = defaultContentType
 	}
 
-	blobID := uuid.New().String()
-	meta, err := s.repo.StoreBlob(ctx, blobID, reader)
+	meta, err := s.repo.StoreBlob(ctx, blobID, reader, size)
 	if err != nil {
 		logger.Error(
 			ctx,
@@ -34,21 +41,6 @@ func (s *storageService) StoreObject(ctx context.Context, reader io.Reader, size
 			zap.String("content_type", contentType),
 		)
 		return nil, err
-	}
-
-	if size != nil && meta.SizeBytes != *size {
-		if deleteErr := s.repo.DeleteBlob(ctx, meta.BlobID); deleteErr != nil {
-			logger.Error(ctx, "failed to cleanup blob after size mismatch", zap.Error(deleteErr), zap.String("blob_id", meta.BlobID))
-		}
-
-		logger.Error(
-			ctx,
-			"stored blob size mismatch",
-			zap.String("blob_id", meta.BlobID),
-			zap.Int64("expected_size", *size),
-			zap.Int64("actual_size", meta.SizeBytes),
-		)
-		return nil, domainerrors.ErrInvalidBlobSize
 	}
 
 	meta.ContentType = contentType

@@ -35,8 +35,8 @@ func TestGetAbortsIncompleteResponse(t *testing.T) {
 			req := httptest.NewRequest(http.MethodGet, "/objects/bucket/key", nil)
 			body := &trackedBody{Reader: tc.body}
 			objects := mocks.NewObjectServiceMock(mc)
-			objects.GetMock.Expect(req.Context(), "bucket", "key").Return(model.GetResult{Body: body, Size: tc.size}, nil)
-			handler := httpapi.NewHandler(objects)
+			objects.GetMock.Expect(minimock.AnyContext, "bucket", "key", nil).Return(model.GetResult{Body: body, Size: tc.size}, nil)
+			handler := httpapi.NewHandler(objects, testMaxReadDuration)
 			defer func() {
 				require.Equal(t, 1, body.closes)
 				if got := recover(); got != http.ErrAbortHandler {
@@ -120,7 +120,7 @@ func TestGetStorageDisagreesWithMetadata(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			server, upstream := newGateway(t)
 			upstream.Blobs["blob"] = []byte(strings.Repeat("x", tt.storedSize))
-			upstream.Meta["key"] = &metadatav1.GetObjectMetaResponse{BlobId: "blob", SizeBytes: tt.declaredSize}
+			upstream.Meta["key"] = &metadatav1.GetObjectMetaResponse{BlobId: "blob", SizeBytes: tt.declaredSize, StorageClass: "COLD"}
 			response := do(t, server, http.MethodGet, "/objects/"+testkit.Bucket+"/key", nil)
 			require.Equal(t, tt.wantStatus, response.StatusCode)
 			body, err := io.ReadAll(response.Body)
@@ -136,12 +136,12 @@ func TestEmptyObjectWaitsForStorageCompletion(t *testing.T) {
 	logger.SetNopLogger()
 	mc := minimock.NewController(t)
 	objects := mocks.NewObjectServiceMock(mc)
-	objects.GetMock.Set(func(_ context.Context, bucket, key string) (model.GetResult, error) {
+	objects.GetMock.Set(func(_ context.Context, bucket, key string, _ *model.ByteRange) (model.GetResult, error) {
 		require.Equal(t, "bucket", bucket)
 		require.Equal(t, "key", key)
 		return model.GetResult{Body: io.NopCloser(failedReader{}), Size: 0}, nil
 	})
-	server := httptest.NewServer(httpapi.NewHandler(objects))
+	server := httptest.NewServer(httpapi.NewHandler(objects, testMaxReadDuration))
 	defer server.Close()
 	response, err := server.Client().Get(server.URL + "/objects/bucket/key")
 	require.NoError(t, err)
