@@ -1,6 +1,10 @@
 package config
 
-import "time"
+import (
+	"time"
+
+	"github.com/IBM/sarama"
+)
 
 type HTTPConfig interface{ Address() string }
 type GRPCClientConfig interface{ Address() string }
@@ -37,3 +41,12 @@ type MetricsConfig interface {
 	OTLPEndpoint() string
 	PushTimeout() time.Duration
 }
+
+type KafkaConfig interface{ Brokers() []string }
+type SaramaConfig interface{ Config() *sarama.Config }
+type AccessEventsConfig interface {
+	Enabled() bool
+	GatewayID() string
+}
+type ObjectReadProducerConfig interface{ Topic() string }
+type ObjectWrittenProducerConfig interface{ Topic() string }

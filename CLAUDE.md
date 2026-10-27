@@ -55,7 +55,9 @@ Quota :50055 ── Redis ── Kafka
 ```
 
 Gateway → Auth and Gateway → AuthZ are not implemented yet: Gateway currently
-serves local PUT/GET and calls only Metadata and Storage.
+serves local PUT/GET and calls only Metadata and Storage. With
+`ACCESS_EVENTS_ENABLED=true` it also publishes successful GET/PUT to Kafka
+without waiting for it; see [Kafka spec](docs/kafka-spec.md).
 
 ---
 
@@ -81,6 +83,8 @@ serves local PUT/GET and calls only Metadata and Storage.
 | `bucket-deleted` | Metadata | AuthZ |
 | `auth-changes` | AuthZ | AuthZ cache_invalidator |
 | `auth-audit` | AuthZ | — (log sink) |
+| `object-read` | Gateway (успешный GET) | SPPR |
+| `object-written` | Gateway (успешный PUT) | SPPR |
 
 Публичные relations: `MEMBER_OF`, `HAS_PERMISSION`, `PARENT_OF`. Для владельца
 используйте `HAS_PERMISSION` с уровнем `ADMIN`; `OWNER_OF` — только legacy-чтение

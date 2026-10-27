@@ -19,6 +19,7 @@ import (
 	storageclient "github.com/alesplll/opens3-rebac/services/gateway/internal/client/storage"
 	"github.com/alesplll/opens3-rebac/services/gateway/internal/service"
 	objectservice "github.com/alesplll/opens3-rebac/services/gateway/internal/service/object"
+	accessproducer "github.com/alesplll/opens3-rebac/services/gateway/internal/service/producer/access"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/logger"
 	metadatav1 "github.com/alesplll/opens3-rebac/shared/pkg/go/metadata/v1"
 	storagev1 "github.com/alesplll/opens3-rebac/shared/pkg/go/storage/v1"
@@ -140,7 +141,7 @@ func (u *Upstream) ObjectService(t *testing.T) service.ObjectService {
 	t.Helper()
 	logger.SetNopLogger()
 	meta, storage := u.Clients(t)
-	return objectservice.NewService(meta, storage)
+	return objectservice.NewService(meta, storage, accessproducer.NewNoopService())
 }
 
 type metadataServer struct {

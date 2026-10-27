@@ -15,6 +15,12 @@ type Config struct {
 	Logger   LoggerConfig
 	Tracing  TracingConfig
 	Metrics  MetricsConfig
+
+	Kafka                 KafkaConfig
+	Sarama                SaramaConfig
+	AccessEvents          AccessEventsConfig
+	ObjectReadProducer    ObjectReadProducerConfig
+	ObjectWrittenProducer ObjectWrittenProducerConfig
 }
 
 // Load uses the process environment and, when present, a local .env file.
@@ -46,6 +52,26 @@ func Load(path ...string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	kafkaConfig, err := env.NewKafkaConfig()
+	if err != nil {
+		return nil, err
+	}
+	saramaConfig, err := env.NewSaramaConfig()
+	if err != nil {
+		return nil, err
+	}
+	accessEventsConfig, err := env.NewAccessEventsConfig()
+	if err != nil {
+		return nil, err
+	}
+	objectReadProducerConfig, err := env.NewObjectReadProducerConfig()
+	if err != nil {
+		return nil, err
+	}
+	objectWrittenProducerConfig, err := env.NewObjectWrittenProducerConfig()
+	if err != nil {
+		return nil, err
+	}
 	return &Config{
 		HTTP:     httpConfig,
 		Metadata: metadataConfig,
@@ -53,5 +79,11 @@ func Load(path ...string) (*Config, error) {
 		Logger:   loggerConfig,
 		Tracing:  tracingConfig,
 		Metrics:  metricsConfig,
+
+		Kafka:                 kafkaConfig,
+		Sarama:                saramaConfig,
+		AccessEvents:          accessEventsConfig,
+		ObjectReadProducer:    objectReadProducerConfig,
+		ObjectWrittenProducer: objectWrittenProducerConfig,
 	}, nil
 }
