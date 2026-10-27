@@ -17,8 +17,13 @@ contract and unfinished roadmap steps. The executor drives every action from the
 Metadata copy state of its `action_id` (= `migration_id`), so a claim and a resume
 after restart share one path; record the failure reason (`aborting`) before
 `AbortCopy` and settle budget charges in the same transaction as the transition.
+Cleanup runs independently of migration pause and handles due copies of every
+role, including `orphan` without a migration ID. Only successful Storage deletion
+may release Metadata's class charge; retry deletion safely if confirmation fails.
 Run `make test-sppr`; database/Kafka checks use `make test-sppr-integration` with
-documented test environment variables.
+documented test environment variables. Real-service failure tests additionally
+require `SPPR_TEST_MIGRATION_STAND=1`; their executor owns the run, so do not run a
+competing SPPR executor/cleanup. See the SPPR README for endpoint overrides.
 
 ## Build, Test, and Development Commands
 
@@ -30,6 +35,8 @@ documented test environment variables.
 - `go test ./...` from `services/auth`, `services/users`, `services/metadata`, or `services/storage`: run tests for one Go service module.
 - `make test-gateway`: run the Gateway Go tests.
 - `make smoke-gateway-local`: build/start the Gateway stack and run the real-service smoke (PUT/GET, HOT/COLD routing, Range, DELETE); `make smoke-gateway` checks an already running stack.
+- `make smoke-migration`: check COLD → HOT → COLD through the running SPPR API, source deletion and HOT occupancy; `SMOKE_MIGRATION_ARGS` forwards CLI flags.
+- `make smoke-migration-local`: start the dedicated Compose demo with coordinated short read/cleanup limits and run the migration smoke.
 - `make up-sppr-migration`: start SPPR with the migration executor enabled, plus Gateway, Metadata and both Storage instances.
 - `make up-gateway`: start Gateway, Metadata, the HOT and COLD Storage instances, and their local Compose dependencies.
 - `make test-metadata-integration`: run Metadata integration tests sequentially (`-p 1`) against the dedicated e2e PostgreSQL profile; the suites reset a shared schema.

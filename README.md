@@ -117,8 +117,11 @@ Ingestor читает protobuf-события `object-read` и `object-written` 
 поставляется отдельным [PR #1](https://github.com/WithSoull/s3-sppr/pull/1);
 для автономного Ingestor он не требуется. Исполнитель переносов HOT/COLD
 принимает действия через HTTP API `/api/migration` и при `MIGRATION_ENABLED=true`
-копирует версии между Storage по протоколу Metadata `PlacementService`; очистка
-старых blobs и прогнозы ещё не реализованы. Начать чтение
+копирует версии между Storage по протоколу Metadata `PlacementService` и очищает
+источники, отменённые цели и blobs удалённых объектов после задержки. Пауза действий
+очистку не останавливает. `make smoke-migration` проверяет COLD → HOT → COLD и
+освобождение HOT; `make smoke-migration-local` поднимает отдельный стенд с короткими
+согласованными задержками. Planner, прогноз, HTML-панель и авторизация API отсутствуют. Начать чтение
 кода можно с [онбординга SPPR](services/sppr/ONBOARDING.md).
 
 ### Gateway

@@ -416,9 +416,29 @@ DSN. В [CI](../../.github/workflows/sppr-ci.yml) обе зависимости 
 5. `internal/service/executor/process.go` — шаги действия. `process` начинается с
    `ListMigrationCopies`, поэтому новое и прерванное рестартом действие идут одним
    путём. `copy.go` — поток Storage → Storage с подсчётом MD5.
-6. Тесты: `internal/service/executor/*_test.go` описывают каждый исход как
+6. `internal/service/cleanup/cleanup.go` — отдельный цикл, который не читает флаг
+   паузы: due-копии всех ролей → Storage Delete → CompleteCleanup. Ошибка Storage
+   сохраняет занятость; потерянное подтверждение безопасно повторяется.
+7. `internal/observability/migration.go` — пять метрик; action outcome пишется после
+   commit, байты — по каждой попытке, остаток бюджета читается при сборе telemetry.
+8. `internal/app/migration_provider.go` и `app.go` — сборка клиентов, запуск и
+   ожидание остановки воркеров/очистки при `MIGRATION_ENABLED`.
+9. Тесты: `internal/service/executor/*_test.go` описывают каждый исход как
    последовательность переходов; `internal/repository/action/*_integration_test.go`
-   проверяют блокировки на PostgreSQL.
+   проверяют блокировки на PostgreSQL. `*stand*_integration_test.go`,
+   `failures_integration_test.go`, `restart_integration_test.go` и
+   `faults_integration_test.go` — реальные сервисы с точечными обёртками клиентов.
+   Полное условие запуска — `SPPR_TEST_MIGRATION_STAND=1` плюс `SPPR_TEST_PG_DSN`;
+   без флага стенд не вызывается. После отмены старого Run создаётся новый исполнитель
+   на той же schema, а не подставляется готовый running-state.
+
+Для проверки всего пути используй `make smoke-migration` на запущенном SPPR или
+`make smoke-migration-local` на отдельном Compose-стенде с короткими согласованными
+лимитами. Команда проходит COLD → HOT → COLD, проверяет GET, отсутствие старых blobs
+и возврат HOT к исходной занятости. Stand-тест DELETE проверяет отложенную очистку
+без ожидания десятиминутной задержки Metadata; источник в тесте сбоя удаления имеет
+свой короткий тестовый delay без конкурентных читателей. Полные команды, env,
+границы проверки и ручной пример с журналом — в [README](README.md).
 
 Ответь себе: зачем копия проверяется до CAS (Gateway не должен читать
 непроверенный blob); почему источник удаляется только после
