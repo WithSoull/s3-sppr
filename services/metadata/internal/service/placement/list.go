@@ -13,7 +13,8 @@ func (s *placementService) ListStorageClasses(ctx context.Context) ([]*model.Sto
 	return s.placementRepo.ListUsage(ctx)
 }
 
-func (s *placementService) ListPlacements(ctx context.Context, pageSize int32, pageToken string) ([]*model.Placement, string, error) {
+func (s *placementService) ListPlacements(ctx context.Context, req model.ListPlacementsRequest) ([]*model.Placement, string, error) {
+	pageSize, pageToken := req.PageSize, req.PageToken
 	if pageToken != "" {
 		if err := validate.Validate(ctx, uuidField("page_token", pageToken)); err != nil {
 			return nil, "", err
@@ -25,7 +26,9 @@ func (s *placementService) ListPlacements(ctx context.Context, pageSize int32, p
 
 	// One extra row tells whether another page exists, so the last page never
 	// returns a token that leads to an empty page.
-	placements, err := s.placementRepo.ListCurrent(ctx, pageToken, pageSize+1)
+	repoReq := req
+	repoReq.PageSize = pageSize + 1
+	placements, err := s.placementRepo.List(ctx, repoReq)
 	if err != nil {
 		return nil, "", err
 	}

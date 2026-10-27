@@ -60,31 +60,39 @@ type PlacementServiceClient interface {
 	// ListStorageClasses возвращает ёмкость и занятость классов. В занятость входят
 	// расположения всех версий (включая нетекущие) и копии, ещё занимающие место.
 	ListStorageClasses(ctx context.Context, in *ListStorageClassesRequest, opts ...grpc.CallOption) (*ListStorageClassesResponse, error)
-	// ListPlacements постранично возвращает текущие версии активных объектов с их
-	// расположением — каталог для Planner. Порядок — по version_id.
+	// ListPlacements — каталог для Planner: текущие версии активных объектов с их
+	// расположением и, при include_noncurrent_hot, нетекущие версии этих объектов в HOT.
+	// Порядок пагинации — по version_id; нетекущие версии идут в том же порядке.
 	// Ошибки: INVALID_ARGUMENT (page_token не UUID).
 	ListPlacements(ctx context.Context, in *ListPlacementsRequest, opts ...grpc.CallOption) (*ListPlacementsResponse, error)
 	// GetPlacement возвращает действующее расположение версии и признак текущей версии.
 	// Ошибки: INVALID_ARGUMENT, NOT_FOUND.
 	GetPlacement(ctx context.Context, in *GetPlacementRequest, opts ...grpc.CallOption) (*GetPlacementResponse, error)
-	// ReserveCopy проверяет, что версия текущая, а поколение и класс расположения
-	// совпадают с ожидаемыми, резервирует место в целевом классе и выдаёт blob_id
-	// для записи копии. Повтор с тем же migration_id возвращает уже созданную копию
+	// ReserveCopy принимает версии активных объектов: текущие — для обоих классов,
+	// нетекущие — только для выселения HOT → COLD. Проверяет поколение и исходный
+	// класс под блокировками объекта и расположения, резервирует место в целевом
+	// классе и выдаёт blob_id копии. Повтор с тем же migration_id возвращает уже созданную копию
 	// в её текущем состоянии.
 	// Ошибки: INVALID_ARGUMENT, NOT_FOUND (нет расположения),
 	//
-	//	ABORTED (версия не текущая, расположение изменилось, у версии уже есть
-	//	         зарезервированная копия), RESOURCE_EXHAUSTED (нет места),
+	//	ABORTED (объект не активен, нетекущая версия переносится не в COLD,
+	//	         расположение изменилось, у версии уже есть зарезервированная
+	//	         копия), RESOURCE_EXHAUSTED (нет места),
 	//	FAILED_PRECONDITION (migration_id уже использован с другими параметрами).
 	ReserveCopy(ctx context.Context, in *ReserveCopyRequest, opts ...grpc.CallOption) (*ReserveCopyResponse, error)
 	// SwitchPlacement переключает расположение на проверенную целевую копию (CAS).
+	// Объект должен оставаться активным; нетекущая версия допустима только для
+	// цели COLD. Новая current-версия не мешает выселению старой HOT → COLD.
+	// CAS использует поколение и исходный класс из ReserveCopy, под блокировками
+	// объекта и расположения; блокировка объекта сериализует переключение с удалением.
 	// Прежний blob становится копией с ролью source в состоянии cleanup_pending,
 	// удалять его можно после cleanup_after. Повтор после успешного переключения
 	// возвращает тот же результат.
 	// Ошибки: INVALID_ARGUMENT, NOT_FOUND (нет копии),
 	//
-	//	ABORTED (версия не текущая или расположение изменилось; расположение
-	//	         не меняется, копию следует отменить через AbortCopy),
+	//	ABORTED (объект удалён/не активен, нетекущая версия переносится не в COLD
+	//	         или расположение изменилось; расположение не меняется,
+	//	         копию следует отменить через AbortCopy),
 	//	FAILED_PRECONDITION (копия отменена или проверенный размер не совпал).
 	SwitchPlacement(ctx context.Context, in *SwitchPlacementRequest, opts ...grpc.CallOption) (*SwitchPlacementResponse, error)
 	// AbortCopy отменяет зарезервированную целевую копию до переключения:
@@ -233,31 +241,39 @@ type PlacementServiceServer interface {
 	// ListStorageClasses возвращает ёмкость и занятость классов. В занятость входят
 	// расположения всех версий (включая нетекущие) и копии, ещё занимающие место.
 	ListStorageClasses(context.Context, *ListStorageClassesRequest) (*ListStorageClassesResponse, error)
-	// ListPlacements постранично возвращает текущие версии активных объектов с их
-	// расположением — каталог для Planner. Порядок — по version_id.
+	// ListPlacements — каталог для Planner: текущие версии активных объектов с их
+	// расположением и, при include_noncurrent_hot, нетекущие версии этих объектов в HOT.
+	// Порядок пагинации — по version_id; нетекущие версии идут в том же порядке.
 	// Ошибки: INVALID_ARGUMENT (page_token не UUID).
 	ListPlacements(context.Context, *ListPlacementsRequest) (*ListPlacementsResponse, error)
 	// GetPlacement возвращает действующее расположение версии и признак текущей версии.
 	// Ошибки: INVALID_ARGUMENT, NOT_FOUND.
 	GetPlacement(context.Context, *GetPlacementRequest) (*GetPlacementResponse, error)
-	// ReserveCopy проверяет, что версия текущая, а поколение и класс расположения
-	// совпадают с ожидаемыми, резервирует место в целевом классе и выдаёт blob_id
-	// для записи копии. Повтор с тем же migration_id возвращает уже созданную копию
+	// ReserveCopy принимает версии активных объектов: текущие — для обоих классов,
+	// нетекущие — только для выселения HOT → COLD. Проверяет поколение и исходный
+	// класс под блокировками объекта и расположения, резервирует место в целевом
+	// классе и выдаёт blob_id копии. Повтор с тем же migration_id возвращает уже созданную копию
 	// в её текущем состоянии.
 	// Ошибки: INVALID_ARGUMENT, NOT_FOUND (нет расположения),
 	//
-	//	ABORTED (версия не текущая, расположение изменилось, у версии уже есть
-	//	         зарезервированная копия), RESOURCE_EXHAUSTED (нет места),
+	//	ABORTED (объект не активен, нетекущая версия переносится не в COLD,
+	//	         расположение изменилось, у версии уже есть зарезервированная
+	//	         копия), RESOURCE_EXHAUSTED (нет места),
 	//	FAILED_PRECONDITION (migration_id уже использован с другими параметрами).
 	ReserveCopy(context.Context, *ReserveCopyRequest) (*ReserveCopyResponse, error)
 	// SwitchPlacement переключает расположение на проверенную целевую копию (CAS).
+	// Объект должен оставаться активным; нетекущая версия допустима только для
+	// цели COLD. Новая current-версия не мешает выселению старой HOT → COLD.
+	// CAS использует поколение и исходный класс из ReserveCopy, под блокировками
+	// объекта и расположения; блокировка объекта сериализует переключение с удалением.
 	// Прежний blob становится копией с ролью source в состоянии cleanup_pending,
 	// удалять его можно после cleanup_after. Повтор после успешного переключения
 	// возвращает тот же результат.
 	// Ошибки: INVALID_ARGUMENT, NOT_FOUND (нет копии),
 	//
-	//	ABORTED (версия не текущая или расположение изменилось; расположение
-	//	         не меняется, копию следует отменить через AbortCopy),
+	//	ABORTED (объект удалён/не активен, нетекущая версия переносится не в COLD
+	//	         или расположение изменилось; расположение не меняется,
+	//	         копию следует отменить через AbortCopy),
 	//	FAILED_PRECONDITION (копия отменена или проверенный размер не совпал).
 	SwitchPlacement(context.Context, *SwitchPlacementRequest) (*SwitchPlacementResponse, error)
 	// AbortCopy отменяет зарезервированную целевую копию до переключения:

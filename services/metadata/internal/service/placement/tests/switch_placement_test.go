@@ -26,6 +26,7 @@ func TestSwitchPlacement(t *testing.T) {
 	lockedTarget := func(target *model.PlacementCopy) func(mc *minimock.Controller) *mocks.CopyRepositoryMock {
 		return func(mc *minimock.Controller) *mocks.CopyRepositoryMock {
 			m := mocks.NewCopyRepositoryMock(mc)
+			m.GetByMigrationMock.When(minimock.AnyContext, migrationID, model.CopyRoleTarget).Then(target, nil)
 			m.LockByMigrationMock.Expect(minimock.AnyContext, migrationID, model.CopyRoleTarget).Return(target, nil)
 			return m
 		}
@@ -71,6 +72,85 @@ func TestSwitchPlacement(t *testing.T) {
 			buildTxMock: executingTx,
 		},
 		{
+			name: "success: non-current HOT version switches to COLD",
+			args: validArgs,
+			want: &model.SwitchResult{VersionID: versionID, NewGeneration: 2, StorageClass: model.StorageClassCold, BlobID: targetBlob, SourceCopy: evictionSource()},
+			buildPlacementMock: func(mc *minimock.Controller) *mocks.PlacementRepositoryMock {
+				m := mocks.NewPlacementRepositoryMock(mc)
+				m.LockForChangeMock.Expect(minimock.AnyContext, versionID).Return(evictionPlacement(), nil)
+				m.CompareAndSwapMock.Expect(minimock.AnyContext, versionID, int64(1), model.StorageClassHot, model.StorageClassCold, targetBlob).Return(2, nil)
+				return m
+			},
+			buildCopyMock: func(mc *minimock.Controller) *mocks.CopyRepositoryMock {
+				m := lockedTarget(evictionTarget())(mc)
+				m.InsertSourceMock.Expect(minimock.AnyContext, migrationID, evictionPlacement(), 30*time.Second).Return(evictionSource(), nil)
+				m.PromoteMock.Expect(minimock.AnyContext, copyID, validMD5).Return(nil)
+				return m
+			},
+			buildTxMock: executingTx,
+		},
+		{
+			name: "error: inactive object's eviction is rejected before CAS",
+			args: validArgs, wantErr: domainerrors.ErrVersionNotCurrent,
+			buildPlacementMock: func(mc *minimock.Controller) *mocks.PlacementRepositoryMock {
+				p := evictionPlacement()
+				p.ObjectActive = false
+				m := mocks.NewPlacementRepositoryMock(mc)
+				m.LockForChangeMock.Expect(minimock.AnyContext, versionID).Return(p, nil)
+				return m
+			},
+			buildCopyMock: lockedTarget(evictionTarget()), buildTxMock: executingTx,
+		},
+		{
+			name: "error: non-current eviction still uses captured generation and class",
+			args: validArgs, wantErr: domainerrors.ErrPlacementChanged,
+			buildPlacementMock: func(mc *minimock.Controller) *mocks.PlacementRepositoryMock {
+				m := mocks.NewPlacementRepositoryMock(mc)
+				m.LockForChangeMock.Expect(minimock.AnyContext, versionID).Return(evictionPlacement(), nil)
+				m.CompareAndSwapMock.Expect(minimock.AnyContext, versionID, int64(1), model.StorageClassHot, model.StorageClassCold, targetBlob).Return(0, domainerrors.ErrPlacementChanged)
+				return m
+			},
+			buildCopyMock: lockedTarget(evictionTarget()), buildTxMock: executingTx,
+		},
+		{
+			name: "concurrent abort: target is reloaded after locking the object",
+			args: validArgs, wantErr: domainerrors.ErrInvalidCopyState,
+			buildPlacementMock: func(mc *minimock.Controller) *mocks.PlacementRepositoryMock {
+				m := mocks.NewPlacementRepositoryMock(mc)
+				m.LockForChangeMock.Expect(minimock.AnyContext, versionID).Return(evictionPlacement(), nil)
+				return m
+			},
+			buildCopyMock: func(mc *minimock.Controller) *mocks.CopyRepositoryMock {
+				m := mocks.NewCopyRepositoryMock(mc)
+				m.GetByMigrationMock.Expect(minimock.AnyContext, migrationID, model.CopyRoleTarget).Return(evictionTarget(), nil)
+				aborted := evictionTarget()
+				aborted.State = model.CopyStateCleanupPending
+				m.LockByMigrationMock.Expect(minimock.AnyContext, migrationID, model.CopyRoleTarget).Return(aborted, nil)
+				return m
+			},
+			buildTxMock: executingTx,
+		},
+		{
+			name: "concurrent switch: promoted target is replayed without another CAS",
+			args: validArgs,
+			want: &model.SwitchResult{VersionID: versionID, NewGeneration: 2, StorageClass: model.StorageClassCold, BlobID: targetBlob, SourceCopy: evictionSource()},
+			buildPlacementMock: func(mc *minimock.Controller) *mocks.PlacementRepositoryMock {
+				m := mocks.NewPlacementRepositoryMock(mc)
+				m.LockForChangeMock.Expect(minimock.AnyContext, versionID).Return(evictionPlacement(), nil)
+				return m
+			},
+			buildCopyMock: func(mc *minimock.Controller) *mocks.CopyRepositoryMock {
+				m := mocks.NewCopyRepositoryMock(mc)
+				m.GetByMigrationMock.When(minimock.AnyContext, migrationID, model.CopyRoleTarget).Then(evictionTarget(), nil)
+				m.GetByMigrationMock.When(minimock.AnyContext, migrationID, model.CopyRoleSource).Then(evictionSource(), nil)
+				promoted := evictionTarget()
+				promoted.State = model.CopyStatePromoted
+				m.LockByMigrationMock.Expect(minimock.AnyContext, migrationID, model.CopyRoleTarget).Return(promoted, nil)
+				return m
+			},
+			buildTxMock: executingTx,
+		},
+		{
 			name: "retry after commit: returns previous result without a second CAS",
 			args: validArgs,
 			want: &model.SwitchResult{
@@ -83,7 +163,7 @@ func TestSwitchPlacement(t *testing.T) {
 			buildPlacementMock: untouchedPlacement,
 			buildCopyMock: func(mc *minimock.Controller) *mocks.CopyRepositoryMock {
 				m := lockedTarget(targetIn(model.CopyStatePromoted))(mc)
-				m.GetByMigrationMock.Expect(minimock.AnyContext, migrationID, model.CopyRoleSource).Return(sourceCopy(), nil)
+				m.GetByMigrationMock.When(minimock.AnyContext, migrationID, model.CopyRoleSource).Then(sourceCopy(), nil)
 				return m
 			},
 			buildTxMock: executingTx,

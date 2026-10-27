@@ -47,12 +47,12 @@ type PlacementRepositoryMock struct {
 	beforeGetUsageCounter uint64
 	GetUsageMock          mPlacementRepositoryMockGetUsage
 
-	funcListCurrent          func(ctx context.Context, afterVersionID string, limit int32) (ppa1 []*model.Placement, err error)
-	funcListCurrentOrigin    string
-	inspectFuncListCurrent   func(ctx context.Context, afterVersionID string, limit int32)
-	afterListCurrentCounter  uint64
-	beforeListCurrentCounter uint64
-	ListCurrentMock          mPlacementRepositoryMockListCurrent
+	funcList          func(ctx context.Context, req model.ListPlacementsRequest) (ppa1 []*model.Placement, err error)
+	funcListOrigin    string
+	inspectFuncList   func(ctx context.Context, req model.ListPlacementsRequest)
+	afterListCounter  uint64
+	beforeListCounter uint64
+	ListMock          mPlacementRepositoryMockList
 
 	funcListUsage          func(ctx context.Context) (spa1 []*model.StorageClassUsage, err error)
 	funcListUsageOrigin    string
@@ -96,8 +96,8 @@ func NewPlacementRepositoryMock(t minimock.Tester) *PlacementRepositoryMock {
 	m.GetUsageMock = mPlacementRepositoryMockGetUsage{mock: m}
 	m.GetUsageMock.callArgs = []*PlacementRepositoryMockGetUsageParams{}
 
-	m.ListCurrentMock = mPlacementRepositoryMockListCurrent{mock: m}
-	m.ListCurrentMock.callArgs = []*PlacementRepositoryMockListCurrentParams{}
+	m.ListMock = mPlacementRepositoryMockList{mock: m}
+	m.ListMock.callArgs = []*PlacementRepositoryMockListParams{}
 
 	m.ListUsageMock = mPlacementRepositoryMockListUsage{mock: m}
 	m.ListUsageMock.callArgs = []*PlacementRepositoryMockListUsageParams{}
@@ -1670,56 +1670,53 @@ func (m *PlacementRepositoryMock) MinimockGetUsageInspect() {
 	}
 }
 
-type mPlacementRepositoryMockListCurrent struct {
+type mPlacementRepositoryMockList struct {
 	optional           bool
 	mock               *PlacementRepositoryMock
-	defaultExpectation *PlacementRepositoryMockListCurrentExpectation
-	expectations       []*PlacementRepositoryMockListCurrentExpectation
+	defaultExpectation *PlacementRepositoryMockListExpectation
+	expectations       []*PlacementRepositoryMockListExpectation
 
-	callArgs []*PlacementRepositoryMockListCurrentParams
+	callArgs []*PlacementRepositoryMockListParams
 	mutex    sync.RWMutex
 
 	expectedInvocations       uint64
 	expectedInvocationsOrigin string
 }
 
-// PlacementRepositoryMockListCurrentExpectation specifies expectation struct of the PlacementRepository.ListCurrent
-type PlacementRepositoryMockListCurrentExpectation struct {
+// PlacementRepositoryMockListExpectation specifies expectation struct of the PlacementRepository.List
+type PlacementRepositoryMockListExpectation struct {
 	mock               *PlacementRepositoryMock
-	params             *PlacementRepositoryMockListCurrentParams
-	paramPtrs          *PlacementRepositoryMockListCurrentParamPtrs
-	expectationOrigins PlacementRepositoryMockListCurrentExpectationOrigins
-	results            *PlacementRepositoryMockListCurrentResults
+	params             *PlacementRepositoryMockListParams
+	paramPtrs          *PlacementRepositoryMockListParamPtrs
+	expectationOrigins PlacementRepositoryMockListExpectationOrigins
+	results            *PlacementRepositoryMockListResults
 	returnOrigin       string
 	Counter            uint64
 }
 
-// PlacementRepositoryMockListCurrentParams contains parameters of the PlacementRepository.ListCurrent
-type PlacementRepositoryMockListCurrentParams struct {
-	ctx            context.Context
-	afterVersionID string
-	limit          int32
+// PlacementRepositoryMockListParams contains parameters of the PlacementRepository.List
+type PlacementRepositoryMockListParams struct {
+	ctx context.Context
+	req model.ListPlacementsRequest
 }
 
-// PlacementRepositoryMockListCurrentParamPtrs contains pointers to parameters of the PlacementRepository.ListCurrent
-type PlacementRepositoryMockListCurrentParamPtrs struct {
-	ctx            *context.Context
-	afterVersionID *string
-	limit          *int32
+// PlacementRepositoryMockListParamPtrs contains pointers to parameters of the PlacementRepository.List
+type PlacementRepositoryMockListParamPtrs struct {
+	ctx *context.Context
+	req *model.ListPlacementsRequest
 }
 
-// PlacementRepositoryMockListCurrentResults contains results of the PlacementRepository.ListCurrent
-type PlacementRepositoryMockListCurrentResults struct {
+// PlacementRepositoryMockListResults contains results of the PlacementRepository.List
+type PlacementRepositoryMockListResults struct {
 	ppa1 []*model.Placement
 	err  error
 }
 
-// PlacementRepositoryMockListCurrentOrigins contains origins of expectations of the PlacementRepository.ListCurrent
-type PlacementRepositoryMockListCurrentExpectationOrigins struct {
-	origin               string
-	originCtx            string
-	originAfterVersionID string
-	originLimit          string
+// PlacementRepositoryMockListOrigins contains origins of expectations of the PlacementRepository.List
+type PlacementRepositoryMockListExpectationOrigins struct {
+	origin    string
+	originCtx string
+	originReq string
 }
 
 // Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
@@ -1727,320 +1724,292 @@ type PlacementRepositoryMockListCurrentExpectationOrigins struct {
 // Optional() makes method check to work in '0 or more' mode.
 // It is NOT RECOMMENDED to use this option unless you really need it, as default behaviour helps to
 // catch the problems when the expected method call is totally skipped during test run.
-func (mmListCurrent *mPlacementRepositoryMockListCurrent) Optional() *mPlacementRepositoryMockListCurrent {
-	mmListCurrent.optional = true
-	return mmListCurrent
+func (mmList *mPlacementRepositoryMockList) Optional() *mPlacementRepositoryMockList {
+	mmList.optional = true
+	return mmList
 }
 
-// Expect sets up expected params for PlacementRepository.ListCurrent
-func (mmListCurrent *mPlacementRepositoryMockListCurrent) Expect(ctx context.Context, afterVersionID string, limit int32) *mPlacementRepositoryMockListCurrent {
-	if mmListCurrent.mock.funcListCurrent != nil {
-		mmListCurrent.mock.t.Fatalf("PlacementRepositoryMock.ListCurrent mock is already set by Set")
+// Expect sets up expected params for PlacementRepository.List
+func (mmList *mPlacementRepositoryMockList) Expect(ctx context.Context, req model.ListPlacementsRequest) *mPlacementRepositoryMockList {
+	if mmList.mock.funcList != nil {
+		mmList.mock.t.Fatalf("PlacementRepositoryMock.List mock is already set by Set")
 	}
 
-	if mmListCurrent.defaultExpectation == nil {
-		mmListCurrent.defaultExpectation = &PlacementRepositoryMockListCurrentExpectation{}
+	if mmList.defaultExpectation == nil {
+		mmList.defaultExpectation = &PlacementRepositoryMockListExpectation{}
 	}
 
-	if mmListCurrent.defaultExpectation.paramPtrs != nil {
-		mmListCurrent.mock.t.Fatalf("PlacementRepositoryMock.ListCurrent mock is already set by ExpectParams functions")
+	if mmList.defaultExpectation.paramPtrs != nil {
+		mmList.mock.t.Fatalf("PlacementRepositoryMock.List mock is already set by ExpectParams functions")
 	}
 
-	mmListCurrent.defaultExpectation.params = &PlacementRepositoryMockListCurrentParams{ctx, afterVersionID, limit}
-	mmListCurrent.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
-	for _, e := range mmListCurrent.expectations {
-		if minimock.Equal(e.params, mmListCurrent.defaultExpectation.params) {
-			mmListCurrent.mock.t.Fatalf("Expectation set by When has same params: %#v", *mmListCurrent.defaultExpectation.params)
+	mmList.defaultExpectation.params = &PlacementRepositoryMockListParams{ctx, req}
+	mmList.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
+	for _, e := range mmList.expectations {
+		if minimock.Equal(e.params, mmList.defaultExpectation.params) {
+			mmList.mock.t.Fatalf("Expectation set by When has same params: %#v", *mmList.defaultExpectation.params)
 		}
 	}
 
-	return mmListCurrent
+	return mmList
 }
 
-// ExpectCtxParam1 sets up expected param ctx for PlacementRepository.ListCurrent
-func (mmListCurrent *mPlacementRepositoryMockListCurrent) ExpectCtxParam1(ctx context.Context) *mPlacementRepositoryMockListCurrent {
-	if mmListCurrent.mock.funcListCurrent != nil {
-		mmListCurrent.mock.t.Fatalf("PlacementRepositoryMock.ListCurrent mock is already set by Set")
+// ExpectCtxParam1 sets up expected param ctx for PlacementRepository.List
+func (mmList *mPlacementRepositoryMockList) ExpectCtxParam1(ctx context.Context) *mPlacementRepositoryMockList {
+	if mmList.mock.funcList != nil {
+		mmList.mock.t.Fatalf("PlacementRepositoryMock.List mock is already set by Set")
 	}
 
-	if mmListCurrent.defaultExpectation == nil {
-		mmListCurrent.defaultExpectation = &PlacementRepositoryMockListCurrentExpectation{}
+	if mmList.defaultExpectation == nil {
+		mmList.defaultExpectation = &PlacementRepositoryMockListExpectation{}
 	}
 
-	if mmListCurrent.defaultExpectation.params != nil {
-		mmListCurrent.mock.t.Fatalf("PlacementRepositoryMock.ListCurrent mock is already set by Expect")
+	if mmList.defaultExpectation.params != nil {
+		mmList.mock.t.Fatalf("PlacementRepositoryMock.List mock is already set by Expect")
 	}
 
-	if mmListCurrent.defaultExpectation.paramPtrs == nil {
-		mmListCurrent.defaultExpectation.paramPtrs = &PlacementRepositoryMockListCurrentParamPtrs{}
+	if mmList.defaultExpectation.paramPtrs == nil {
+		mmList.defaultExpectation.paramPtrs = &PlacementRepositoryMockListParamPtrs{}
 	}
-	mmListCurrent.defaultExpectation.paramPtrs.ctx = &ctx
-	mmListCurrent.defaultExpectation.expectationOrigins.originCtx = minimock.CallerInfo(1)
+	mmList.defaultExpectation.paramPtrs.ctx = &ctx
+	mmList.defaultExpectation.expectationOrigins.originCtx = minimock.CallerInfo(1)
 
-	return mmListCurrent
+	return mmList
 }
 
-// ExpectAfterVersionIDParam2 sets up expected param afterVersionID for PlacementRepository.ListCurrent
-func (mmListCurrent *mPlacementRepositoryMockListCurrent) ExpectAfterVersionIDParam2(afterVersionID string) *mPlacementRepositoryMockListCurrent {
-	if mmListCurrent.mock.funcListCurrent != nil {
-		mmListCurrent.mock.t.Fatalf("PlacementRepositoryMock.ListCurrent mock is already set by Set")
+// ExpectReqParam2 sets up expected param req for PlacementRepository.List
+func (mmList *mPlacementRepositoryMockList) ExpectReqParam2(req model.ListPlacementsRequest) *mPlacementRepositoryMockList {
+	if mmList.mock.funcList != nil {
+		mmList.mock.t.Fatalf("PlacementRepositoryMock.List mock is already set by Set")
 	}
 
-	if mmListCurrent.defaultExpectation == nil {
-		mmListCurrent.defaultExpectation = &PlacementRepositoryMockListCurrentExpectation{}
+	if mmList.defaultExpectation == nil {
+		mmList.defaultExpectation = &PlacementRepositoryMockListExpectation{}
 	}
 
-	if mmListCurrent.defaultExpectation.params != nil {
-		mmListCurrent.mock.t.Fatalf("PlacementRepositoryMock.ListCurrent mock is already set by Expect")
+	if mmList.defaultExpectation.params != nil {
+		mmList.mock.t.Fatalf("PlacementRepositoryMock.List mock is already set by Expect")
 	}
 
-	if mmListCurrent.defaultExpectation.paramPtrs == nil {
-		mmListCurrent.defaultExpectation.paramPtrs = &PlacementRepositoryMockListCurrentParamPtrs{}
+	if mmList.defaultExpectation.paramPtrs == nil {
+		mmList.defaultExpectation.paramPtrs = &PlacementRepositoryMockListParamPtrs{}
 	}
-	mmListCurrent.defaultExpectation.paramPtrs.afterVersionID = &afterVersionID
-	mmListCurrent.defaultExpectation.expectationOrigins.originAfterVersionID = minimock.CallerInfo(1)
+	mmList.defaultExpectation.paramPtrs.req = &req
+	mmList.defaultExpectation.expectationOrigins.originReq = minimock.CallerInfo(1)
 
-	return mmListCurrent
+	return mmList
 }
 
-// ExpectLimitParam3 sets up expected param limit for PlacementRepository.ListCurrent
-func (mmListCurrent *mPlacementRepositoryMockListCurrent) ExpectLimitParam3(limit int32) *mPlacementRepositoryMockListCurrent {
-	if mmListCurrent.mock.funcListCurrent != nil {
-		mmListCurrent.mock.t.Fatalf("PlacementRepositoryMock.ListCurrent mock is already set by Set")
+// Inspect accepts an inspector function that has same arguments as the PlacementRepository.List
+func (mmList *mPlacementRepositoryMockList) Inspect(f func(ctx context.Context, req model.ListPlacementsRequest)) *mPlacementRepositoryMockList {
+	if mmList.mock.inspectFuncList != nil {
+		mmList.mock.t.Fatalf("Inspect function is already set for PlacementRepositoryMock.List")
 	}
 
-	if mmListCurrent.defaultExpectation == nil {
-		mmListCurrent.defaultExpectation = &PlacementRepositoryMockListCurrentExpectation{}
-	}
+	mmList.mock.inspectFuncList = f
 
-	if mmListCurrent.defaultExpectation.params != nil {
-		mmListCurrent.mock.t.Fatalf("PlacementRepositoryMock.ListCurrent mock is already set by Expect")
-	}
-
-	if mmListCurrent.defaultExpectation.paramPtrs == nil {
-		mmListCurrent.defaultExpectation.paramPtrs = &PlacementRepositoryMockListCurrentParamPtrs{}
-	}
-	mmListCurrent.defaultExpectation.paramPtrs.limit = &limit
-	mmListCurrent.defaultExpectation.expectationOrigins.originLimit = minimock.CallerInfo(1)
-
-	return mmListCurrent
+	return mmList
 }
 
-// Inspect accepts an inspector function that has same arguments as the PlacementRepository.ListCurrent
-func (mmListCurrent *mPlacementRepositoryMockListCurrent) Inspect(f func(ctx context.Context, afterVersionID string, limit int32)) *mPlacementRepositoryMockListCurrent {
-	if mmListCurrent.mock.inspectFuncListCurrent != nil {
-		mmListCurrent.mock.t.Fatalf("Inspect function is already set for PlacementRepositoryMock.ListCurrent")
+// Return sets up results that will be returned by PlacementRepository.List
+func (mmList *mPlacementRepositoryMockList) Return(ppa1 []*model.Placement, err error) *PlacementRepositoryMock {
+	if mmList.mock.funcList != nil {
+		mmList.mock.t.Fatalf("PlacementRepositoryMock.List mock is already set by Set")
 	}
 
-	mmListCurrent.mock.inspectFuncListCurrent = f
-
-	return mmListCurrent
+	if mmList.defaultExpectation == nil {
+		mmList.defaultExpectation = &PlacementRepositoryMockListExpectation{mock: mmList.mock}
+	}
+	mmList.defaultExpectation.results = &PlacementRepositoryMockListResults{ppa1, err}
+	mmList.defaultExpectation.returnOrigin = minimock.CallerInfo(1)
+	return mmList.mock
 }
 
-// Return sets up results that will be returned by PlacementRepository.ListCurrent
-func (mmListCurrent *mPlacementRepositoryMockListCurrent) Return(ppa1 []*model.Placement, err error) *PlacementRepositoryMock {
-	if mmListCurrent.mock.funcListCurrent != nil {
-		mmListCurrent.mock.t.Fatalf("PlacementRepositoryMock.ListCurrent mock is already set by Set")
+// Set uses given function f to mock the PlacementRepository.List method
+func (mmList *mPlacementRepositoryMockList) Set(f func(ctx context.Context, req model.ListPlacementsRequest) (ppa1 []*model.Placement, err error)) *PlacementRepositoryMock {
+	if mmList.defaultExpectation != nil {
+		mmList.mock.t.Fatalf("Default expectation is already set for the PlacementRepository.List method")
 	}
 
-	if mmListCurrent.defaultExpectation == nil {
-		mmListCurrent.defaultExpectation = &PlacementRepositoryMockListCurrentExpectation{mock: mmListCurrent.mock}
+	if len(mmList.expectations) > 0 {
+		mmList.mock.t.Fatalf("Some expectations are already set for the PlacementRepository.List method")
 	}
-	mmListCurrent.defaultExpectation.results = &PlacementRepositoryMockListCurrentResults{ppa1, err}
-	mmListCurrent.defaultExpectation.returnOrigin = minimock.CallerInfo(1)
-	return mmListCurrent.mock
+
+	mmList.mock.funcList = f
+	mmList.mock.funcListOrigin = minimock.CallerInfo(1)
+	return mmList.mock
 }
 
-// Set uses given function f to mock the PlacementRepository.ListCurrent method
-func (mmListCurrent *mPlacementRepositoryMockListCurrent) Set(f func(ctx context.Context, afterVersionID string, limit int32) (ppa1 []*model.Placement, err error)) *PlacementRepositoryMock {
-	if mmListCurrent.defaultExpectation != nil {
-		mmListCurrent.mock.t.Fatalf("Default expectation is already set for the PlacementRepository.ListCurrent method")
-	}
-
-	if len(mmListCurrent.expectations) > 0 {
-		mmListCurrent.mock.t.Fatalf("Some expectations are already set for the PlacementRepository.ListCurrent method")
-	}
-
-	mmListCurrent.mock.funcListCurrent = f
-	mmListCurrent.mock.funcListCurrentOrigin = minimock.CallerInfo(1)
-	return mmListCurrent.mock
-}
-
-// When sets expectation for the PlacementRepository.ListCurrent which will trigger the result defined by the following
+// When sets expectation for the PlacementRepository.List which will trigger the result defined by the following
 // Then helper
-func (mmListCurrent *mPlacementRepositoryMockListCurrent) When(ctx context.Context, afterVersionID string, limit int32) *PlacementRepositoryMockListCurrentExpectation {
-	if mmListCurrent.mock.funcListCurrent != nil {
-		mmListCurrent.mock.t.Fatalf("PlacementRepositoryMock.ListCurrent mock is already set by Set")
+func (mmList *mPlacementRepositoryMockList) When(ctx context.Context, req model.ListPlacementsRequest) *PlacementRepositoryMockListExpectation {
+	if mmList.mock.funcList != nil {
+		mmList.mock.t.Fatalf("PlacementRepositoryMock.List mock is already set by Set")
 	}
 
-	expectation := &PlacementRepositoryMockListCurrentExpectation{
-		mock:               mmListCurrent.mock,
-		params:             &PlacementRepositoryMockListCurrentParams{ctx, afterVersionID, limit},
-		expectationOrigins: PlacementRepositoryMockListCurrentExpectationOrigins{origin: minimock.CallerInfo(1)},
+	expectation := &PlacementRepositoryMockListExpectation{
+		mock:               mmList.mock,
+		params:             &PlacementRepositoryMockListParams{ctx, req},
+		expectationOrigins: PlacementRepositoryMockListExpectationOrigins{origin: minimock.CallerInfo(1)},
 	}
-	mmListCurrent.expectations = append(mmListCurrent.expectations, expectation)
+	mmList.expectations = append(mmList.expectations, expectation)
 	return expectation
 }
 
-// Then sets up PlacementRepository.ListCurrent return parameters for the expectation previously defined by the When method
-func (e *PlacementRepositoryMockListCurrentExpectation) Then(ppa1 []*model.Placement, err error) *PlacementRepositoryMock {
-	e.results = &PlacementRepositoryMockListCurrentResults{ppa1, err}
+// Then sets up PlacementRepository.List return parameters for the expectation previously defined by the When method
+func (e *PlacementRepositoryMockListExpectation) Then(ppa1 []*model.Placement, err error) *PlacementRepositoryMock {
+	e.results = &PlacementRepositoryMockListResults{ppa1, err}
 	return e.mock
 }
 
-// Times sets number of times PlacementRepository.ListCurrent should be invoked
-func (mmListCurrent *mPlacementRepositoryMockListCurrent) Times(n uint64) *mPlacementRepositoryMockListCurrent {
+// Times sets number of times PlacementRepository.List should be invoked
+func (mmList *mPlacementRepositoryMockList) Times(n uint64) *mPlacementRepositoryMockList {
 	if n == 0 {
-		mmListCurrent.mock.t.Fatalf("Times of PlacementRepositoryMock.ListCurrent mock can not be zero")
+		mmList.mock.t.Fatalf("Times of PlacementRepositoryMock.List mock can not be zero")
 	}
-	mm_atomic.StoreUint64(&mmListCurrent.expectedInvocations, n)
-	mmListCurrent.expectedInvocationsOrigin = minimock.CallerInfo(1)
-	return mmListCurrent
+	mm_atomic.StoreUint64(&mmList.expectedInvocations, n)
+	mmList.expectedInvocationsOrigin = minimock.CallerInfo(1)
+	return mmList
 }
 
-func (mmListCurrent *mPlacementRepositoryMockListCurrent) invocationsDone() bool {
-	if len(mmListCurrent.expectations) == 0 && mmListCurrent.defaultExpectation == nil && mmListCurrent.mock.funcListCurrent == nil {
+func (mmList *mPlacementRepositoryMockList) invocationsDone() bool {
+	if len(mmList.expectations) == 0 && mmList.defaultExpectation == nil && mmList.mock.funcList == nil {
 		return true
 	}
 
-	totalInvocations := mm_atomic.LoadUint64(&mmListCurrent.mock.afterListCurrentCounter)
-	expectedInvocations := mm_atomic.LoadUint64(&mmListCurrent.expectedInvocations)
+	totalInvocations := mm_atomic.LoadUint64(&mmList.mock.afterListCounter)
+	expectedInvocations := mm_atomic.LoadUint64(&mmList.expectedInvocations)
 
 	return totalInvocations > 0 && (expectedInvocations == 0 || expectedInvocations == totalInvocations)
 }
 
-// ListCurrent implements mm_repository.PlacementRepository
-func (mmListCurrent *PlacementRepositoryMock) ListCurrent(ctx context.Context, afterVersionID string, limit int32) (ppa1 []*model.Placement, err error) {
-	mm_atomic.AddUint64(&mmListCurrent.beforeListCurrentCounter, 1)
-	defer mm_atomic.AddUint64(&mmListCurrent.afterListCurrentCounter, 1)
+// List implements mm_repository.PlacementRepository
+func (mmList *PlacementRepositoryMock) List(ctx context.Context, req model.ListPlacementsRequest) (ppa1 []*model.Placement, err error) {
+	mm_atomic.AddUint64(&mmList.beforeListCounter, 1)
+	defer mm_atomic.AddUint64(&mmList.afterListCounter, 1)
 
-	mmListCurrent.t.Helper()
+	mmList.t.Helper()
 
-	if mmListCurrent.inspectFuncListCurrent != nil {
-		mmListCurrent.inspectFuncListCurrent(ctx, afterVersionID, limit)
+	if mmList.inspectFuncList != nil {
+		mmList.inspectFuncList(ctx, req)
 	}
 
-	mm_params := PlacementRepositoryMockListCurrentParams{ctx, afterVersionID, limit}
+	mm_params := PlacementRepositoryMockListParams{ctx, req}
 
 	// Record call args
-	mmListCurrent.ListCurrentMock.mutex.Lock()
-	mmListCurrent.ListCurrentMock.callArgs = append(mmListCurrent.ListCurrentMock.callArgs, &mm_params)
-	mmListCurrent.ListCurrentMock.mutex.Unlock()
+	mmList.ListMock.mutex.Lock()
+	mmList.ListMock.callArgs = append(mmList.ListMock.callArgs, &mm_params)
+	mmList.ListMock.mutex.Unlock()
 
-	for _, e := range mmListCurrent.ListCurrentMock.expectations {
+	for _, e := range mmList.ListMock.expectations {
 		if minimock.Equal(*e.params, mm_params) {
 			mm_atomic.AddUint64(&e.Counter, 1)
 			return e.results.ppa1, e.results.err
 		}
 	}
 
-	if mmListCurrent.ListCurrentMock.defaultExpectation != nil {
-		mm_atomic.AddUint64(&mmListCurrent.ListCurrentMock.defaultExpectation.Counter, 1)
-		mm_want := mmListCurrent.ListCurrentMock.defaultExpectation.params
-		mm_want_ptrs := mmListCurrent.ListCurrentMock.defaultExpectation.paramPtrs
+	if mmList.ListMock.defaultExpectation != nil {
+		mm_atomic.AddUint64(&mmList.ListMock.defaultExpectation.Counter, 1)
+		mm_want := mmList.ListMock.defaultExpectation.params
+		mm_want_ptrs := mmList.ListMock.defaultExpectation.paramPtrs
 
-		mm_got := PlacementRepositoryMockListCurrentParams{ctx, afterVersionID, limit}
+		mm_got := PlacementRepositoryMockListParams{ctx, req}
 
 		if mm_want_ptrs != nil {
 
 			if mm_want_ptrs.ctx != nil && !minimock.Equal(*mm_want_ptrs.ctx, mm_got.ctx) {
-				mmListCurrent.t.Errorf("PlacementRepositoryMock.ListCurrent got unexpected parameter ctx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
-					mmListCurrent.ListCurrentMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
+				mmList.t.Errorf("PlacementRepositoryMock.List got unexpected parameter ctx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmList.ListMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
 			}
 
-			if mm_want_ptrs.afterVersionID != nil && !minimock.Equal(*mm_want_ptrs.afterVersionID, mm_got.afterVersionID) {
-				mmListCurrent.t.Errorf("PlacementRepositoryMock.ListCurrent got unexpected parameter afterVersionID, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
-					mmListCurrent.ListCurrentMock.defaultExpectation.expectationOrigins.originAfterVersionID, *mm_want_ptrs.afterVersionID, mm_got.afterVersionID, minimock.Diff(*mm_want_ptrs.afterVersionID, mm_got.afterVersionID))
-			}
-
-			if mm_want_ptrs.limit != nil && !minimock.Equal(*mm_want_ptrs.limit, mm_got.limit) {
-				mmListCurrent.t.Errorf("PlacementRepositoryMock.ListCurrent got unexpected parameter limit, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
-					mmListCurrent.ListCurrentMock.defaultExpectation.expectationOrigins.originLimit, *mm_want_ptrs.limit, mm_got.limit, minimock.Diff(*mm_want_ptrs.limit, mm_got.limit))
+			if mm_want_ptrs.req != nil && !minimock.Equal(*mm_want_ptrs.req, mm_got.req) {
+				mmList.t.Errorf("PlacementRepositoryMock.List got unexpected parameter req, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmList.ListMock.defaultExpectation.expectationOrigins.originReq, *mm_want_ptrs.req, mm_got.req, minimock.Diff(*mm_want_ptrs.req, mm_got.req))
 			}
 
 		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
-			mmListCurrent.t.Errorf("PlacementRepositoryMock.ListCurrent got unexpected parameters, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
-				mmListCurrent.ListCurrentMock.defaultExpectation.expectationOrigins.origin, *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
+			mmList.t.Errorf("PlacementRepositoryMock.List got unexpected parameters, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+				mmList.ListMock.defaultExpectation.expectationOrigins.origin, *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
 		}
 
-		mm_results := mmListCurrent.ListCurrentMock.defaultExpectation.results
+		mm_results := mmList.ListMock.defaultExpectation.results
 		if mm_results == nil {
-			mmListCurrent.t.Fatal("No results are set for the PlacementRepositoryMock.ListCurrent")
+			mmList.t.Fatal("No results are set for the PlacementRepositoryMock.List")
 		}
 		return (*mm_results).ppa1, (*mm_results).err
 	}
-	if mmListCurrent.funcListCurrent != nil {
-		return mmListCurrent.funcListCurrent(ctx, afterVersionID, limit)
+	if mmList.funcList != nil {
+		return mmList.funcList(ctx, req)
 	}
-	mmListCurrent.t.Fatalf("Unexpected call to PlacementRepositoryMock.ListCurrent. %v %v %v", ctx, afterVersionID, limit)
+	mmList.t.Fatalf("Unexpected call to PlacementRepositoryMock.List. %v %v", ctx, req)
 	return
 }
 
-// ListCurrentAfterCounter returns a count of finished PlacementRepositoryMock.ListCurrent invocations
-func (mmListCurrent *PlacementRepositoryMock) ListCurrentAfterCounter() uint64 {
-	return mm_atomic.LoadUint64(&mmListCurrent.afterListCurrentCounter)
+// ListAfterCounter returns a count of finished PlacementRepositoryMock.List invocations
+func (mmList *PlacementRepositoryMock) ListAfterCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmList.afterListCounter)
 }
 
-// ListCurrentBeforeCounter returns a count of PlacementRepositoryMock.ListCurrent invocations
-func (mmListCurrent *PlacementRepositoryMock) ListCurrentBeforeCounter() uint64 {
-	return mm_atomic.LoadUint64(&mmListCurrent.beforeListCurrentCounter)
+// ListBeforeCounter returns a count of PlacementRepositoryMock.List invocations
+func (mmList *PlacementRepositoryMock) ListBeforeCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmList.beforeListCounter)
 }
 
-// Calls returns a list of arguments used in each call to PlacementRepositoryMock.ListCurrent.
+// Calls returns a list of arguments used in each call to PlacementRepositoryMock.List.
 // The list is in the same order as the calls were made (i.e. recent calls have a higher index)
-func (mmListCurrent *mPlacementRepositoryMockListCurrent) Calls() []*PlacementRepositoryMockListCurrentParams {
-	mmListCurrent.mutex.RLock()
+func (mmList *mPlacementRepositoryMockList) Calls() []*PlacementRepositoryMockListParams {
+	mmList.mutex.RLock()
 
-	argCopy := make([]*PlacementRepositoryMockListCurrentParams, len(mmListCurrent.callArgs))
-	copy(argCopy, mmListCurrent.callArgs)
+	argCopy := make([]*PlacementRepositoryMockListParams, len(mmList.callArgs))
+	copy(argCopy, mmList.callArgs)
 
-	mmListCurrent.mutex.RUnlock()
+	mmList.mutex.RUnlock()
 
 	return argCopy
 }
 
-// MinimockListCurrentDone returns true if the count of the ListCurrent invocations corresponds
+// MinimockListDone returns true if the count of the List invocations corresponds
 // the number of defined expectations
-func (m *PlacementRepositoryMock) MinimockListCurrentDone() bool {
-	if m.ListCurrentMock.optional {
+func (m *PlacementRepositoryMock) MinimockListDone() bool {
+	if m.ListMock.optional {
 		// Optional methods provide '0 or more' call count restriction.
 		return true
 	}
 
-	for _, e := range m.ListCurrentMock.expectations {
+	for _, e := range m.ListMock.expectations {
 		if mm_atomic.LoadUint64(&e.Counter) < 1 {
 			return false
 		}
 	}
 
-	return m.ListCurrentMock.invocationsDone()
+	return m.ListMock.invocationsDone()
 }
 
-// MinimockListCurrentInspect logs each unmet expectation
-func (m *PlacementRepositoryMock) MinimockListCurrentInspect() {
-	for _, e := range m.ListCurrentMock.expectations {
+// MinimockListInspect logs each unmet expectation
+func (m *PlacementRepositoryMock) MinimockListInspect() {
+	for _, e := range m.ListMock.expectations {
 		if mm_atomic.LoadUint64(&e.Counter) < 1 {
-			m.t.Errorf("Expected call to PlacementRepositoryMock.ListCurrent at\n%s with params: %#v", e.expectationOrigins.origin, *e.params)
+			m.t.Errorf("Expected call to PlacementRepositoryMock.List at\n%s with params: %#v", e.expectationOrigins.origin, *e.params)
 		}
 	}
 
-	afterListCurrentCounter := mm_atomic.LoadUint64(&m.afterListCurrentCounter)
+	afterListCounter := mm_atomic.LoadUint64(&m.afterListCounter)
 	// if default expectation was set then invocations count should be greater than zero
-	if m.ListCurrentMock.defaultExpectation != nil && afterListCurrentCounter < 1 {
-		if m.ListCurrentMock.defaultExpectation.params == nil {
-			m.t.Errorf("Expected call to PlacementRepositoryMock.ListCurrent at\n%s", m.ListCurrentMock.defaultExpectation.returnOrigin)
+	if m.ListMock.defaultExpectation != nil && afterListCounter < 1 {
+		if m.ListMock.defaultExpectation.params == nil {
+			m.t.Errorf("Expected call to PlacementRepositoryMock.List at\n%s", m.ListMock.defaultExpectation.returnOrigin)
 		} else {
-			m.t.Errorf("Expected call to PlacementRepositoryMock.ListCurrent at\n%s with params: %#v", m.ListCurrentMock.defaultExpectation.expectationOrigins.origin, *m.ListCurrentMock.defaultExpectation.params)
+			m.t.Errorf("Expected call to PlacementRepositoryMock.List at\n%s with params: %#v", m.ListMock.defaultExpectation.expectationOrigins.origin, *m.ListMock.defaultExpectation.params)
 		}
 	}
 	// if func was set then invocations count should be greater than zero
-	if m.funcListCurrent != nil && afterListCurrentCounter < 1 {
-		m.t.Errorf("Expected call to PlacementRepositoryMock.ListCurrent at\n%s", m.funcListCurrentOrigin)
+	if m.funcList != nil && afterListCounter < 1 {
+		m.t.Errorf("Expected call to PlacementRepositoryMock.List at\n%s", m.funcListOrigin)
 	}
 
-	if !m.ListCurrentMock.invocationsDone() && afterListCurrentCounter > 0 {
-		m.t.Errorf("Expected %d calls to PlacementRepositoryMock.ListCurrent at\n%s but found %d calls",
-			mm_atomic.LoadUint64(&m.ListCurrentMock.expectedInvocations), m.ListCurrentMock.expectedInvocationsOrigin, afterListCurrentCounter)
+	if !m.ListMock.invocationsDone() && afterListCounter > 0 {
+		m.t.Errorf("Expected %d calls to PlacementRepositoryMock.List at\n%s but found %d calls",
+			mm_atomic.LoadUint64(&m.ListMock.expectedInvocations), m.ListMock.expectedInvocationsOrigin, afterListCounter)
 	}
 }
 
@@ -3053,7 +3022,7 @@ func (m *PlacementRepositoryMock) MinimockFinish() {
 
 			m.MinimockGetUsageInspect()
 
-			m.MinimockListCurrentInspect()
+			m.MinimockListInspect()
 
 			m.MinimockListUsageInspect()
 
@@ -3087,7 +3056,7 @@ func (m *PlacementRepositoryMock) minimockDone() bool {
 		m.MinimockCreateDone() &&
 		m.MinimockGetDone() &&
 		m.MinimockGetUsageDone() &&
-		m.MinimockListCurrentDone() &&
+		m.MinimockListDone() &&
 		m.MinimockListUsageDone() &&
 		m.MinimockLockForChangeDone() &&
 		m.MinimockLockStorageClassDone()

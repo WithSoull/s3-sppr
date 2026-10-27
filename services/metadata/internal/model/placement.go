@@ -8,18 +8,26 @@ func (c StorageClass) Valid() bool {
 
 // Placement is the single location reads use for a committed version.
 type Placement struct {
-	VersionID    string
-	ObjectID     string
-	BucketName   string
-	Key          string
-	IsCurrent    bool
-	StorageClass StorageClass
-	BlobID       string
-	Generation   int64
-	SizeBytes    int64
-	UpdatedAt    time.Time
+	VersionID        string
+	ObjectID         string
+	BucketName       string
+	Key              string
+	ObjectActive     bool
+	IsCurrent        bool
+	StorageClass     StorageClass
+	BlobID           string
+	Generation       int64
+	SizeBytes        int64
+	UpdatedAt        time.Time
+	VersionCreatedAt time.Time
 	// MigrationInProgress is set while a target copy of the version is reserved.
 	MigrationInProgress bool
+}
+
+type ListPlacementsRequest struct {
+	PageSize             int32
+	PageToken            string
+	IncludeNoncurrentHot bool
 }
 
 type CopyRole string

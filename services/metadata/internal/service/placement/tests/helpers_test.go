@@ -37,6 +37,7 @@ func unusedTx(mc *minimock.Controller) *mocks.TxManagerMock {
 func coldPlacement() *model.Placement {
 	return &model.Placement{
 		VersionID:    versionID,
+		ObjectActive: true,
 		IsCurrent:    true,
 		StorageClass: model.StorageClassCold,
 		BlobID:       sourceBlob,
@@ -92,4 +93,25 @@ func requireValidationError(t *testing.T, err error) {
 
 	require.Error(t, err)
 	require.True(t, validate.IsValidationError(err))
+}
+
+func evictionPlacement() *model.Placement {
+	p := coldPlacement()
+	p.IsCurrent = false
+	p.StorageClass = model.StorageClassHot
+	return p
+}
+
+func evictionTarget() *model.PlacementCopy {
+	c := reservedTarget()
+	source := model.StorageClassHot
+	c.ExpectedClass = &source
+	c.StorageClass = model.StorageClassCold
+	return c
+}
+
+func evictionSource() *model.PlacementCopy {
+	c := sourceCopy()
+	c.StorageClass = model.StorageClassHot
+	return c
 }

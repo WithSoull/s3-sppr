@@ -34,7 +34,8 @@ type PlacementInfo struct {
 	SizeBytes    int64                  `protobuf:"varint,9,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
 	UpdatedAt    int64                  `protobuf:"varint,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"` // Unix timestamp в миллисекундах
 	// У версии есть зарезервированная целевая копия: перенос уже выполняется.
-	MigrationInProgress bool `protobuf:"varint,11,opt,name=migration_in_progress,json=migrationInProgress,proto3" json:"migration_in_progress,omitempty"`
+	MigrationInProgress bool  `protobuf:"varint,11,opt,name=migration_in_progress,json=migrationInProgress,proto3" json:"migration_in_progress,omitempty"`
+	VersionCreatedAt    int64 `protobuf:"varint,12,opt,name=version_created_at,json=versionCreatedAt,proto3" json:"version_created_at,omitempty"` // время создания версии, Unix timestamp в миллисекундах
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -144,6 +145,13 @@ func (x *PlacementInfo) GetMigrationInProgress() bool {
 		return x.MigrationInProgress
 	}
 	return false
+}
+
+func (x *PlacementInfo) GetVersionCreatedAt() int64 {
+	if x != nil {
+		return x.VersionCreatedAt
+	}
+	return 0
 }
 
 type StorageClassInfo struct {
@@ -511,11 +519,14 @@ func (x *ListStorageClassesResponse) GetStorageClasses() []*StorageClassInfo {
 }
 
 type ListPlacementsRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	PageSize      int32                  `protobuf:"varint,1,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`   // по умолчанию и максимум 1000
-	PageToken     string                 `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"` // next_page_token предыдущего ответа; пусто — первая страница
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	PageSize  int32                  `protobuf:"varint,1,opt,name=page_size,json=pageSize,proto3" json:"page_size,omitempty"`   // по умолчанию и максимум 1000
+	PageToken string                 `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"` // next_page_token предыдущего ответа; пусто — первая страница
+	// Дополнительно вернуть нетекущие версии активных (не удалённых) объектов,
+	// расположенные в HOT, с is_current=false. Без флага возвращаются только текущие.
+	IncludeNoncurrentHot bool `protobuf:"varint,3,opt,name=include_noncurrent_hot,json=includeNoncurrentHot,proto3" json:"include_noncurrent_hot,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *ListPlacementsRequest) Reset() {
@@ -560,6 +571,13 @@ func (x *ListPlacementsRequest) GetPageToken() string {
 		return x.PageToken
 	}
 	return ""
+}
+
+func (x *ListPlacementsRequest) GetIncludeNoncurrentHot() bool {
+	if x != nil {
+		return x.IncludeNoncurrentHot
+	}
+	return false
 }
 
 type ListPlacementsResponse struct {
@@ -1348,7 +1366,7 @@ var File_placement_proto protoreflect.FileDescriptor
 
 const file_placement_proto_rawDesc = "" +
 	"\n" +
-	"\x0fplacement.proto\x12\x12opens3.metadata.v1\"\xed\x02\n" +
+	"\x0fplacement.proto\x12\x12opens3.metadata.v1\"\x9b\x03\n" +
 	"\rPlacementInfo\x12\x1d\n" +
 	"\n" +
 	"version_id\x18\x01 \x01(\tR\tversionId\x12\x1b\n" +
@@ -1368,7 +1386,8 @@ const file_placement_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\n" +
 	" \x01(\x03R\tupdatedAt\x122\n" +
-	"\x15migration_in_progress\x18\v \x01(\bR\x13migrationInProgress\"\xe4\x02\n" +
+	"\x15migration_in_progress\x18\v \x01(\bR\x13migrationInProgress\x12,\n" +
+	"\x12version_created_at\x18\f \x01(\x03R\x10versionCreatedAt\"\xe4\x02\n" +
 	"\x10StorageClassInfo\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12%\n" +
 	"\x0ecapacity_bytes\x18\x02 \x01(\x03R\rcapacityBytes\x12'\n" +
@@ -1408,11 +1427,12 @@ const file_placement_proto_rawDesc = "" +
 	"updated_at\x18\x10 \x01(\x03R\tupdatedAt\"\x1b\n" +
 	"\x19ListStorageClassesRequest\"k\n" +
 	"\x1aListStorageClassesResponse\x12M\n" +
-	"\x0fstorage_classes\x18\x01 \x03(\v2$.opens3.metadata.v1.StorageClassInfoR\x0estorageClasses\"S\n" +
+	"\x0fstorage_classes\x18\x01 \x03(\v2$.opens3.metadata.v1.StorageClassInfoR\x0estorageClasses\"\x89\x01\n" +
 	"\x15ListPlacementsRequest\x12\x1b\n" +
 	"\tpage_size\x18\x01 \x01(\x05R\bpageSize\x12\x1d\n" +
 	"\n" +
-	"page_token\x18\x02 \x01(\tR\tpageToken\"\x83\x01\n" +
+	"page_token\x18\x02 \x01(\tR\tpageToken\x124\n" +
+	"\x16include_noncurrent_hot\x18\x03 \x01(\bR\x14includeNoncurrentHot\"\x83\x01\n" +
 	"\x16ListPlacementsResponse\x12A\n" +
 	"\n" +
 	"placements\x18\x01 \x03(\v2!.opens3.metadata.v1.PlacementInfoR\n" +

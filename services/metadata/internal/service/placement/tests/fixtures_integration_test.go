@@ -120,3 +120,14 @@ func (s *PlacementProtocolSuite) expireCleanupDelays() {
 func dbQuery(name, sql string) db.Query {
 	return db.Query{Name: "placement_test:" + name, QueryRaw: sql}
 }
+
+func (s *PlacementProtocolSuite) mustUploadHot(key, role string) string {
+	s.T().Helper()
+	_, versionID, _, err := s.objectSvc.CreateObjectVersion(
+		s.Context(), s.bucketName(), key,
+		s.FixtureUUID(s.T().Name(), "upload-blob", key, role),
+		objectSize, `"etag"`, "text/plain", model.StorageClassHot,
+	)
+	s.Require().NoError(err)
+	return versionID
+}

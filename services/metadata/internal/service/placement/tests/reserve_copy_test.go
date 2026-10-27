@@ -68,6 +68,50 @@ func TestReserveCopy(t *testing.T) {
 			buildTxMock: executingTx,
 		},
 		{
+			name: "success: non-current HOT version can be evicted to COLD",
+			args: args{migrationID: migrationID, versionID: versionID, expectedGeneration: 1, sourceClass: model.StorageClassHot, targetClass: model.StorageClassCold},
+			want: evictionTarget(),
+			buildPlacementMock: func(mc *minimock.Controller) *mocks.PlacementRepositoryMock {
+				m := mocks.NewPlacementRepositoryMock(mc)
+				m.LockForChangeMock.Expect(minimock.AnyContext, versionID).Return(evictionPlacement(), nil)
+				m.LockStorageClassMock.Expect(minimock.AnyContext, model.StorageClassCold).Return(nil)
+				m.GetUsageMock.Expect(minimock.AnyContext, model.StorageClassCold).Return(&model.StorageClassUsage{UsableBytes: 1024}, nil)
+				return m
+			},
+			buildCopyMock: func(mc *minimock.Controller) *mocks.CopyRepositoryMock {
+				m := noCopy(mc)
+				m.InsertTargetMock.Expect(minimock.AnyContext, migrationID, evictionPlacement(), model.StorageClassCold).Return(evictionTarget(), nil)
+				return m
+			},
+			buildTxMock: executingTx,
+		},
+		{
+			name:    "error: inactive object's HOT version cannot be evicted",
+			args:    args{migrationID: migrationID, versionID: versionID, expectedGeneration: 1, sourceClass: model.StorageClassHot, targetClass: model.StorageClassCold},
+			wantErr: domainerrors.ErrVersionNotCurrent,
+			buildPlacementMock: func(mc *minimock.Controller) *mocks.PlacementRepositoryMock {
+				p := evictionPlacement()
+				p.ObjectActive = false
+				m := mocks.NewPlacementRepositoryMock(mc)
+				m.LockForChangeMock.Expect(minimock.AnyContext, versionID).Return(p, nil)
+				return m
+			},
+			buildCopyMock: noCopy,
+			buildTxMock:   executingTx,
+		},
+		{
+			name:    "error: eviction still checks generation",
+			args:    args{migrationID: migrationID, versionID: versionID, expectedGeneration: 2, sourceClass: model.StorageClassHot, targetClass: model.StorageClassCold},
+			wantErr: domainerrors.ErrPlacementChanged,
+			buildPlacementMock: func(mc *minimock.Controller) *mocks.PlacementRepositoryMock {
+				m := mocks.NewPlacementRepositoryMock(mc)
+				m.LockForChangeMock.Expect(minimock.AnyContext, versionID).Return(evictionPlacement(), nil)
+				return m
+			},
+			buildCopyMock: noCopy,
+			buildTxMock:   executingTx,
+		},
+		{
 			name: "retry: returns copy reserved by the same migration",
 			args: validArgs,
 			want: targetIn(model.CopyStateCleanupPending),

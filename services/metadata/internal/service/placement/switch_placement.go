@@ -37,7 +37,21 @@ func (s *placementService) SwitchPlacement(
 
 	var result *model.SwitchResult
 	txErr := s.txManager.ReadCommitted(ctx, func(ctx context.Context) error {
-		target, err := s.copyRepo.LockByMigration(ctx, migrationID, model.CopyRoleTarget)
+		target, err := s.copyRepo.GetByMigration(ctx, migrationID, model.CopyRoleTarget)
+		if err != nil {
+			return err
+		}
+
+		// Delete locks the object before FK cleanup locks its copy rows. Take the
+		// same order, then reload the target under lock in case abort/switch won.
+		var placement *model.Placement
+		if target.State == model.CopyStateReserved && target.VersionID != nil && verifiedSizeBytes == target.SizeBytes {
+			placement, err = s.placementRepo.LockForChange(ctx, *target.VersionID)
+			if err != nil && !errors.Is(err, domainerrors.ErrPlacementNotFound) {
+				return err
+			}
+		}
+		target, err = s.copyRepo.LockByMigration(ctx, migrationID, model.CopyRoleTarget)
 		if err != nil {
 			return err
 		}
@@ -58,14 +72,10 @@ func (s *placementService) SwitchPlacement(
 			return domainerrors.ErrCopySizeMismatch
 		}
 
-		placement, err := s.placementRepo.LockForChange(ctx, *target.VersionID)
-		if err != nil {
-			if errors.Is(err, domainerrors.ErrPlacementNotFound) {
-				return domainerrors.ErrVersionNotCurrent
-			}
-			return err
+		if placement == nil {
+			return domainerrors.ErrVersionNotCurrent
 		}
-		if !placement.IsCurrent {
+		if !placement.ObjectActive || (!placement.IsCurrent && target.StorageClass != model.StorageClassCold) {
 			return domainerrors.ErrVersionNotCurrent
 		}
 

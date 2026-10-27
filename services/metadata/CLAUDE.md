@@ -21,8 +21,24 @@ Both gRPC services share one process and port.
 
 - Every committed blob version has exactly one `version_placements` row; reads use
   its `blob_id`, never `versions.blob_id` (that is the upload blob).
+- `ListPlacements` is the Planner catalogue: current versions of active objects,
+  plus their non-current HOT versions when `include_noncurrent_hot=true`, all
+  ordered by `version_id`. `PlacementInfo.version_created_at` comes from
+  `versions.created_at` (Unix ms), independently of placement updates.
+- `ReserveCopy` and `SwitchPlacement` require an active object. Current versions
+  may move in either direction; non-current versions may only be evicted HOT →
+  COLD. A newer current version does not invalidate that eviction. Other
+  non-current moves and inactive objects still return `ErrVersionNotCurrent`
+  (`ABORTED`); an absent placement in a fresh reserve remains `NOT_FOUND`.
 - A placement changes only in `SwitchPlacement`: CAS on the generation and class
   captured by `ReserveCopy`, under row locks on the object and the placement.
+  Switch reads the target, locks the object/placement, then reloads the target
+  under lock. This avoids copy-row → object lock inversion with delete's FK
+  cleanup; aborts and concurrent switches are checked against the locked target.
+- Delete and switch serialize on the same object row, including non-current
+  evictions. Delete-first orphans the HOT source and invalidates the reserved
+  target; switch-first leaves a HOT source copy and orphans the COLD placement.
+  All bytes stay charged until cleanup, and deletion never promotes a target.
 - `ReserveCopy` locks the `storage_classes` row before computing usage; removing
   that lock lets concurrent reservations overfill HOT.
 - Copies in `reserved`, `cleanup_pending`, `cleanup_failed` count against class

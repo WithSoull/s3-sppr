@@ -55,9 +55,9 @@ type PlacementServiceMock struct {
 	beforeListMigrationCopiesCounter uint64
 	ListMigrationCopiesMock          mPlacementServiceMockListMigrationCopies
 
-	funcListPlacements          func(ctx context.Context, pageSize int32, pageToken string) (ppa1 []*model.Placement, s1 string, err error)
+	funcListPlacements          func(ctx context.Context, req model.ListPlacementsRequest) (ppa1 []*model.Placement, s1 string, err error)
 	funcListPlacementsOrigin    string
-	inspectFuncListPlacements   func(ctx context.Context, pageSize int32, pageToken string)
+	inspectFuncListPlacements   func(ctx context.Context, req model.ListPlacementsRequest)
 	afterListPlacementsCounter  uint64
 	beforeListPlacementsCounter uint64
 	ListPlacementsMock          mPlacementServiceMockListPlacements
@@ -1958,16 +1958,14 @@ type PlacementServiceMockListPlacementsExpectation struct {
 
 // PlacementServiceMockListPlacementsParams contains parameters of the PlacementService.ListPlacements
 type PlacementServiceMockListPlacementsParams struct {
-	ctx       context.Context
-	pageSize  int32
-	pageToken string
+	ctx context.Context
+	req model.ListPlacementsRequest
 }
 
 // PlacementServiceMockListPlacementsParamPtrs contains pointers to parameters of the PlacementService.ListPlacements
 type PlacementServiceMockListPlacementsParamPtrs struct {
-	ctx       *context.Context
-	pageSize  *int32
-	pageToken *string
+	ctx *context.Context
+	req *model.ListPlacementsRequest
 }
 
 // PlacementServiceMockListPlacementsResults contains results of the PlacementService.ListPlacements
@@ -1979,10 +1977,9 @@ type PlacementServiceMockListPlacementsResults struct {
 
 // PlacementServiceMockListPlacementsOrigins contains origins of expectations of the PlacementService.ListPlacements
 type PlacementServiceMockListPlacementsExpectationOrigins struct {
-	origin          string
-	originCtx       string
-	originPageSize  string
-	originPageToken string
+	origin    string
+	originCtx string
+	originReq string
 }
 
 // Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
@@ -1996,7 +1993,7 @@ func (mmListPlacements *mPlacementServiceMockListPlacements) Optional() *mPlacem
 }
 
 // Expect sets up expected params for PlacementService.ListPlacements
-func (mmListPlacements *mPlacementServiceMockListPlacements) Expect(ctx context.Context, pageSize int32, pageToken string) *mPlacementServiceMockListPlacements {
+func (mmListPlacements *mPlacementServiceMockListPlacements) Expect(ctx context.Context, req model.ListPlacementsRequest) *mPlacementServiceMockListPlacements {
 	if mmListPlacements.mock.funcListPlacements != nil {
 		mmListPlacements.mock.t.Fatalf("PlacementServiceMock.ListPlacements mock is already set by Set")
 	}
@@ -2009,7 +2006,7 @@ func (mmListPlacements *mPlacementServiceMockListPlacements) Expect(ctx context.
 		mmListPlacements.mock.t.Fatalf("PlacementServiceMock.ListPlacements mock is already set by ExpectParams functions")
 	}
 
-	mmListPlacements.defaultExpectation.params = &PlacementServiceMockListPlacementsParams{ctx, pageSize, pageToken}
+	mmListPlacements.defaultExpectation.params = &PlacementServiceMockListPlacementsParams{ctx, req}
 	mmListPlacements.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
 	for _, e := range mmListPlacements.expectations {
 		if minimock.Equal(e.params, mmListPlacements.defaultExpectation.params) {
@@ -2043,8 +2040,8 @@ func (mmListPlacements *mPlacementServiceMockListPlacements) ExpectCtxParam1(ctx
 	return mmListPlacements
 }
 
-// ExpectPageSizeParam2 sets up expected param pageSize for PlacementService.ListPlacements
-func (mmListPlacements *mPlacementServiceMockListPlacements) ExpectPageSizeParam2(pageSize int32) *mPlacementServiceMockListPlacements {
+// ExpectReqParam2 sets up expected param req for PlacementService.ListPlacements
+func (mmListPlacements *mPlacementServiceMockListPlacements) ExpectReqParam2(req model.ListPlacementsRequest) *mPlacementServiceMockListPlacements {
 	if mmListPlacements.mock.funcListPlacements != nil {
 		mmListPlacements.mock.t.Fatalf("PlacementServiceMock.ListPlacements mock is already set by Set")
 	}
@@ -2060,37 +2057,14 @@ func (mmListPlacements *mPlacementServiceMockListPlacements) ExpectPageSizeParam
 	if mmListPlacements.defaultExpectation.paramPtrs == nil {
 		mmListPlacements.defaultExpectation.paramPtrs = &PlacementServiceMockListPlacementsParamPtrs{}
 	}
-	mmListPlacements.defaultExpectation.paramPtrs.pageSize = &pageSize
-	mmListPlacements.defaultExpectation.expectationOrigins.originPageSize = minimock.CallerInfo(1)
-
-	return mmListPlacements
-}
-
-// ExpectPageTokenParam3 sets up expected param pageToken for PlacementService.ListPlacements
-func (mmListPlacements *mPlacementServiceMockListPlacements) ExpectPageTokenParam3(pageToken string) *mPlacementServiceMockListPlacements {
-	if mmListPlacements.mock.funcListPlacements != nil {
-		mmListPlacements.mock.t.Fatalf("PlacementServiceMock.ListPlacements mock is already set by Set")
-	}
-
-	if mmListPlacements.defaultExpectation == nil {
-		mmListPlacements.defaultExpectation = &PlacementServiceMockListPlacementsExpectation{}
-	}
-
-	if mmListPlacements.defaultExpectation.params != nil {
-		mmListPlacements.mock.t.Fatalf("PlacementServiceMock.ListPlacements mock is already set by Expect")
-	}
-
-	if mmListPlacements.defaultExpectation.paramPtrs == nil {
-		mmListPlacements.defaultExpectation.paramPtrs = &PlacementServiceMockListPlacementsParamPtrs{}
-	}
-	mmListPlacements.defaultExpectation.paramPtrs.pageToken = &pageToken
-	mmListPlacements.defaultExpectation.expectationOrigins.originPageToken = minimock.CallerInfo(1)
+	mmListPlacements.defaultExpectation.paramPtrs.req = &req
+	mmListPlacements.defaultExpectation.expectationOrigins.originReq = minimock.CallerInfo(1)
 
 	return mmListPlacements
 }
 
 // Inspect accepts an inspector function that has same arguments as the PlacementService.ListPlacements
-func (mmListPlacements *mPlacementServiceMockListPlacements) Inspect(f func(ctx context.Context, pageSize int32, pageToken string)) *mPlacementServiceMockListPlacements {
+func (mmListPlacements *mPlacementServiceMockListPlacements) Inspect(f func(ctx context.Context, req model.ListPlacementsRequest)) *mPlacementServiceMockListPlacements {
 	if mmListPlacements.mock.inspectFuncListPlacements != nil {
 		mmListPlacements.mock.t.Fatalf("Inspect function is already set for PlacementServiceMock.ListPlacements")
 	}
@@ -2115,7 +2089,7 @@ func (mmListPlacements *mPlacementServiceMockListPlacements) Return(ppa1 []*mode
 }
 
 // Set uses given function f to mock the PlacementService.ListPlacements method
-func (mmListPlacements *mPlacementServiceMockListPlacements) Set(f func(ctx context.Context, pageSize int32, pageToken string) (ppa1 []*model.Placement, s1 string, err error)) *PlacementServiceMock {
+func (mmListPlacements *mPlacementServiceMockListPlacements) Set(f func(ctx context.Context, req model.ListPlacementsRequest) (ppa1 []*model.Placement, s1 string, err error)) *PlacementServiceMock {
 	if mmListPlacements.defaultExpectation != nil {
 		mmListPlacements.mock.t.Fatalf("Default expectation is already set for the PlacementService.ListPlacements method")
 	}
@@ -2131,14 +2105,14 @@ func (mmListPlacements *mPlacementServiceMockListPlacements) Set(f func(ctx cont
 
 // When sets expectation for the PlacementService.ListPlacements which will trigger the result defined by the following
 // Then helper
-func (mmListPlacements *mPlacementServiceMockListPlacements) When(ctx context.Context, pageSize int32, pageToken string) *PlacementServiceMockListPlacementsExpectation {
+func (mmListPlacements *mPlacementServiceMockListPlacements) When(ctx context.Context, req model.ListPlacementsRequest) *PlacementServiceMockListPlacementsExpectation {
 	if mmListPlacements.mock.funcListPlacements != nil {
 		mmListPlacements.mock.t.Fatalf("PlacementServiceMock.ListPlacements mock is already set by Set")
 	}
 
 	expectation := &PlacementServiceMockListPlacementsExpectation{
 		mock:               mmListPlacements.mock,
-		params:             &PlacementServiceMockListPlacementsParams{ctx, pageSize, pageToken},
+		params:             &PlacementServiceMockListPlacementsParams{ctx, req},
 		expectationOrigins: PlacementServiceMockListPlacementsExpectationOrigins{origin: minimock.CallerInfo(1)},
 	}
 	mmListPlacements.expectations = append(mmListPlacements.expectations, expectation)
@@ -2173,17 +2147,17 @@ func (mmListPlacements *mPlacementServiceMockListPlacements) invocationsDone() b
 }
 
 // ListPlacements implements mm_service.PlacementService
-func (mmListPlacements *PlacementServiceMock) ListPlacements(ctx context.Context, pageSize int32, pageToken string) (ppa1 []*model.Placement, s1 string, err error) {
+func (mmListPlacements *PlacementServiceMock) ListPlacements(ctx context.Context, req model.ListPlacementsRequest) (ppa1 []*model.Placement, s1 string, err error) {
 	mm_atomic.AddUint64(&mmListPlacements.beforeListPlacementsCounter, 1)
 	defer mm_atomic.AddUint64(&mmListPlacements.afterListPlacementsCounter, 1)
 
 	mmListPlacements.t.Helper()
 
 	if mmListPlacements.inspectFuncListPlacements != nil {
-		mmListPlacements.inspectFuncListPlacements(ctx, pageSize, pageToken)
+		mmListPlacements.inspectFuncListPlacements(ctx, req)
 	}
 
-	mm_params := PlacementServiceMockListPlacementsParams{ctx, pageSize, pageToken}
+	mm_params := PlacementServiceMockListPlacementsParams{ctx, req}
 
 	// Record call args
 	mmListPlacements.ListPlacementsMock.mutex.Lock()
@@ -2202,7 +2176,7 @@ func (mmListPlacements *PlacementServiceMock) ListPlacements(ctx context.Context
 		mm_want := mmListPlacements.ListPlacementsMock.defaultExpectation.params
 		mm_want_ptrs := mmListPlacements.ListPlacementsMock.defaultExpectation.paramPtrs
 
-		mm_got := PlacementServiceMockListPlacementsParams{ctx, pageSize, pageToken}
+		mm_got := PlacementServiceMockListPlacementsParams{ctx, req}
 
 		if mm_want_ptrs != nil {
 
@@ -2211,14 +2185,9 @@ func (mmListPlacements *PlacementServiceMock) ListPlacements(ctx context.Context
 					mmListPlacements.ListPlacementsMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
 			}
 
-			if mm_want_ptrs.pageSize != nil && !minimock.Equal(*mm_want_ptrs.pageSize, mm_got.pageSize) {
-				mmListPlacements.t.Errorf("PlacementServiceMock.ListPlacements got unexpected parameter pageSize, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
-					mmListPlacements.ListPlacementsMock.defaultExpectation.expectationOrigins.originPageSize, *mm_want_ptrs.pageSize, mm_got.pageSize, minimock.Diff(*mm_want_ptrs.pageSize, mm_got.pageSize))
-			}
-
-			if mm_want_ptrs.pageToken != nil && !minimock.Equal(*mm_want_ptrs.pageToken, mm_got.pageToken) {
-				mmListPlacements.t.Errorf("PlacementServiceMock.ListPlacements got unexpected parameter pageToken, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
-					mmListPlacements.ListPlacementsMock.defaultExpectation.expectationOrigins.originPageToken, *mm_want_ptrs.pageToken, mm_got.pageToken, minimock.Diff(*mm_want_ptrs.pageToken, mm_got.pageToken))
+			if mm_want_ptrs.req != nil && !minimock.Equal(*mm_want_ptrs.req, mm_got.req) {
+				mmListPlacements.t.Errorf("PlacementServiceMock.ListPlacements got unexpected parameter req, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmListPlacements.ListPlacementsMock.defaultExpectation.expectationOrigins.originReq, *mm_want_ptrs.req, mm_got.req, minimock.Diff(*mm_want_ptrs.req, mm_got.req))
 			}
 
 		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
@@ -2233,9 +2202,9 @@ func (mmListPlacements *PlacementServiceMock) ListPlacements(ctx context.Context
 		return (*mm_results).ppa1, (*mm_results).s1, (*mm_results).err
 	}
 	if mmListPlacements.funcListPlacements != nil {
-		return mmListPlacements.funcListPlacements(ctx, pageSize, pageToken)
+		return mmListPlacements.funcListPlacements(ctx, req)
 	}
-	mmListPlacements.t.Fatalf("Unexpected call to PlacementServiceMock.ListPlacements. %v %v %v", ctx, pageSize, pageToken)
+	mmListPlacements.t.Fatalf("Unexpected call to PlacementServiceMock.ListPlacements. %v %v", ctx, req)
 	return
 }
 
