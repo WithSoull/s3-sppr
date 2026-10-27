@@ -189,8 +189,10 @@ DeleteObjectMeta, не на передачу байтов Storage; зависш�
 HTTP 504.
 
 `GATEWAY_MAX_READ_DURATION` (положительная duration) ограничивает весь GET: от
-запроса в Metadata до последнего байта из Storage. Если чтение не уложилось,
-ответ обрывается так же, как при ошибке Storage. Это граница для переноса между
+запроса в Metadata до последнего байта клиенту. Срок действует и на контекст
+вызовов Metadata/Storage, и как write deadline HTTP-соединения: иначе клиент,
+переставший читать, держал бы обработчик в `Write` сколько угодно. Если чтение не
+уложилось, ответ обрывается так же, как при ошибке Storage. Это граница для переноса между
 классами: исполнитель удаляет прежний blob не раньше, чем через `cleanup_after`
 после `SwitchPlacement`, поэтому задержку очистки нужно задавать больше этого
 значения. Иначе медленное чтение, начатое до переключения, может не найти файл.
@@ -334,7 +336,8 @@ go run ./services/gateway/cmd/smoke -gateway http://127.0.0.1:8080 -metadata 127
   Storage нужного класса, `ChooseWriteClass` получает размер только при
   `Content-Length`. `range_test.go`: разбор Range и заголовки 206/416.
   `delete_test.go`: 204/404 и сохранение blob. `read_duration_test.go`: GET обрывается
-  по `GATEWAY_MAX_READ_DURATION`, и тот же срок получает Metadata.
+  по `GATEWAY_MAX_READ_DURATION` и при зависшем Storage, и при клиенте, который не
+  читает ответ; тот же срок получает Metadata, а следующий keep-alive запрос его не наследует.
 - `internal/app`: сборка приложения (`newTestApp`), 503 при недоступном Metadata,
   `METADATA_RPC_TIMEOUT` → 504, graceful shutdown, noop без Kafka client при
   выключенных событиях, ошибка startup при недоступной Kafka.

@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/alesplll/opens3-rebac/services/gateway/internal/model"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/logger"
@@ -39,8 +40,14 @@ func (h *Handler) GetObject(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	// A source blob is deleted only after a migration delay longer than this bound.
-	ctx, cancel := context.WithTimeout(r.Context(), h.maxReadDuration)
+	deadline := time.Now().Add(h.maxReadDuration)
+	ctx, cancel := context.WithDeadline(r.Context(), deadline)
 	defer cancel()
+	// The context stops Storage, but a Write to a client that stopped reading
+	// blocks until the connection itself has a deadline. net/http clears it
+	// after the request, so keep-alive requests do not inherit it. Writers
+	// without deadline support (tests) return ErrNotSupported.
+	_ = http.NewResponseController(w).SetWriteDeadline(deadline)
 	result, err := h.objects.Get(ctx, bucket, key, parseRange(r.Header.Get("Range")))
 	if err != nil {
 		writeServiceError(w, r, err)
