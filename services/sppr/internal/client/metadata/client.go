@@ -25,18 +25,65 @@ func (c *placementClient) GetPlacement(ctx context.Context, versionID string) (m
 	if err != nil {
 		return model.Placement{}, client.FromGRPC(ctx, err)
 	}
-	p := resp.GetPlacement()
+	return placementFromProto(resp.GetPlacement()), nil
+}
+
+func placementFromProto(p *metadatav1.PlacementInfo) model.Placement {
 	return model.Placement{
-		VersionID:  p.GetVersionId(),
-		Bucket:     p.GetBucketName(),
-		Key:        p.GetKey(),
-		IsCurrent:  p.GetIsCurrent(),
-		Class:      model.StorageClass(p.GetStorageClass()),
-		BlobID:     p.GetBlobId(),
-		Generation: p.GetGeneration(),
-		SizeBytes:  p.GetSizeBytes(),
-		UpdatedAt:  time.UnixMilli(p.GetUpdatedAt()).UTC(),
-	}, nil
+		VersionID:           p.GetVersionId(),
+		Bucket:              p.GetBucketName(),
+		Key:                 p.GetKey(),
+		IsCurrent:           p.GetIsCurrent(),
+		Class:               model.StorageClass(p.GetStorageClass()),
+		BlobID:              p.GetBlobId(),
+		Generation:          p.GetGeneration(),
+		SizeBytes:           p.GetSizeBytes(),
+		UpdatedAt:           time.UnixMilli(p.GetUpdatedAt()).UTC(),
+		CreatedAt:           time.UnixMilli(p.GetVersionCreatedAt()).UTC(),
+		MigrationInProgress: p.GetMigrationInProgress(),
+	}
+}
+
+// catalogPageSize is Metadata's maximum page.
+const catalogPageSize = 1000
+
+func (c *placementClient) ListCatalog(ctx context.Context) ([]model.Placement, error) {
+	var out []model.Placement
+	token := ""
+	for {
+		callCtx, cancel := context.WithTimeout(ctx, c.timeout)
+		resp, err := c.api.ListPlacements(callCtx, &metadatav1.ListPlacementsRequest{
+			PageSize: catalogPageSize, PageToken: token, IncludeNoncurrentHot: true,
+		})
+		cancel()
+		if err != nil {
+			return nil, client.FromGRPC(ctx, err)
+		}
+		for _, p := range resp.GetPlacements() {
+			out = append(out, placementFromProto(p))
+		}
+		token = resp.GetNextPageToken()
+		if token == "" {
+			return out, nil
+		}
+	}
+}
+
+func (c *placementClient) ListStorageClasses(ctx context.Context) ([]model.StorageClassUsage, error) {
+	callCtx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
+	resp, err := c.api.ListStorageClasses(callCtx, &metadatav1.ListStorageClassesRequest{})
+	if err != nil {
+		return nil, client.FromGRPC(ctx, err)
+	}
+	out := make([]model.StorageClassUsage, 0, len(resp.GetStorageClasses()))
+	for _, sc := range resp.GetStorageClasses() {
+		out = append(out, model.StorageClassUsage{
+			Class: model.StorageClass(sc.GetName()), CapacityBytes: sc.GetCapacityBytes(), MaxUtilization: sc.GetMaxUtilization(),
+			PlacedBytes: sc.GetPlacedBytes(), CopyBytes: sc.GetCopyBytes(), FreeBytes: sc.GetFreeBytes(),
+		})
+	}
+	return out, nil
 }
 
 func (c *placementClient) ReserveCopy(ctx context.Context, a model.ActionSpec) (model.PlacementCopy, error) {

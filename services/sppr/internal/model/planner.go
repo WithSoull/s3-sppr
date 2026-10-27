@@ -58,7 +58,6 @@ const (
 
 type PlanItem struct {
 	Placement
-	CreatedAt time.Time
 	// Forecast is nil when no usable forecast exists for a current version.
 	Forecast *DemandForecast
 	// ReadFraction r_i: mean share of the object read by one read; 1 without reads.
