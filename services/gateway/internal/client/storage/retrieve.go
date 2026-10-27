@@ -7,6 +7,7 @@ import (
 	"io"
 
 	domainerrors "github.com/alesplll/opens3-rebac/services/gateway/internal/errors/domain_errors"
+	"github.com/alesplll/opens3-rebac/services/gateway/internal/model"
 
 	storagev1 "github.com/alesplll/opens3-rebac/shared/pkg/go/storage/v1"
 	"google.golang.org/grpc"
@@ -14,11 +15,17 @@ import (
 
 const storageMessageOverheadSize = 64 * 1024
 
-func (c *client) Retrieve(ctx context.Context, blobID string, expectedSize int64) (io.ReadCloser, error) {
+func (c *client) Retrieve(ctx context.Context, blobID string, size int64, part *model.ContentRange) (io.ReadCloser, error) {
+	request := &storagev1.RetrieveObjectRequest{BlobId: blobID}
+	expected := size
+	if part != nil {
+		request.Offset, request.Length = part.Offset, part.Length
+		expected = part.Length
+	}
 	streamCtx, cancel := context.WithCancel(ctx)
 	stream, err := c.grpc.RetrieveObject(
 		streamCtx,
-		&storagev1.RetrieveObjectRequest{BlobId: blobID},
+		request,
 		grpc.MaxCallRecvMsgSize(c.retrieveChunkSizeBytes+storageMessageOverheadSize),
 	)
 	if err != nil {
@@ -31,7 +38,7 @@ func (c *client) Retrieve(ctx context.Context, blobID string, expectedSize int64
 		return nil, mapRetrieveError(err)
 	}
 	if errors.Is(err, io.EOF) {
-		if expectedSize != 0 {
+		if expected != 0 {
 			cancel()
 			return nil, domainerrors.ErrEmptyStorageStream
 		}

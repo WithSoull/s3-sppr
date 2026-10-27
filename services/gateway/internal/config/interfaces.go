@@ -6,14 +6,20 @@ import (
 	"github.com/IBM/sarama"
 )
 
-type HTTPConfig interface{ Address() string }
+type HTTPConfig interface {
+	Address() string
+	// MaxReadDuration bounds a whole GET, so a migration can delete the source
+	// blob once this time has passed after switching the placement.
+	MaxReadDuration() time.Duration
+}
 type GRPCClientConfig interface{ Address() string }
 type MetadataClientConfig interface {
 	GRPCClientConfig
 	Timeout() time.Duration
 }
 type StorageClientConfig interface {
-	GRPCClientConfig
+	HotAddress() string
+	ColdAddress() string
 	RetrieveChunkSizeBytes() int
 }
 type LoggerConfig interface {

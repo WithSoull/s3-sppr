@@ -18,9 +18,16 @@ type ObjectServiceMock struct {
 	t          minimock.Tester
 	finishOnce sync.Once
 
-	funcGet          func(ctx context.Context, bucket string, key string) (g1 model.GetResult, err error)
+	funcDelete          func(ctx context.Context, bucket string, key string) (err error)
+	funcDeleteOrigin    string
+	inspectFuncDelete   func(ctx context.Context, bucket string, key string)
+	afterDeleteCounter  uint64
+	beforeDeleteCounter uint64
+	DeleteMock          mObjectServiceMockDelete
+
+	funcGet          func(ctx context.Context, bucket string, key string, byteRange *model.ByteRange) (g1 model.GetResult, err error)
 	funcGetOrigin    string
-	inspectFuncGet   func(ctx context.Context, bucket string, key string)
+	inspectFuncGet   func(ctx context.Context, bucket string, key string, byteRange *model.ByteRange)
 	afterGetCounter  uint64
 	beforeGetCounter uint64
 	GetMock          mObjectServiceMockGet
@@ -41,6 +48,9 @@ func NewObjectServiceMock(t minimock.Tester) *ObjectServiceMock {
 		controller.RegisterMocker(m)
 	}
 
+	m.DeleteMock = mObjectServiceMockDelete{mock: m}
+	m.DeleteMock.callArgs = []*ObjectServiceMockDeleteParams{}
+
 	m.GetMock = mObjectServiceMockGet{mock: m}
 	m.GetMock.callArgs = []*ObjectServiceMockGetParams{}
 
@@ -50,6 +60,379 @@ func NewObjectServiceMock(t minimock.Tester) *ObjectServiceMock {
 	t.Cleanup(m.MinimockFinish)
 
 	return m
+}
+
+type mObjectServiceMockDelete struct {
+	optional           bool
+	mock               *ObjectServiceMock
+	defaultExpectation *ObjectServiceMockDeleteExpectation
+	expectations       []*ObjectServiceMockDeleteExpectation
+
+	callArgs []*ObjectServiceMockDeleteParams
+	mutex    sync.RWMutex
+
+	expectedInvocations       uint64
+	expectedInvocationsOrigin string
+}
+
+// ObjectServiceMockDeleteExpectation specifies expectation struct of the ObjectService.Delete
+type ObjectServiceMockDeleteExpectation struct {
+	mock               *ObjectServiceMock
+	params             *ObjectServiceMockDeleteParams
+	paramPtrs          *ObjectServiceMockDeleteParamPtrs
+	expectationOrigins ObjectServiceMockDeleteExpectationOrigins
+	results            *ObjectServiceMockDeleteResults
+	returnOrigin       string
+	Counter            uint64
+}
+
+// ObjectServiceMockDeleteParams contains parameters of the ObjectService.Delete
+type ObjectServiceMockDeleteParams struct {
+	ctx    context.Context
+	bucket string
+	key    string
+}
+
+// ObjectServiceMockDeleteParamPtrs contains pointers to parameters of the ObjectService.Delete
+type ObjectServiceMockDeleteParamPtrs struct {
+	ctx    *context.Context
+	bucket *string
+	key    *string
+}
+
+// ObjectServiceMockDeleteResults contains results of the ObjectService.Delete
+type ObjectServiceMockDeleteResults struct {
+	err error
+}
+
+// ObjectServiceMockDeleteOrigins contains origins of expectations of the ObjectService.Delete
+type ObjectServiceMockDeleteExpectationOrigins struct {
+	origin       string
+	originCtx    string
+	originBucket string
+	originKey    string
+}
+
+// Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
+// the test will fail minimock's automatic final call check if the mocked method was not called at least once.
+// Optional() makes method check to work in '0 or more' mode.
+// It is NOT RECOMMENDED to use this option unless you really need it, as default behaviour helps to
+// catch the problems when the expected method call is totally skipped during test run.
+func (mmDelete *mObjectServiceMockDelete) Optional() *mObjectServiceMockDelete {
+	mmDelete.optional = true
+	return mmDelete
+}
+
+// Expect sets up expected params for ObjectService.Delete
+func (mmDelete *mObjectServiceMockDelete) Expect(ctx context.Context, bucket string, key string) *mObjectServiceMockDelete {
+	if mmDelete.mock.funcDelete != nil {
+		mmDelete.mock.t.Fatalf("ObjectServiceMock.Delete mock is already set by Set")
+	}
+
+	if mmDelete.defaultExpectation == nil {
+		mmDelete.defaultExpectation = &ObjectServiceMockDeleteExpectation{}
+	}
+
+	if mmDelete.defaultExpectation.paramPtrs != nil {
+		mmDelete.mock.t.Fatalf("ObjectServiceMock.Delete mock is already set by ExpectParams functions")
+	}
+
+	mmDelete.defaultExpectation.params = &ObjectServiceMockDeleteParams{ctx, bucket, key}
+	mmDelete.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
+	for _, e := range mmDelete.expectations {
+		if minimock.Equal(e.params, mmDelete.defaultExpectation.params) {
+			mmDelete.mock.t.Fatalf("Expectation set by When has same params: %#v", *mmDelete.defaultExpectation.params)
+		}
+	}
+
+	return mmDelete
+}
+
+// ExpectCtxParam1 sets up expected param ctx for ObjectService.Delete
+func (mmDelete *mObjectServiceMockDelete) ExpectCtxParam1(ctx context.Context) *mObjectServiceMockDelete {
+	if mmDelete.mock.funcDelete != nil {
+		mmDelete.mock.t.Fatalf("ObjectServiceMock.Delete mock is already set by Set")
+	}
+
+	if mmDelete.defaultExpectation == nil {
+		mmDelete.defaultExpectation = &ObjectServiceMockDeleteExpectation{}
+	}
+
+	if mmDelete.defaultExpectation.params != nil {
+		mmDelete.mock.t.Fatalf("ObjectServiceMock.Delete mock is already set by Expect")
+	}
+
+	if mmDelete.defaultExpectation.paramPtrs == nil {
+		mmDelete.defaultExpectation.paramPtrs = &ObjectServiceMockDeleteParamPtrs{}
+	}
+	mmDelete.defaultExpectation.paramPtrs.ctx = &ctx
+	mmDelete.defaultExpectation.expectationOrigins.originCtx = minimock.CallerInfo(1)
+
+	return mmDelete
+}
+
+// ExpectBucketParam2 sets up expected param bucket for ObjectService.Delete
+func (mmDelete *mObjectServiceMockDelete) ExpectBucketParam2(bucket string) *mObjectServiceMockDelete {
+	if mmDelete.mock.funcDelete != nil {
+		mmDelete.mock.t.Fatalf("ObjectServiceMock.Delete mock is already set by Set")
+	}
+
+	if mmDelete.defaultExpectation == nil {
+		mmDelete.defaultExpectation = &ObjectServiceMockDeleteExpectation{}
+	}
+
+	if mmDelete.defaultExpectation.params != nil {
+		mmDelete.mock.t.Fatalf("ObjectServiceMock.Delete mock is already set by Expect")
+	}
+
+	if mmDelete.defaultExpectation.paramPtrs == nil {
+		mmDelete.defaultExpectation.paramPtrs = &ObjectServiceMockDeleteParamPtrs{}
+	}
+	mmDelete.defaultExpectation.paramPtrs.bucket = &bucket
+	mmDelete.defaultExpectation.expectationOrigins.originBucket = minimock.CallerInfo(1)
+
+	return mmDelete
+}
+
+// ExpectKeyParam3 sets up expected param key for ObjectService.Delete
+func (mmDelete *mObjectServiceMockDelete) ExpectKeyParam3(key string) *mObjectServiceMockDelete {
+	if mmDelete.mock.funcDelete != nil {
+		mmDelete.mock.t.Fatalf("ObjectServiceMock.Delete mock is already set by Set")
+	}
+
+	if mmDelete.defaultExpectation == nil {
+		mmDelete.defaultExpectation = &ObjectServiceMockDeleteExpectation{}
+	}
+
+	if mmDelete.defaultExpectation.params != nil {
+		mmDelete.mock.t.Fatalf("ObjectServiceMock.Delete mock is already set by Expect")
+	}
+
+	if mmDelete.defaultExpectation.paramPtrs == nil {
+		mmDelete.defaultExpectation.paramPtrs = &ObjectServiceMockDeleteParamPtrs{}
+	}
+	mmDelete.defaultExpectation.paramPtrs.key = &key
+	mmDelete.defaultExpectation.expectationOrigins.originKey = minimock.CallerInfo(1)
+
+	return mmDelete
+}
+
+// Inspect accepts an inspector function that has same arguments as the ObjectService.Delete
+func (mmDelete *mObjectServiceMockDelete) Inspect(f func(ctx context.Context, bucket string, key string)) *mObjectServiceMockDelete {
+	if mmDelete.mock.inspectFuncDelete != nil {
+		mmDelete.mock.t.Fatalf("Inspect function is already set for ObjectServiceMock.Delete")
+	}
+
+	mmDelete.mock.inspectFuncDelete = f
+
+	return mmDelete
+}
+
+// Return sets up results that will be returned by ObjectService.Delete
+func (mmDelete *mObjectServiceMockDelete) Return(err error) *ObjectServiceMock {
+	if mmDelete.mock.funcDelete != nil {
+		mmDelete.mock.t.Fatalf("ObjectServiceMock.Delete mock is already set by Set")
+	}
+
+	if mmDelete.defaultExpectation == nil {
+		mmDelete.defaultExpectation = &ObjectServiceMockDeleteExpectation{mock: mmDelete.mock}
+	}
+	mmDelete.defaultExpectation.results = &ObjectServiceMockDeleteResults{err}
+	mmDelete.defaultExpectation.returnOrigin = minimock.CallerInfo(1)
+	return mmDelete.mock
+}
+
+// Set uses given function f to mock the ObjectService.Delete method
+func (mmDelete *mObjectServiceMockDelete) Set(f func(ctx context.Context, bucket string, key string) (err error)) *ObjectServiceMock {
+	if mmDelete.defaultExpectation != nil {
+		mmDelete.mock.t.Fatalf("Default expectation is already set for the ObjectService.Delete method")
+	}
+
+	if len(mmDelete.expectations) > 0 {
+		mmDelete.mock.t.Fatalf("Some expectations are already set for the ObjectService.Delete method")
+	}
+
+	mmDelete.mock.funcDelete = f
+	mmDelete.mock.funcDeleteOrigin = minimock.CallerInfo(1)
+	return mmDelete.mock
+}
+
+// When sets expectation for the ObjectService.Delete which will trigger the result defined by the following
+// Then helper
+func (mmDelete *mObjectServiceMockDelete) When(ctx context.Context, bucket string, key string) *ObjectServiceMockDeleteExpectation {
+	if mmDelete.mock.funcDelete != nil {
+		mmDelete.mock.t.Fatalf("ObjectServiceMock.Delete mock is already set by Set")
+	}
+
+	expectation := &ObjectServiceMockDeleteExpectation{
+		mock:               mmDelete.mock,
+		params:             &ObjectServiceMockDeleteParams{ctx, bucket, key},
+		expectationOrigins: ObjectServiceMockDeleteExpectationOrigins{origin: minimock.CallerInfo(1)},
+	}
+	mmDelete.expectations = append(mmDelete.expectations, expectation)
+	return expectation
+}
+
+// Then sets up ObjectService.Delete return parameters for the expectation previously defined by the When method
+func (e *ObjectServiceMockDeleteExpectation) Then(err error) *ObjectServiceMock {
+	e.results = &ObjectServiceMockDeleteResults{err}
+	return e.mock
+}
+
+// Times sets number of times ObjectService.Delete should be invoked
+func (mmDelete *mObjectServiceMockDelete) Times(n uint64) *mObjectServiceMockDelete {
+	if n == 0 {
+		mmDelete.mock.t.Fatalf("Times of ObjectServiceMock.Delete mock can not be zero")
+	}
+	mm_atomic.StoreUint64(&mmDelete.expectedInvocations, n)
+	mmDelete.expectedInvocationsOrigin = minimock.CallerInfo(1)
+	return mmDelete
+}
+
+func (mmDelete *mObjectServiceMockDelete) invocationsDone() bool {
+	if len(mmDelete.expectations) == 0 && mmDelete.defaultExpectation == nil && mmDelete.mock.funcDelete == nil {
+		return true
+	}
+
+	totalInvocations := mm_atomic.LoadUint64(&mmDelete.mock.afterDeleteCounter)
+	expectedInvocations := mm_atomic.LoadUint64(&mmDelete.expectedInvocations)
+
+	return totalInvocations > 0 && (expectedInvocations == 0 || expectedInvocations == totalInvocations)
+}
+
+// Delete implements mm_service.ObjectService
+func (mmDelete *ObjectServiceMock) Delete(ctx context.Context, bucket string, key string) (err error) {
+	mm_atomic.AddUint64(&mmDelete.beforeDeleteCounter, 1)
+	defer mm_atomic.AddUint64(&mmDelete.afterDeleteCounter, 1)
+
+	mmDelete.t.Helper()
+
+	if mmDelete.inspectFuncDelete != nil {
+		mmDelete.inspectFuncDelete(ctx, bucket, key)
+	}
+
+	mm_params := ObjectServiceMockDeleteParams{ctx, bucket, key}
+
+	// Record call args
+	mmDelete.DeleteMock.mutex.Lock()
+	mmDelete.DeleteMock.callArgs = append(mmDelete.DeleteMock.callArgs, &mm_params)
+	mmDelete.DeleteMock.mutex.Unlock()
+
+	for _, e := range mmDelete.DeleteMock.expectations {
+		if minimock.Equal(*e.params, mm_params) {
+			mm_atomic.AddUint64(&e.Counter, 1)
+			return e.results.err
+		}
+	}
+
+	if mmDelete.DeleteMock.defaultExpectation != nil {
+		mm_atomic.AddUint64(&mmDelete.DeleteMock.defaultExpectation.Counter, 1)
+		mm_want := mmDelete.DeleteMock.defaultExpectation.params
+		mm_want_ptrs := mmDelete.DeleteMock.defaultExpectation.paramPtrs
+
+		mm_got := ObjectServiceMockDeleteParams{ctx, bucket, key}
+
+		if mm_want_ptrs != nil {
+
+			if mm_want_ptrs.ctx != nil && !minimock.Equal(*mm_want_ptrs.ctx, mm_got.ctx) {
+				mmDelete.t.Errorf("ObjectServiceMock.Delete got unexpected parameter ctx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmDelete.DeleteMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
+			}
+
+			if mm_want_ptrs.bucket != nil && !minimock.Equal(*mm_want_ptrs.bucket, mm_got.bucket) {
+				mmDelete.t.Errorf("ObjectServiceMock.Delete got unexpected parameter bucket, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmDelete.DeleteMock.defaultExpectation.expectationOrigins.originBucket, *mm_want_ptrs.bucket, mm_got.bucket, minimock.Diff(*mm_want_ptrs.bucket, mm_got.bucket))
+			}
+
+			if mm_want_ptrs.key != nil && !minimock.Equal(*mm_want_ptrs.key, mm_got.key) {
+				mmDelete.t.Errorf("ObjectServiceMock.Delete got unexpected parameter key, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmDelete.DeleteMock.defaultExpectation.expectationOrigins.originKey, *mm_want_ptrs.key, mm_got.key, minimock.Diff(*mm_want_ptrs.key, mm_got.key))
+			}
+
+		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
+			mmDelete.t.Errorf("ObjectServiceMock.Delete got unexpected parameters, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+				mmDelete.DeleteMock.defaultExpectation.expectationOrigins.origin, *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
+		}
+
+		mm_results := mmDelete.DeleteMock.defaultExpectation.results
+		if mm_results == nil {
+			mmDelete.t.Fatal("No results are set for the ObjectServiceMock.Delete")
+		}
+		return (*mm_results).err
+	}
+	if mmDelete.funcDelete != nil {
+		return mmDelete.funcDelete(ctx, bucket, key)
+	}
+	mmDelete.t.Fatalf("Unexpected call to ObjectServiceMock.Delete. %v %v %v", ctx, bucket, key)
+	return
+}
+
+// DeleteAfterCounter returns a count of finished ObjectServiceMock.Delete invocations
+func (mmDelete *ObjectServiceMock) DeleteAfterCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmDelete.afterDeleteCounter)
+}
+
+// DeleteBeforeCounter returns a count of ObjectServiceMock.Delete invocations
+func (mmDelete *ObjectServiceMock) DeleteBeforeCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmDelete.beforeDeleteCounter)
+}
+
+// Calls returns a list of arguments used in each call to ObjectServiceMock.Delete.
+// The list is in the same order as the calls were made (i.e. recent calls have a higher index)
+func (mmDelete *mObjectServiceMockDelete) Calls() []*ObjectServiceMockDeleteParams {
+	mmDelete.mutex.RLock()
+
+	argCopy := make([]*ObjectServiceMockDeleteParams, len(mmDelete.callArgs))
+	copy(argCopy, mmDelete.callArgs)
+
+	mmDelete.mutex.RUnlock()
+
+	return argCopy
+}
+
+// MinimockDeleteDone returns true if the count of the Delete invocations corresponds
+// the number of defined expectations
+func (m *ObjectServiceMock) MinimockDeleteDone() bool {
+	if m.DeleteMock.optional {
+		// Optional methods provide '0 or more' call count restriction.
+		return true
+	}
+
+	for _, e := range m.DeleteMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			return false
+		}
+	}
+
+	return m.DeleteMock.invocationsDone()
+}
+
+// MinimockDeleteInspect logs each unmet expectation
+func (m *ObjectServiceMock) MinimockDeleteInspect() {
+	for _, e := range m.DeleteMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			m.t.Errorf("Expected call to ObjectServiceMock.Delete at\n%s with params: %#v", e.expectationOrigins.origin, *e.params)
+		}
+	}
+
+	afterDeleteCounter := mm_atomic.LoadUint64(&m.afterDeleteCounter)
+	// if default expectation was set then invocations count should be greater than zero
+	if m.DeleteMock.defaultExpectation != nil && afterDeleteCounter < 1 {
+		if m.DeleteMock.defaultExpectation.params == nil {
+			m.t.Errorf("Expected call to ObjectServiceMock.Delete at\n%s", m.DeleteMock.defaultExpectation.returnOrigin)
+		} else {
+			m.t.Errorf("Expected call to ObjectServiceMock.Delete at\n%s with params: %#v", m.DeleteMock.defaultExpectation.expectationOrigins.origin, *m.DeleteMock.defaultExpectation.params)
+		}
+	}
+	// if func was set then invocations count should be greater than zero
+	if m.funcDelete != nil && afterDeleteCounter < 1 {
+		m.t.Errorf("Expected call to ObjectServiceMock.Delete at\n%s", m.funcDeleteOrigin)
+	}
+
+	if !m.DeleteMock.invocationsDone() && afterDeleteCounter > 0 {
+		m.t.Errorf("Expected %d calls to ObjectServiceMock.Delete at\n%s but found %d calls",
+			mm_atomic.LoadUint64(&m.DeleteMock.expectedInvocations), m.DeleteMock.expectedInvocationsOrigin, afterDeleteCounter)
+	}
 }
 
 type mObjectServiceMockGet struct {
@@ -78,16 +461,18 @@ type ObjectServiceMockGetExpectation struct {
 
 // ObjectServiceMockGetParams contains parameters of the ObjectService.Get
 type ObjectServiceMockGetParams struct {
-	ctx    context.Context
-	bucket string
-	key    string
+	ctx       context.Context
+	bucket    string
+	key       string
+	byteRange *model.ByteRange
 }
 
 // ObjectServiceMockGetParamPtrs contains pointers to parameters of the ObjectService.Get
 type ObjectServiceMockGetParamPtrs struct {
-	ctx    *context.Context
-	bucket *string
-	key    *string
+	ctx       *context.Context
+	bucket    *string
+	key       *string
+	byteRange **model.ByteRange
 }
 
 // ObjectServiceMockGetResults contains results of the ObjectService.Get
@@ -98,10 +483,11 @@ type ObjectServiceMockGetResults struct {
 
 // ObjectServiceMockGetOrigins contains origins of expectations of the ObjectService.Get
 type ObjectServiceMockGetExpectationOrigins struct {
-	origin       string
-	originCtx    string
-	originBucket string
-	originKey    string
+	origin          string
+	originCtx       string
+	originBucket    string
+	originKey       string
+	originByteRange string
 }
 
 // Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
@@ -115,7 +501,7 @@ func (mmGet *mObjectServiceMockGet) Optional() *mObjectServiceMockGet {
 }
 
 // Expect sets up expected params for ObjectService.Get
-func (mmGet *mObjectServiceMockGet) Expect(ctx context.Context, bucket string, key string) *mObjectServiceMockGet {
+func (mmGet *mObjectServiceMockGet) Expect(ctx context.Context, bucket string, key string, byteRange *model.ByteRange) *mObjectServiceMockGet {
 	if mmGet.mock.funcGet != nil {
 		mmGet.mock.t.Fatalf("ObjectServiceMock.Get mock is already set by Set")
 	}
@@ -128,7 +514,7 @@ func (mmGet *mObjectServiceMockGet) Expect(ctx context.Context, bucket string, k
 		mmGet.mock.t.Fatalf("ObjectServiceMock.Get mock is already set by ExpectParams functions")
 	}
 
-	mmGet.defaultExpectation.params = &ObjectServiceMockGetParams{ctx, bucket, key}
+	mmGet.defaultExpectation.params = &ObjectServiceMockGetParams{ctx, bucket, key, byteRange}
 	mmGet.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
 	for _, e := range mmGet.expectations {
 		if minimock.Equal(e.params, mmGet.defaultExpectation.params) {
@@ -208,8 +594,31 @@ func (mmGet *mObjectServiceMockGet) ExpectKeyParam3(key string) *mObjectServiceM
 	return mmGet
 }
 
+// ExpectByteRangeParam4 sets up expected param byteRange for ObjectService.Get
+func (mmGet *mObjectServiceMockGet) ExpectByteRangeParam4(byteRange *model.ByteRange) *mObjectServiceMockGet {
+	if mmGet.mock.funcGet != nil {
+		mmGet.mock.t.Fatalf("ObjectServiceMock.Get mock is already set by Set")
+	}
+
+	if mmGet.defaultExpectation == nil {
+		mmGet.defaultExpectation = &ObjectServiceMockGetExpectation{}
+	}
+
+	if mmGet.defaultExpectation.params != nil {
+		mmGet.mock.t.Fatalf("ObjectServiceMock.Get mock is already set by Expect")
+	}
+
+	if mmGet.defaultExpectation.paramPtrs == nil {
+		mmGet.defaultExpectation.paramPtrs = &ObjectServiceMockGetParamPtrs{}
+	}
+	mmGet.defaultExpectation.paramPtrs.byteRange = &byteRange
+	mmGet.defaultExpectation.expectationOrigins.originByteRange = minimock.CallerInfo(1)
+
+	return mmGet
+}
+
 // Inspect accepts an inspector function that has same arguments as the ObjectService.Get
-func (mmGet *mObjectServiceMockGet) Inspect(f func(ctx context.Context, bucket string, key string)) *mObjectServiceMockGet {
+func (mmGet *mObjectServiceMockGet) Inspect(f func(ctx context.Context, bucket string, key string, byteRange *model.ByteRange)) *mObjectServiceMockGet {
 	if mmGet.mock.inspectFuncGet != nil {
 		mmGet.mock.t.Fatalf("Inspect function is already set for ObjectServiceMock.Get")
 	}
@@ -234,7 +643,7 @@ func (mmGet *mObjectServiceMockGet) Return(g1 model.GetResult, err error) *Objec
 }
 
 // Set uses given function f to mock the ObjectService.Get method
-func (mmGet *mObjectServiceMockGet) Set(f func(ctx context.Context, bucket string, key string) (g1 model.GetResult, err error)) *ObjectServiceMock {
+func (mmGet *mObjectServiceMockGet) Set(f func(ctx context.Context, bucket string, key string, byteRange *model.ByteRange) (g1 model.GetResult, err error)) *ObjectServiceMock {
 	if mmGet.defaultExpectation != nil {
 		mmGet.mock.t.Fatalf("Default expectation is already set for the ObjectService.Get method")
 	}
@@ -250,14 +659,14 @@ func (mmGet *mObjectServiceMockGet) Set(f func(ctx context.Context, bucket strin
 
 // When sets expectation for the ObjectService.Get which will trigger the result defined by the following
 // Then helper
-func (mmGet *mObjectServiceMockGet) When(ctx context.Context, bucket string, key string) *ObjectServiceMockGetExpectation {
+func (mmGet *mObjectServiceMockGet) When(ctx context.Context, bucket string, key string, byteRange *model.ByteRange) *ObjectServiceMockGetExpectation {
 	if mmGet.mock.funcGet != nil {
 		mmGet.mock.t.Fatalf("ObjectServiceMock.Get mock is already set by Set")
 	}
 
 	expectation := &ObjectServiceMockGetExpectation{
 		mock:               mmGet.mock,
-		params:             &ObjectServiceMockGetParams{ctx, bucket, key},
+		params:             &ObjectServiceMockGetParams{ctx, bucket, key, byteRange},
 		expectationOrigins: ObjectServiceMockGetExpectationOrigins{origin: minimock.CallerInfo(1)},
 	}
 	mmGet.expectations = append(mmGet.expectations, expectation)
@@ -292,17 +701,17 @@ func (mmGet *mObjectServiceMockGet) invocationsDone() bool {
 }
 
 // Get implements mm_service.ObjectService
-func (mmGet *ObjectServiceMock) Get(ctx context.Context, bucket string, key string) (g1 model.GetResult, err error) {
+func (mmGet *ObjectServiceMock) Get(ctx context.Context, bucket string, key string, byteRange *model.ByteRange) (g1 model.GetResult, err error) {
 	mm_atomic.AddUint64(&mmGet.beforeGetCounter, 1)
 	defer mm_atomic.AddUint64(&mmGet.afterGetCounter, 1)
 
 	mmGet.t.Helper()
 
 	if mmGet.inspectFuncGet != nil {
-		mmGet.inspectFuncGet(ctx, bucket, key)
+		mmGet.inspectFuncGet(ctx, bucket, key, byteRange)
 	}
 
-	mm_params := ObjectServiceMockGetParams{ctx, bucket, key}
+	mm_params := ObjectServiceMockGetParams{ctx, bucket, key, byteRange}
 
 	// Record call args
 	mmGet.GetMock.mutex.Lock()
@@ -321,7 +730,7 @@ func (mmGet *ObjectServiceMock) Get(ctx context.Context, bucket string, key stri
 		mm_want := mmGet.GetMock.defaultExpectation.params
 		mm_want_ptrs := mmGet.GetMock.defaultExpectation.paramPtrs
 
-		mm_got := ObjectServiceMockGetParams{ctx, bucket, key}
+		mm_got := ObjectServiceMockGetParams{ctx, bucket, key, byteRange}
 
 		if mm_want_ptrs != nil {
 
@@ -340,6 +749,11 @@ func (mmGet *ObjectServiceMock) Get(ctx context.Context, bucket string, key stri
 					mmGet.GetMock.defaultExpectation.expectationOrigins.originKey, *mm_want_ptrs.key, mm_got.key, minimock.Diff(*mm_want_ptrs.key, mm_got.key))
 			}
 
+			if mm_want_ptrs.byteRange != nil && !minimock.Equal(*mm_want_ptrs.byteRange, mm_got.byteRange) {
+				mmGet.t.Errorf("ObjectServiceMock.Get got unexpected parameter byteRange, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmGet.GetMock.defaultExpectation.expectationOrigins.originByteRange, *mm_want_ptrs.byteRange, mm_got.byteRange, minimock.Diff(*mm_want_ptrs.byteRange, mm_got.byteRange))
+			}
+
 		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
 			mmGet.t.Errorf("ObjectServiceMock.Get got unexpected parameters, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
 				mmGet.GetMock.defaultExpectation.expectationOrigins.origin, *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
@@ -352,9 +766,9 @@ func (mmGet *ObjectServiceMock) Get(ctx context.Context, bucket string, key stri
 		return (*mm_results).g1, (*mm_results).err
 	}
 	if mmGet.funcGet != nil {
-		return mmGet.funcGet(ctx, bucket, key)
+		return mmGet.funcGet(ctx, bucket, key, byteRange)
 	}
-	mmGet.t.Fatalf("Unexpected call to ObjectServiceMock.Get. %v %v %v", ctx, bucket, key)
+	mmGet.t.Fatalf("Unexpected call to ObjectServiceMock.Get. %v %v %v %v", ctx, bucket, key, byteRange)
 	return
 }
 
@@ -897,6 +1311,8 @@ func (m *ObjectServiceMock) MinimockPutInspect() {
 func (m *ObjectServiceMock) MinimockFinish() {
 	m.finishOnce.Do(func() {
 		if !m.minimockDone() {
+			m.MinimockDeleteInspect()
+
 			m.MinimockGetInspect()
 
 			m.MinimockPutInspect()
@@ -923,6 +1339,7 @@ func (m *ObjectServiceMock) MinimockWait(timeout mm_time.Duration) {
 func (m *ObjectServiceMock) minimockDone() bool {
 	done := true
 	return done &&
+		m.MinimockDeleteDone() &&
 		m.MinimockGetDone() &&
 		m.MinimockPutDone()
 }

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	domainerrors "github.com/alesplll/opens3-rebac/services/gateway/internal/errors/domain_errors"
+	"github.com/alesplll/opens3-rebac/services/gateway/internal/model"
 	"github.com/alesplll/opens3-rebac/services/gateway/internal/testkit"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
@@ -24,8 +25,15 @@ func TestClientMapsOnlyThrottling(t *testing.T) {
 			return err
 		},
 		testkit.OpCreateObjectVersion: func() error {
-			_, err := metadata.CreateVersion(ctx, testkit.Bucket, "key", "blob", 1, "etag", "text/plain")
+			_, err := metadata.CreateVersion(ctx, testkit.Bucket, "key", "blob", 1, "etag", "text/plain", model.StorageClassCold)
 			return err
+		},
+		testkit.OpChooseWriteClass: func() error {
+			_, err := metadata.ChooseWriteClass(ctx, testkit.Bucket, "key", nil)
+			return err
+		},
+		testkit.OpDeleteObjectMeta: func() error {
+			return metadata.DeleteObject(ctx, testkit.Bucket, "key")
 		},
 		testkit.OpGetObjectMeta: func() error {
 			_, err := metadata.GetObject(ctx, testkit.Bucket, "key")

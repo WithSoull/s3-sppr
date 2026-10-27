@@ -18,9 +18,9 @@ type StorageClientMock struct {
 	t          minimock.Tester
 	finishOnce sync.Once
 
-	funcRetrieve          func(ctx context.Context, blobID string, expectedSize int64) (r1 io.ReadCloser, err error)
+	funcRetrieve          func(ctx context.Context, blobID string, size int64, part *model.ContentRange) (r1 io.ReadCloser, err error)
 	funcRetrieveOrigin    string
-	inspectFuncRetrieve   func(ctx context.Context, blobID string, expectedSize int64)
+	inspectFuncRetrieve   func(ctx context.Context, blobID string, size int64, part *model.ContentRange)
 	afterRetrieveCounter  uint64
 	beforeRetrieveCounter uint64
 	RetrieveMock          mStorageClientMockRetrieve
@@ -78,16 +78,18 @@ type StorageClientMockRetrieveExpectation struct {
 
 // StorageClientMockRetrieveParams contains parameters of the StorageClient.Retrieve
 type StorageClientMockRetrieveParams struct {
-	ctx          context.Context
-	blobID       string
-	expectedSize int64
+	ctx    context.Context
+	blobID string
+	size   int64
+	part   *model.ContentRange
 }
 
 // StorageClientMockRetrieveParamPtrs contains pointers to parameters of the StorageClient.Retrieve
 type StorageClientMockRetrieveParamPtrs struct {
-	ctx          *context.Context
-	blobID       *string
-	expectedSize *int64
+	ctx    *context.Context
+	blobID *string
+	size   *int64
+	part   **model.ContentRange
 }
 
 // StorageClientMockRetrieveResults contains results of the StorageClient.Retrieve
@@ -98,10 +100,11 @@ type StorageClientMockRetrieveResults struct {
 
 // StorageClientMockRetrieveOrigins contains origins of expectations of the StorageClient.Retrieve
 type StorageClientMockRetrieveExpectationOrigins struct {
-	origin             string
-	originCtx          string
-	originBlobID       string
-	originExpectedSize string
+	origin       string
+	originCtx    string
+	originBlobID string
+	originSize   string
+	originPart   string
 }
 
 // Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
@@ -115,7 +118,7 @@ func (mmRetrieve *mStorageClientMockRetrieve) Optional() *mStorageClientMockRetr
 }
 
 // Expect sets up expected params for StorageClient.Retrieve
-func (mmRetrieve *mStorageClientMockRetrieve) Expect(ctx context.Context, blobID string, expectedSize int64) *mStorageClientMockRetrieve {
+func (mmRetrieve *mStorageClientMockRetrieve) Expect(ctx context.Context, blobID string, size int64, part *model.ContentRange) *mStorageClientMockRetrieve {
 	if mmRetrieve.mock.funcRetrieve != nil {
 		mmRetrieve.mock.t.Fatalf("StorageClientMock.Retrieve mock is already set by Set")
 	}
@@ -128,7 +131,7 @@ func (mmRetrieve *mStorageClientMockRetrieve) Expect(ctx context.Context, blobID
 		mmRetrieve.mock.t.Fatalf("StorageClientMock.Retrieve mock is already set by ExpectParams functions")
 	}
 
-	mmRetrieve.defaultExpectation.params = &StorageClientMockRetrieveParams{ctx, blobID, expectedSize}
+	mmRetrieve.defaultExpectation.params = &StorageClientMockRetrieveParams{ctx, blobID, size, part}
 	mmRetrieve.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
 	for _, e := range mmRetrieve.expectations {
 		if minimock.Equal(e.params, mmRetrieve.defaultExpectation.params) {
@@ -185,8 +188,8 @@ func (mmRetrieve *mStorageClientMockRetrieve) ExpectBlobIDParam2(blobID string) 
 	return mmRetrieve
 }
 
-// ExpectExpectedSizeParam3 sets up expected param expectedSize for StorageClient.Retrieve
-func (mmRetrieve *mStorageClientMockRetrieve) ExpectExpectedSizeParam3(expectedSize int64) *mStorageClientMockRetrieve {
+// ExpectSizeParam3 sets up expected param size for StorageClient.Retrieve
+func (mmRetrieve *mStorageClientMockRetrieve) ExpectSizeParam3(size int64) *mStorageClientMockRetrieve {
 	if mmRetrieve.mock.funcRetrieve != nil {
 		mmRetrieve.mock.t.Fatalf("StorageClientMock.Retrieve mock is already set by Set")
 	}
@@ -202,14 +205,37 @@ func (mmRetrieve *mStorageClientMockRetrieve) ExpectExpectedSizeParam3(expectedS
 	if mmRetrieve.defaultExpectation.paramPtrs == nil {
 		mmRetrieve.defaultExpectation.paramPtrs = &StorageClientMockRetrieveParamPtrs{}
 	}
-	mmRetrieve.defaultExpectation.paramPtrs.expectedSize = &expectedSize
-	mmRetrieve.defaultExpectation.expectationOrigins.originExpectedSize = minimock.CallerInfo(1)
+	mmRetrieve.defaultExpectation.paramPtrs.size = &size
+	mmRetrieve.defaultExpectation.expectationOrigins.originSize = minimock.CallerInfo(1)
+
+	return mmRetrieve
+}
+
+// ExpectPartParam4 sets up expected param part for StorageClient.Retrieve
+func (mmRetrieve *mStorageClientMockRetrieve) ExpectPartParam4(part *model.ContentRange) *mStorageClientMockRetrieve {
+	if mmRetrieve.mock.funcRetrieve != nil {
+		mmRetrieve.mock.t.Fatalf("StorageClientMock.Retrieve mock is already set by Set")
+	}
+
+	if mmRetrieve.defaultExpectation == nil {
+		mmRetrieve.defaultExpectation = &StorageClientMockRetrieveExpectation{}
+	}
+
+	if mmRetrieve.defaultExpectation.params != nil {
+		mmRetrieve.mock.t.Fatalf("StorageClientMock.Retrieve mock is already set by Expect")
+	}
+
+	if mmRetrieve.defaultExpectation.paramPtrs == nil {
+		mmRetrieve.defaultExpectation.paramPtrs = &StorageClientMockRetrieveParamPtrs{}
+	}
+	mmRetrieve.defaultExpectation.paramPtrs.part = &part
+	mmRetrieve.defaultExpectation.expectationOrigins.originPart = minimock.CallerInfo(1)
 
 	return mmRetrieve
 }
 
 // Inspect accepts an inspector function that has same arguments as the StorageClient.Retrieve
-func (mmRetrieve *mStorageClientMockRetrieve) Inspect(f func(ctx context.Context, blobID string, expectedSize int64)) *mStorageClientMockRetrieve {
+func (mmRetrieve *mStorageClientMockRetrieve) Inspect(f func(ctx context.Context, blobID string, size int64, part *model.ContentRange)) *mStorageClientMockRetrieve {
 	if mmRetrieve.mock.inspectFuncRetrieve != nil {
 		mmRetrieve.mock.t.Fatalf("Inspect function is already set for StorageClientMock.Retrieve")
 	}
@@ -234,7 +260,7 @@ func (mmRetrieve *mStorageClientMockRetrieve) Return(r1 io.ReadCloser, err error
 }
 
 // Set uses given function f to mock the StorageClient.Retrieve method
-func (mmRetrieve *mStorageClientMockRetrieve) Set(f func(ctx context.Context, blobID string, expectedSize int64) (r1 io.ReadCloser, err error)) *StorageClientMock {
+func (mmRetrieve *mStorageClientMockRetrieve) Set(f func(ctx context.Context, blobID string, size int64, part *model.ContentRange) (r1 io.ReadCloser, err error)) *StorageClientMock {
 	if mmRetrieve.defaultExpectation != nil {
 		mmRetrieve.mock.t.Fatalf("Default expectation is already set for the StorageClient.Retrieve method")
 	}
@@ -250,14 +276,14 @@ func (mmRetrieve *mStorageClientMockRetrieve) Set(f func(ctx context.Context, bl
 
 // When sets expectation for the StorageClient.Retrieve which will trigger the result defined by the following
 // Then helper
-func (mmRetrieve *mStorageClientMockRetrieve) When(ctx context.Context, blobID string, expectedSize int64) *StorageClientMockRetrieveExpectation {
+func (mmRetrieve *mStorageClientMockRetrieve) When(ctx context.Context, blobID string, size int64, part *model.ContentRange) *StorageClientMockRetrieveExpectation {
 	if mmRetrieve.mock.funcRetrieve != nil {
 		mmRetrieve.mock.t.Fatalf("StorageClientMock.Retrieve mock is already set by Set")
 	}
 
 	expectation := &StorageClientMockRetrieveExpectation{
 		mock:               mmRetrieve.mock,
-		params:             &StorageClientMockRetrieveParams{ctx, blobID, expectedSize},
+		params:             &StorageClientMockRetrieveParams{ctx, blobID, size, part},
 		expectationOrigins: StorageClientMockRetrieveExpectationOrigins{origin: minimock.CallerInfo(1)},
 	}
 	mmRetrieve.expectations = append(mmRetrieve.expectations, expectation)
@@ -292,17 +318,17 @@ func (mmRetrieve *mStorageClientMockRetrieve) invocationsDone() bool {
 }
 
 // Retrieve implements mm_client.StorageClient
-func (mmRetrieve *StorageClientMock) Retrieve(ctx context.Context, blobID string, expectedSize int64) (r1 io.ReadCloser, err error) {
+func (mmRetrieve *StorageClientMock) Retrieve(ctx context.Context, blobID string, size int64, part *model.ContentRange) (r1 io.ReadCloser, err error) {
 	mm_atomic.AddUint64(&mmRetrieve.beforeRetrieveCounter, 1)
 	defer mm_atomic.AddUint64(&mmRetrieve.afterRetrieveCounter, 1)
 
 	mmRetrieve.t.Helper()
 
 	if mmRetrieve.inspectFuncRetrieve != nil {
-		mmRetrieve.inspectFuncRetrieve(ctx, blobID, expectedSize)
+		mmRetrieve.inspectFuncRetrieve(ctx, blobID, size, part)
 	}
 
-	mm_params := StorageClientMockRetrieveParams{ctx, blobID, expectedSize}
+	mm_params := StorageClientMockRetrieveParams{ctx, blobID, size, part}
 
 	// Record call args
 	mmRetrieve.RetrieveMock.mutex.Lock()
@@ -321,7 +347,7 @@ func (mmRetrieve *StorageClientMock) Retrieve(ctx context.Context, blobID string
 		mm_want := mmRetrieve.RetrieveMock.defaultExpectation.params
 		mm_want_ptrs := mmRetrieve.RetrieveMock.defaultExpectation.paramPtrs
 
-		mm_got := StorageClientMockRetrieveParams{ctx, blobID, expectedSize}
+		mm_got := StorageClientMockRetrieveParams{ctx, blobID, size, part}
 
 		if mm_want_ptrs != nil {
 
@@ -335,9 +361,14 @@ func (mmRetrieve *StorageClientMock) Retrieve(ctx context.Context, blobID string
 					mmRetrieve.RetrieveMock.defaultExpectation.expectationOrigins.originBlobID, *mm_want_ptrs.blobID, mm_got.blobID, minimock.Diff(*mm_want_ptrs.blobID, mm_got.blobID))
 			}
 
-			if mm_want_ptrs.expectedSize != nil && !minimock.Equal(*mm_want_ptrs.expectedSize, mm_got.expectedSize) {
-				mmRetrieve.t.Errorf("StorageClientMock.Retrieve got unexpected parameter expectedSize, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
-					mmRetrieve.RetrieveMock.defaultExpectation.expectationOrigins.originExpectedSize, *mm_want_ptrs.expectedSize, mm_got.expectedSize, minimock.Diff(*mm_want_ptrs.expectedSize, mm_got.expectedSize))
+			if mm_want_ptrs.size != nil && !minimock.Equal(*mm_want_ptrs.size, mm_got.size) {
+				mmRetrieve.t.Errorf("StorageClientMock.Retrieve got unexpected parameter size, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmRetrieve.RetrieveMock.defaultExpectation.expectationOrigins.originSize, *mm_want_ptrs.size, mm_got.size, minimock.Diff(*mm_want_ptrs.size, mm_got.size))
+			}
+
+			if mm_want_ptrs.part != nil && !minimock.Equal(*mm_want_ptrs.part, mm_got.part) {
+				mmRetrieve.t.Errorf("StorageClientMock.Retrieve got unexpected parameter part, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmRetrieve.RetrieveMock.defaultExpectation.expectationOrigins.originPart, *mm_want_ptrs.part, mm_got.part, minimock.Diff(*mm_want_ptrs.part, mm_got.part))
 			}
 
 		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
@@ -352,9 +383,9 @@ func (mmRetrieve *StorageClientMock) Retrieve(ctx context.Context, blobID string
 		return (*mm_results).r1, (*mm_results).err
 	}
 	if mmRetrieve.funcRetrieve != nil {
-		return mmRetrieve.funcRetrieve(ctx, blobID, expectedSize)
+		return mmRetrieve.funcRetrieve(ctx, blobID, size, part)
 	}
-	mmRetrieve.t.Fatalf("Unexpected call to StorageClientMock.Retrieve. %v %v %v", ctx, blobID, expectedSize)
+	mmRetrieve.t.Fatalf("Unexpected call to StorageClientMock.Retrieve. %v %v %v %v", ctx, blobID, size, part)
 	return
 }
 

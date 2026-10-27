@@ -15,7 +15,8 @@ type metadataClientConfig struct {
 }
 
 type storageClientConfig struct {
-	address                string
+	hotAddress             string
+	coldAddress            string
 	retrieveChunkSizeBytes int
 }
 
@@ -35,7 +36,8 @@ func NewMetadataConfig() (*metadataClientConfig, error) {
 
 func NewStorageConfig() (*storageClientConfig, error) {
 	var raw struct {
-		Address                string `env:"STORAGE_GRPC_ADDR" envDefault:"localhost:50053"`
+		HotAddress             string `env:"STORAGE_HOT_GRPC_ADDR" envDefault:"localhost:50056"`
+		ColdAddress            string `env:"STORAGE_COLD_GRPC_ADDR" envDefault:"localhost:50053"`
 		RetrieveChunkSizeBytes int    `env:"STORAGE_RETRIEVE_CHUNK_SIZE_BYTES" envDefault:"1048576"`
 	}
 	if err := env.Parse(&raw); err != nil {
@@ -44,11 +46,16 @@ func NewStorageConfig() (*storageClientConfig, error) {
 	if raw.RetrieveChunkSizeBytes < 1 || raw.RetrieveChunkSizeBytes > maxRetrieveChunkSizeBytes {
 		return nil, fmt.Errorf("STORAGE_RETRIEVE_CHUNK_SIZE_BYTES must be between 1 and %d", maxRetrieveChunkSizeBytes)
 	}
-	return &storageClientConfig{address: raw.Address, retrieveChunkSizeBytes: raw.RetrieveChunkSizeBytes}, nil
+	return &storageClientConfig{
+		hotAddress:             raw.HotAddress,
+		coldAddress:            raw.ColdAddress,
+		retrieveChunkSizeBytes: raw.RetrieveChunkSizeBytes,
+	}, nil
 }
 
-func (cfg *metadataClientConfig) Address() string { return cfg.address }
-func (cfg *storageClientConfig) Address() string  { return cfg.address }
+func (cfg *metadataClientConfig) Address() string    { return cfg.address }
+func (cfg *storageClientConfig) HotAddress() string  { return cfg.hotAddress }
+func (cfg *storageClientConfig) ColdAddress() string { return cfg.coldAddress }
 func (cfg *storageClientConfig) RetrieveChunkSizeBytes() int {
 	return cfg.retrieveChunkSizeBytes
 }

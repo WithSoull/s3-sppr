@@ -10,7 +10,7 @@ import (
 )
 
 func TestSwaggerEndpoints(t *testing.T) {
-	handler := httpapi.NewHandler(nil)
+	handler := httpapi.NewHandler(nil, testMaxReadDuration)
 
 	document := httptest.NewRecorder()
 	handler.ServeHTTP(document, httptest.NewRequest(http.MethodGet, "/swagger/doc.json", nil))

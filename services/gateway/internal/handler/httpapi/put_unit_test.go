@@ -83,7 +83,7 @@ func TestPutObject(t *testing.T) {
 			request.Header.Set("Content-Type", tt.args.contentType)
 			objects := tt.buildMock(mc, request)
 			response := httptest.NewRecorder()
-			httpapi.NewHandler(objects).ServeHTTP(response, request)
+			httpapi.NewHandler(objects, testMaxReadDuration).ServeHTTP(response, request)
 			require.Equal(t, tt.wantStatus, response.Code)
 			require.Equal(t, tt.wantBody, response.Body.String())
 			require.Equal(t, tt.wantCalls, objects.PutAfterCounter())

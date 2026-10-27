@@ -15,6 +15,15 @@ func TestHTTPConfigReadsAddress(t *testing.T) {
 	require.Equal(t, ":9090", cfg.Address())
 }
 
+func TestStorageConfigReadsAddressPerClass(t *testing.T) {
+	t.Setenv("STORAGE_HOT_GRPC_ADDR", "storage-hot:50053")
+	t.Setenv("STORAGE_COLD_GRPC_ADDR", "storage-cold:50053")
+	cfg, err := NewStorageConfig()
+	require.NoError(t, err)
+	require.Equal(t, "storage-hot:50053", cfg.HotAddress())
+	require.Equal(t, "storage-cold:50053", cfg.ColdAddress())
+}
+
 func TestStorageConfigRetrieveChunkSize(t *testing.T) {
 	tests := []struct {
 		value   string
@@ -41,12 +50,20 @@ func TestStorageConfigRetrieveChunkSize(t *testing.T) {
 	}
 }
 
-// Both durations share one rule: positive and parseable.
+// All durations share one rule: positive and parseable.
 func TestDurationSettingsMustBePositive(t *testing.T) {
 	settings := []struct {
 		name  string
 		setup func(t *testing.T, value string) (time.Duration, error)
 	}{
+		{"GATEWAY_MAX_READ_DURATION", func(t *testing.T, value string) (time.Duration, error) {
+			t.Setenv("GATEWAY_MAX_READ_DURATION", value)
+			cfg, err := NewHTTPConfig()
+			if err != nil {
+				return 0, err
+			}
+			return cfg.MaxReadDuration(), nil
+		}},
 		{"METADATA_RPC_TIMEOUT", func(t *testing.T, value string) (time.Duration, error) {
 			t.Setenv("METADATA_RPC_TIMEOUT", value)
 			cfg, err := NewMetadataConfig()

@@ -49,7 +49,7 @@ func TestGetObject(t *testing.T) {
 			wantContentType: "text/plain",
 			buildMock: func(mc *minimock.Controller, r *http.Request, body *trackedBody) *mocks.ObjectServiceMock {
 				objects := mocks.NewObjectServiceMock(mc)
-				objects.GetMock.Expect(r.Context(), "bucket", "nested/key").Return(model.GetResult{Body: body, Size: 4, ETag: "etag", VersionID: "version", ContentType: "text/plain"}, nil)
+				objects.GetMock.Expect(minimock.AnyContext, "bucket", "nested/key", nil).Return(model.GetResult{Body: body, Size: 4, ETag: "etag", VersionID: "version", ContentType: "text/plain"}, nil)
 				return objects
 			},
 		},
@@ -63,7 +63,7 @@ func TestGetObject(t *testing.T) {
 			wantContentType: "application/octet-stream",
 			buildMock: func(mc *minimock.Controller, r *http.Request, body *trackedBody) *mocks.ObjectServiceMock {
 				objects := mocks.NewObjectServiceMock(mc)
-				objects.GetMock.Expect(r.Context(), "bucket", "nested/key").Return(model.GetResult{Body: body, Size: 4, ETag: "etag", VersionID: "version", ContentType: ""}, nil)
+				objects.GetMock.Expect(minimock.AnyContext, "bucket", "nested/key", nil).Return(model.GetResult{Body: body, Size: 4, ETag: "etag", VersionID: "version", ContentType: ""}, nil)
 				return objects
 			},
 		},
@@ -84,7 +84,7 @@ func TestGetObject(t *testing.T) {
 			wantBody:   "Not Found\n",
 			buildMock: func(mc *minimock.Controller, r *http.Request, _ *trackedBody) *mocks.ObjectServiceMock {
 				objects := mocks.NewObjectServiceMock(mc)
-				objects.GetMock.Expect(r.Context(), "bucket", "key").Return(model.GetResult{}, status.Error(codes.NotFound, "private detail"))
+				objects.GetMock.Expect(minimock.AnyContext, "bucket", "key", nil).Return(model.GetResult{}, status.Error(codes.NotFound, "private detail"))
 				return objects
 			},
 		},
@@ -96,7 +96,7 @@ func TestGetObject(t *testing.T) {
 			body := &trackedBody{Reader: strings.NewReader("data")}
 			objects := tt.buildMock(mc, request, body)
 			response := httptest.NewRecorder()
-			httpapi.NewHandler(objects).ServeHTTP(response, request)
+			httpapi.NewHandler(objects, testMaxReadDuration).ServeHTTP(response, request)
 			require.Equal(t, tt.wantStatus, response.Code)
 			require.Equal(t, tt.wantBody, response.Body.String())
 			require.Equal(t, tt.wantCloses, body.closes)

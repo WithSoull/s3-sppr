@@ -2,6 +2,7 @@ package httpapi
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 
 	domainerrors "github.com/alesplll/opens3-rebac/services/gateway/internal/errors/domain_errors"
@@ -17,6 +18,10 @@ const statusClientClosedRequest = 499
 
 func writeServiceError(w http.ResponseWriter, r *http.Request, err error) {
 	code, body := classifyServiceError(err)
+	var rangeErr *domainerrors.RangeNotSatisfiableError
+	if errors.As(err, &rangeErr) {
+		w.Header().Set("Content-Range", fmt.Sprintf("bytes */%d", rangeErr.Size))
+	}
 	if r.Context().Err() != nil {
 		code, body = statusClientClosedRequest, "client closed request"
 	}
@@ -46,6 +51,10 @@ func classifyServiceError(err error) (int, string) {
 		return http.StatusServiceUnavailable, http.StatusText(http.StatusServiceUnavailable)
 	case errors.Is(err, domainerrors.ErrBlobMissing):
 		return http.StatusBadGateway, http.StatusText(http.StatusBadGateway)
+	case errors.Is(err, domainerrors.ErrUnknownStorageClass):
+		return http.StatusBadGateway, http.StatusText(http.StatusBadGateway)
+	case errors.Is(err, domainerrors.ErrRangeNotSatisfiable):
+		return http.StatusRequestedRangeNotSatisfiable, http.StatusText(http.StatusRequestedRangeNotSatisfiable)
 	}
 	code := http.StatusBadGateway
 	switch status.Code(err) {

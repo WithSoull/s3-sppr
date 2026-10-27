@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alesplll/opens3-rebac/services/gateway/internal/model"
 	"github.com/alesplll/opens3-rebac/services/gateway/internal/testkit"
 	"github.com/stretchr/testify/require"
 )
@@ -16,8 +17,10 @@ import (
 func TestMetadataTimeoutThroughHTTP(t *testing.T) {
 	tests := []struct{ name, operation, method string }{
 		{name: "HeadBucket", operation: testkit.OpHeadBucket, method: http.MethodPut},
+		{name: "ChooseWriteClass", operation: testkit.OpChooseWriteClass, method: http.MethodPut},
 		{name: "CreateObjectVersion", operation: testkit.OpCreateObjectVersion, method: http.MethodPut},
 		{name: "GetObjectMeta", operation: testkit.OpGetObjectMeta, method: http.MethodGet},
+		{name: "DeleteObjectMeta", operation: testkit.OpDeleteObjectMeta, method: http.MethodDelete},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -33,9 +36,10 @@ func TestMetadataTimeoutThroughHTTP(t *testing.T) {
 			}
 			address := upstream.ListenTCP(t)
 			a := newTestApp(t, map[string]string{
-				"METADATA_GRPC_ADDR":   address,
-				"STORAGE_GRPC_ADDR":    address,
-				"METADATA_RPC_TIMEOUT": "200ms",
+				"METADATA_GRPC_ADDR":     address,
+				"STORAGE_COLD_GRPC_ADDR": address,
+				"STORAGE_HOT_GRPC_ADDR":  upstream.ListenStorageTCP(t, model.StorageClassHot),
+				"METADATA_RPC_TIMEOUT":   "200ms",
 			})
 			server := httptest.NewServer(a.httpServer.Handler)
 			t.Cleanup(server.Close)

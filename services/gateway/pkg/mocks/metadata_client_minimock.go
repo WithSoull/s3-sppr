@@ -17,12 +17,26 @@ type MetadataClientMock struct {
 	t          minimock.Tester
 	finishOnce sync.Once
 
-	funcCreateVersion          func(ctx context.Context, bucket string, key string, blobID string, size int64, etag string, contentType string) (s1 string, err error)
+	funcChooseWriteClass          func(ctx context.Context, bucket string, key string, size *int64) (s1 model.StorageClass, err error)
+	funcChooseWriteClassOrigin    string
+	inspectFuncChooseWriteClass   func(ctx context.Context, bucket string, key string, size *int64)
+	afterChooseWriteClassCounter  uint64
+	beforeChooseWriteClassCounter uint64
+	ChooseWriteClassMock          mMetadataClientMockChooseWriteClass
+
+	funcCreateVersion          func(ctx context.Context, bucket string, key string, blobID string, size int64, etag string, contentType string, class model.StorageClass) (s1 string, err error)
 	funcCreateVersionOrigin    string
-	inspectFuncCreateVersion   func(ctx context.Context, bucket string, key string, blobID string, size int64, etag string, contentType string)
+	inspectFuncCreateVersion   func(ctx context.Context, bucket string, key string, blobID string, size int64, etag string, contentType string, class model.StorageClass)
 	afterCreateVersionCounter  uint64
 	beforeCreateVersionCounter uint64
 	CreateVersionMock          mMetadataClientMockCreateVersion
+
+	funcDeleteObject          func(ctx context.Context, bucket string, key string) (err error)
+	funcDeleteObjectOrigin    string
+	inspectFuncDeleteObject   func(ctx context.Context, bucket string, key string)
+	afterDeleteObjectCounter  uint64
+	beforeDeleteObjectCounter uint64
+	DeleteObjectMock          mMetadataClientMockDeleteObject
 
 	funcGetObject          func(ctx context.Context, bucket string, key string) (o1 model.ObjectMeta, err error)
 	funcGetObjectOrigin    string
@@ -47,8 +61,14 @@ func NewMetadataClientMock(t minimock.Tester) *MetadataClientMock {
 		controller.RegisterMocker(m)
 	}
 
+	m.ChooseWriteClassMock = mMetadataClientMockChooseWriteClass{mock: m}
+	m.ChooseWriteClassMock.callArgs = []*MetadataClientMockChooseWriteClassParams{}
+
 	m.CreateVersionMock = mMetadataClientMockCreateVersion{mock: m}
 	m.CreateVersionMock.callArgs = []*MetadataClientMockCreateVersionParams{}
+
+	m.DeleteObjectMock = mMetadataClientMockDeleteObject{mock: m}
+	m.DeleteObjectMock.callArgs = []*MetadataClientMockDeleteObjectParams{}
 
 	m.GetObjectMock = mMetadataClientMockGetObject{mock: m}
 	m.GetObjectMock.callArgs = []*MetadataClientMockGetObjectParams{}
@@ -59,6 +79,411 @@ func NewMetadataClientMock(t minimock.Tester) *MetadataClientMock {
 	t.Cleanup(m.MinimockFinish)
 
 	return m
+}
+
+type mMetadataClientMockChooseWriteClass struct {
+	optional           bool
+	mock               *MetadataClientMock
+	defaultExpectation *MetadataClientMockChooseWriteClassExpectation
+	expectations       []*MetadataClientMockChooseWriteClassExpectation
+
+	callArgs []*MetadataClientMockChooseWriteClassParams
+	mutex    sync.RWMutex
+
+	expectedInvocations       uint64
+	expectedInvocationsOrigin string
+}
+
+// MetadataClientMockChooseWriteClassExpectation specifies expectation struct of the MetadataClient.ChooseWriteClass
+type MetadataClientMockChooseWriteClassExpectation struct {
+	mock               *MetadataClientMock
+	params             *MetadataClientMockChooseWriteClassParams
+	paramPtrs          *MetadataClientMockChooseWriteClassParamPtrs
+	expectationOrigins MetadataClientMockChooseWriteClassExpectationOrigins
+	results            *MetadataClientMockChooseWriteClassResults
+	returnOrigin       string
+	Counter            uint64
+}
+
+// MetadataClientMockChooseWriteClassParams contains parameters of the MetadataClient.ChooseWriteClass
+type MetadataClientMockChooseWriteClassParams struct {
+	ctx    context.Context
+	bucket string
+	key    string
+	size   *int64
+}
+
+// MetadataClientMockChooseWriteClassParamPtrs contains pointers to parameters of the MetadataClient.ChooseWriteClass
+type MetadataClientMockChooseWriteClassParamPtrs struct {
+	ctx    *context.Context
+	bucket *string
+	key    *string
+	size   **int64
+}
+
+// MetadataClientMockChooseWriteClassResults contains results of the MetadataClient.ChooseWriteClass
+type MetadataClientMockChooseWriteClassResults struct {
+	s1  model.StorageClass
+	err error
+}
+
+// MetadataClientMockChooseWriteClassOrigins contains origins of expectations of the MetadataClient.ChooseWriteClass
+type MetadataClientMockChooseWriteClassExpectationOrigins struct {
+	origin       string
+	originCtx    string
+	originBucket string
+	originKey    string
+	originSize   string
+}
+
+// Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
+// the test will fail minimock's automatic final call check if the mocked method was not called at least once.
+// Optional() makes method check to work in '0 or more' mode.
+// It is NOT RECOMMENDED to use this option unless you really need it, as default behaviour helps to
+// catch the problems when the expected method call is totally skipped during test run.
+func (mmChooseWriteClass *mMetadataClientMockChooseWriteClass) Optional() *mMetadataClientMockChooseWriteClass {
+	mmChooseWriteClass.optional = true
+	return mmChooseWriteClass
+}
+
+// Expect sets up expected params for MetadataClient.ChooseWriteClass
+func (mmChooseWriteClass *mMetadataClientMockChooseWriteClass) Expect(ctx context.Context, bucket string, key string, size *int64) *mMetadataClientMockChooseWriteClass {
+	if mmChooseWriteClass.mock.funcChooseWriteClass != nil {
+		mmChooseWriteClass.mock.t.Fatalf("MetadataClientMock.ChooseWriteClass mock is already set by Set")
+	}
+
+	if mmChooseWriteClass.defaultExpectation == nil {
+		mmChooseWriteClass.defaultExpectation = &MetadataClientMockChooseWriteClassExpectation{}
+	}
+
+	if mmChooseWriteClass.defaultExpectation.paramPtrs != nil {
+		mmChooseWriteClass.mock.t.Fatalf("MetadataClientMock.ChooseWriteClass mock is already set by ExpectParams functions")
+	}
+
+	mmChooseWriteClass.defaultExpectation.params = &MetadataClientMockChooseWriteClassParams{ctx, bucket, key, size}
+	mmChooseWriteClass.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
+	for _, e := range mmChooseWriteClass.expectations {
+		if minimock.Equal(e.params, mmChooseWriteClass.defaultExpectation.params) {
+			mmChooseWriteClass.mock.t.Fatalf("Expectation set by When has same params: %#v", *mmChooseWriteClass.defaultExpectation.params)
+		}
+	}
+
+	return mmChooseWriteClass
+}
+
+// ExpectCtxParam1 sets up expected param ctx for MetadataClient.ChooseWriteClass
+func (mmChooseWriteClass *mMetadataClientMockChooseWriteClass) ExpectCtxParam1(ctx context.Context) *mMetadataClientMockChooseWriteClass {
+	if mmChooseWriteClass.mock.funcChooseWriteClass != nil {
+		mmChooseWriteClass.mock.t.Fatalf("MetadataClientMock.ChooseWriteClass mock is already set by Set")
+	}
+
+	if mmChooseWriteClass.defaultExpectation == nil {
+		mmChooseWriteClass.defaultExpectation = &MetadataClientMockChooseWriteClassExpectation{}
+	}
+
+	if mmChooseWriteClass.defaultExpectation.params != nil {
+		mmChooseWriteClass.mock.t.Fatalf("MetadataClientMock.ChooseWriteClass mock is already set by Expect")
+	}
+
+	if mmChooseWriteClass.defaultExpectation.paramPtrs == nil {
+		mmChooseWriteClass.defaultExpectation.paramPtrs = &MetadataClientMockChooseWriteClassParamPtrs{}
+	}
+	mmChooseWriteClass.defaultExpectation.paramPtrs.ctx = &ctx
+	mmChooseWriteClass.defaultExpectation.expectationOrigins.originCtx = minimock.CallerInfo(1)
+
+	return mmChooseWriteClass
+}
+
+// ExpectBucketParam2 sets up expected param bucket for MetadataClient.ChooseWriteClass
+func (mmChooseWriteClass *mMetadataClientMockChooseWriteClass) ExpectBucketParam2(bucket string) *mMetadataClientMockChooseWriteClass {
+	if mmChooseWriteClass.mock.funcChooseWriteClass != nil {
+		mmChooseWriteClass.mock.t.Fatalf("MetadataClientMock.ChooseWriteClass mock is already set by Set")
+	}
+
+	if mmChooseWriteClass.defaultExpectation == nil {
+		mmChooseWriteClass.defaultExpectation = &MetadataClientMockChooseWriteClassExpectation{}
+	}
+
+	if mmChooseWriteClass.defaultExpectation.params != nil {
+		mmChooseWriteClass.mock.t.Fatalf("MetadataClientMock.ChooseWriteClass mock is already set by Expect")
+	}
+
+	if mmChooseWriteClass.defaultExpectation.paramPtrs == nil {
+		mmChooseWriteClass.defaultExpectation.paramPtrs = &MetadataClientMockChooseWriteClassParamPtrs{}
+	}
+	mmChooseWriteClass.defaultExpectation.paramPtrs.bucket = &bucket
+	mmChooseWriteClass.defaultExpectation.expectationOrigins.originBucket = minimock.CallerInfo(1)
+
+	return mmChooseWriteClass
+}
+
+// ExpectKeyParam3 sets up expected param key for MetadataClient.ChooseWriteClass
+func (mmChooseWriteClass *mMetadataClientMockChooseWriteClass) ExpectKeyParam3(key string) *mMetadataClientMockChooseWriteClass {
+	if mmChooseWriteClass.mock.funcChooseWriteClass != nil {
+		mmChooseWriteClass.mock.t.Fatalf("MetadataClientMock.ChooseWriteClass mock is already set by Set")
+	}
+
+	if mmChooseWriteClass.defaultExpectation == nil {
+		mmChooseWriteClass.defaultExpectation = &MetadataClientMockChooseWriteClassExpectation{}
+	}
+
+	if mmChooseWriteClass.defaultExpectation.params != nil {
+		mmChooseWriteClass.mock.t.Fatalf("MetadataClientMock.ChooseWriteClass mock is already set by Expect")
+	}
+
+	if mmChooseWriteClass.defaultExpectation.paramPtrs == nil {
+		mmChooseWriteClass.defaultExpectation.paramPtrs = &MetadataClientMockChooseWriteClassParamPtrs{}
+	}
+	mmChooseWriteClass.defaultExpectation.paramPtrs.key = &key
+	mmChooseWriteClass.defaultExpectation.expectationOrigins.originKey = minimock.CallerInfo(1)
+
+	return mmChooseWriteClass
+}
+
+// ExpectSizeParam4 sets up expected param size for MetadataClient.ChooseWriteClass
+func (mmChooseWriteClass *mMetadataClientMockChooseWriteClass) ExpectSizeParam4(size *int64) *mMetadataClientMockChooseWriteClass {
+	if mmChooseWriteClass.mock.funcChooseWriteClass != nil {
+		mmChooseWriteClass.mock.t.Fatalf("MetadataClientMock.ChooseWriteClass mock is already set by Set")
+	}
+
+	if mmChooseWriteClass.defaultExpectation == nil {
+		mmChooseWriteClass.defaultExpectation = &MetadataClientMockChooseWriteClassExpectation{}
+	}
+
+	if mmChooseWriteClass.defaultExpectation.params != nil {
+		mmChooseWriteClass.mock.t.Fatalf("MetadataClientMock.ChooseWriteClass mock is already set by Expect")
+	}
+
+	if mmChooseWriteClass.defaultExpectation.paramPtrs == nil {
+		mmChooseWriteClass.defaultExpectation.paramPtrs = &MetadataClientMockChooseWriteClassParamPtrs{}
+	}
+	mmChooseWriteClass.defaultExpectation.paramPtrs.size = &size
+	mmChooseWriteClass.defaultExpectation.expectationOrigins.originSize = minimock.CallerInfo(1)
+
+	return mmChooseWriteClass
+}
+
+// Inspect accepts an inspector function that has same arguments as the MetadataClient.ChooseWriteClass
+func (mmChooseWriteClass *mMetadataClientMockChooseWriteClass) Inspect(f func(ctx context.Context, bucket string, key string, size *int64)) *mMetadataClientMockChooseWriteClass {
+	if mmChooseWriteClass.mock.inspectFuncChooseWriteClass != nil {
+		mmChooseWriteClass.mock.t.Fatalf("Inspect function is already set for MetadataClientMock.ChooseWriteClass")
+	}
+
+	mmChooseWriteClass.mock.inspectFuncChooseWriteClass = f
+
+	return mmChooseWriteClass
+}
+
+// Return sets up results that will be returned by MetadataClient.ChooseWriteClass
+func (mmChooseWriteClass *mMetadataClientMockChooseWriteClass) Return(s1 model.StorageClass, err error) *MetadataClientMock {
+	if mmChooseWriteClass.mock.funcChooseWriteClass != nil {
+		mmChooseWriteClass.mock.t.Fatalf("MetadataClientMock.ChooseWriteClass mock is already set by Set")
+	}
+
+	if mmChooseWriteClass.defaultExpectation == nil {
+		mmChooseWriteClass.defaultExpectation = &MetadataClientMockChooseWriteClassExpectation{mock: mmChooseWriteClass.mock}
+	}
+	mmChooseWriteClass.defaultExpectation.results = &MetadataClientMockChooseWriteClassResults{s1, err}
+	mmChooseWriteClass.defaultExpectation.returnOrigin = minimock.CallerInfo(1)
+	return mmChooseWriteClass.mock
+}
+
+// Set uses given function f to mock the MetadataClient.ChooseWriteClass method
+func (mmChooseWriteClass *mMetadataClientMockChooseWriteClass) Set(f func(ctx context.Context, bucket string, key string, size *int64) (s1 model.StorageClass, err error)) *MetadataClientMock {
+	if mmChooseWriteClass.defaultExpectation != nil {
+		mmChooseWriteClass.mock.t.Fatalf("Default expectation is already set for the MetadataClient.ChooseWriteClass method")
+	}
+
+	if len(mmChooseWriteClass.expectations) > 0 {
+		mmChooseWriteClass.mock.t.Fatalf("Some expectations are already set for the MetadataClient.ChooseWriteClass method")
+	}
+
+	mmChooseWriteClass.mock.funcChooseWriteClass = f
+	mmChooseWriteClass.mock.funcChooseWriteClassOrigin = minimock.CallerInfo(1)
+	return mmChooseWriteClass.mock
+}
+
+// When sets expectation for the MetadataClient.ChooseWriteClass which will trigger the result defined by the following
+// Then helper
+func (mmChooseWriteClass *mMetadataClientMockChooseWriteClass) When(ctx context.Context, bucket string, key string, size *int64) *MetadataClientMockChooseWriteClassExpectation {
+	if mmChooseWriteClass.mock.funcChooseWriteClass != nil {
+		mmChooseWriteClass.mock.t.Fatalf("MetadataClientMock.ChooseWriteClass mock is already set by Set")
+	}
+
+	expectation := &MetadataClientMockChooseWriteClassExpectation{
+		mock:               mmChooseWriteClass.mock,
+		params:             &MetadataClientMockChooseWriteClassParams{ctx, bucket, key, size},
+		expectationOrigins: MetadataClientMockChooseWriteClassExpectationOrigins{origin: minimock.CallerInfo(1)},
+	}
+	mmChooseWriteClass.expectations = append(mmChooseWriteClass.expectations, expectation)
+	return expectation
+}
+
+// Then sets up MetadataClient.ChooseWriteClass return parameters for the expectation previously defined by the When method
+func (e *MetadataClientMockChooseWriteClassExpectation) Then(s1 model.StorageClass, err error) *MetadataClientMock {
+	e.results = &MetadataClientMockChooseWriteClassResults{s1, err}
+	return e.mock
+}
+
+// Times sets number of times MetadataClient.ChooseWriteClass should be invoked
+func (mmChooseWriteClass *mMetadataClientMockChooseWriteClass) Times(n uint64) *mMetadataClientMockChooseWriteClass {
+	if n == 0 {
+		mmChooseWriteClass.mock.t.Fatalf("Times of MetadataClientMock.ChooseWriteClass mock can not be zero")
+	}
+	mm_atomic.StoreUint64(&mmChooseWriteClass.expectedInvocations, n)
+	mmChooseWriteClass.expectedInvocationsOrigin = minimock.CallerInfo(1)
+	return mmChooseWriteClass
+}
+
+func (mmChooseWriteClass *mMetadataClientMockChooseWriteClass) invocationsDone() bool {
+	if len(mmChooseWriteClass.expectations) == 0 && mmChooseWriteClass.defaultExpectation == nil && mmChooseWriteClass.mock.funcChooseWriteClass == nil {
+		return true
+	}
+
+	totalInvocations := mm_atomic.LoadUint64(&mmChooseWriteClass.mock.afterChooseWriteClassCounter)
+	expectedInvocations := mm_atomic.LoadUint64(&mmChooseWriteClass.expectedInvocations)
+
+	return totalInvocations > 0 && (expectedInvocations == 0 || expectedInvocations == totalInvocations)
+}
+
+// ChooseWriteClass implements mm_client.MetadataClient
+func (mmChooseWriteClass *MetadataClientMock) ChooseWriteClass(ctx context.Context, bucket string, key string, size *int64) (s1 model.StorageClass, err error) {
+	mm_atomic.AddUint64(&mmChooseWriteClass.beforeChooseWriteClassCounter, 1)
+	defer mm_atomic.AddUint64(&mmChooseWriteClass.afterChooseWriteClassCounter, 1)
+
+	mmChooseWriteClass.t.Helper()
+
+	if mmChooseWriteClass.inspectFuncChooseWriteClass != nil {
+		mmChooseWriteClass.inspectFuncChooseWriteClass(ctx, bucket, key, size)
+	}
+
+	mm_params := MetadataClientMockChooseWriteClassParams{ctx, bucket, key, size}
+
+	// Record call args
+	mmChooseWriteClass.ChooseWriteClassMock.mutex.Lock()
+	mmChooseWriteClass.ChooseWriteClassMock.callArgs = append(mmChooseWriteClass.ChooseWriteClassMock.callArgs, &mm_params)
+	mmChooseWriteClass.ChooseWriteClassMock.mutex.Unlock()
+
+	for _, e := range mmChooseWriteClass.ChooseWriteClassMock.expectations {
+		if minimock.Equal(*e.params, mm_params) {
+			mm_atomic.AddUint64(&e.Counter, 1)
+			return e.results.s1, e.results.err
+		}
+	}
+
+	if mmChooseWriteClass.ChooseWriteClassMock.defaultExpectation != nil {
+		mm_atomic.AddUint64(&mmChooseWriteClass.ChooseWriteClassMock.defaultExpectation.Counter, 1)
+		mm_want := mmChooseWriteClass.ChooseWriteClassMock.defaultExpectation.params
+		mm_want_ptrs := mmChooseWriteClass.ChooseWriteClassMock.defaultExpectation.paramPtrs
+
+		mm_got := MetadataClientMockChooseWriteClassParams{ctx, bucket, key, size}
+
+		if mm_want_ptrs != nil {
+
+			if mm_want_ptrs.ctx != nil && !minimock.Equal(*mm_want_ptrs.ctx, mm_got.ctx) {
+				mmChooseWriteClass.t.Errorf("MetadataClientMock.ChooseWriteClass got unexpected parameter ctx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmChooseWriteClass.ChooseWriteClassMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
+			}
+
+			if mm_want_ptrs.bucket != nil && !minimock.Equal(*mm_want_ptrs.bucket, mm_got.bucket) {
+				mmChooseWriteClass.t.Errorf("MetadataClientMock.ChooseWriteClass got unexpected parameter bucket, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmChooseWriteClass.ChooseWriteClassMock.defaultExpectation.expectationOrigins.originBucket, *mm_want_ptrs.bucket, mm_got.bucket, minimock.Diff(*mm_want_ptrs.bucket, mm_got.bucket))
+			}
+
+			if mm_want_ptrs.key != nil && !minimock.Equal(*mm_want_ptrs.key, mm_got.key) {
+				mmChooseWriteClass.t.Errorf("MetadataClientMock.ChooseWriteClass got unexpected parameter key, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmChooseWriteClass.ChooseWriteClassMock.defaultExpectation.expectationOrigins.originKey, *mm_want_ptrs.key, mm_got.key, minimock.Diff(*mm_want_ptrs.key, mm_got.key))
+			}
+
+			if mm_want_ptrs.size != nil && !minimock.Equal(*mm_want_ptrs.size, mm_got.size) {
+				mmChooseWriteClass.t.Errorf("MetadataClientMock.ChooseWriteClass got unexpected parameter size, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmChooseWriteClass.ChooseWriteClassMock.defaultExpectation.expectationOrigins.originSize, *mm_want_ptrs.size, mm_got.size, minimock.Diff(*mm_want_ptrs.size, mm_got.size))
+			}
+
+		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
+			mmChooseWriteClass.t.Errorf("MetadataClientMock.ChooseWriteClass got unexpected parameters, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+				mmChooseWriteClass.ChooseWriteClassMock.defaultExpectation.expectationOrigins.origin, *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
+		}
+
+		mm_results := mmChooseWriteClass.ChooseWriteClassMock.defaultExpectation.results
+		if mm_results == nil {
+			mmChooseWriteClass.t.Fatal("No results are set for the MetadataClientMock.ChooseWriteClass")
+		}
+		return (*mm_results).s1, (*mm_results).err
+	}
+	if mmChooseWriteClass.funcChooseWriteClass != nil {
+		return mmChooseWriteClass.funcChooseWriteClass(ctx, bucket, key, size)
+	}
+	mmChooseWriteClass.t.Fatalf("Unexpected call to MetadataClientMock.ChooseWriteClass. %v %v %v %v", ctx, bucket, key, size)
+	return
+}
+
+// ChooseWriteClassAfterCounter returns a count of finished MetadataClientMock.ChooseWriteClass invocations
+func (mmChooseWriteClass *MetadataClientMock) ChooseWriteClassAfterCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmChooseWriteClass.afterChooseWriteClassCounter)
+}
+
+// ChooseWriteClassBeforeCounter returns a count of MetadataClientMock.ChooseWriteClass invocations
+func (mmChooseWriteClass *MetadataClientMock) ChooseWriteClassBeforeCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmChooseWriteClass.beforeChooseWriteClassCounter)
+}
+
+// Calls returns a list of arguments used in each call to MetadataClientMock.ChooseWriteClass.
+// The list is in the same order as the calls were made (i.e. recent calls have a higher index)
+func (mmChooseWriteClass *mMetadataClientMockChooseWriteClass) Calls() []*MetadataClientMockChooseWriteClassParams {
+	mmChooseWriteClass.mutex.RLock()
+
+	argCopy := make([]*MetadataClientMockChooseWriteClassParams, len(mmChooseWriteClass.callArgs))
+	copy(argCopy, mmChooseWriteClass.callArgs)
+
+	mmChooseWriteClass.mutex.RUnlock()
+
+	return argCopy
+}
+
+// MinimockChooseWriteClassDone returns true if the count of the ChooseWriteClass invocations corresponds
+// the number of defined expectations
+func (m *MetadataClientMock) MinimockChooseWriteClassDone() bool {
+	if m.ChooseWriteClassMock.optional {
+		// Optional methods provide '0 or more' call count restriction.
+		return true
+	}
+
+	for _, e := range m.ChooseWriteClassMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			return false
+		}
+	}
+
+	return m.ChooseWriteClassMock.invocationsDone()
+}
+
+// MinimockChooseWriteClassInspect logs each unmet expectation
+func (m *MetadataClientMock) MinimockChooseWriteClassInspect() {
+	for _, e := range m.ChooseWriteClassMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			m.t.Errorf("Expected call to MetadataClientMock.ChooseWriteClass at\n%s with params: %#v", e.expectationOrigins.origin, *e.params)
+		}
+	}
+
+	afterChooseWriteClassCounter := mm_atomic.LoadUint64(&m.afterChooseWriteClassCounter)
+	// if default expectation was set then invocations count should be greater than zero
+	if m.ChooseWriteClassMock.defaultExpectation != nil && afterChooseWriteClassCounter < 1 {
+		if m.ChooseWriteClassMock.defaultExpectation.params == nil {
+			m.t.Errorf("Expected call to MetadataClientMock.ChooseWriteClass at\n%s", m.ChooseWriteClassMock.defaultExpectation.returnOrigin)
+		} else {
+			m.t.Errorf("Expected call to MetadataClientMock.ChooseWriteClass at\n%s with params: %#v", m.ChooseWriteClassMock.defaultExpectation.expectationOrigins.origin, *m.ChooseWriteClassMock.defaultExpectation.params)
+		}
+	}
+	// if func was set then invocations count should be greater than zero
+	if m.funcChooseWriteClass != nil && afterChooseWriteClassCounter < 1 {
+		m.t.Errorf("Expected call to MetadataClientMock.ChooseWriteClass at\n%s", m.funcChooseWriteClassOrigin)
+	}
+
+	if !m.ChooseWriteClassMock.invocationsDone() && afterChooseWriteClassCounter > 0 {
+		m.t.Errorf("Expected %d calls to MetadataClientMock.ChooseWriteClass at\n%s but found %d calls",
+			mm_atomic.LoadUint64(&m.ChooseWriteClassMock.expectedInvocations), m.ChooseWriteClassMock.expectedInvocationsOrigin, afterChooseWriteClassCounter)
+	}
 }
 
 type mMetadataClientMockCreateVersion struct {
@@ -94,6 +519,7 @@ type MetadataClientMockCreateVersionParams struct {
 	size        int64
 	etag        string
 	contentType string
+	class       model.StorageClass
 }
 
 // MetadataClientMockCreateVersionParamPtrs contains pointers to parameters of the MetadataClient.CreateVersion
@@ -105,6 +531,7 @@ type MetadataClientMockCreateVersionParamPtrs struct {
 	size        *int64
 	etag        *string
 	contentType *string
+	class       *model.StorageClass
 }
 
 // MetadataClientMockCreateVersionResults contains results of the MetadataClient.CreateVersion
@@ -123,6 +550,7 @@ type MetadataClientMockCreateVersionExpectationOrigins struct {
 	originSize        string
 	originEtag        string
 	originContentType string
+	originClass       string
 }
 
 // Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
@@ -136,7 +564,7 @@ func (mmCreateVersion *mMetadataClientMockCreateVersion) Optional() *mMetadataCl
 }
 
 // Expect sets up expected params for MetadataClient.CreateVersion
-func (mmCreateVersion *mMetadataClientMockCreateVersion) Expect(ctx context.Context, bucket string, key string, blobID string, size int64, etag string, contentType string) *mMetadataClientMockCreateVersion {
+func (mmCreateVersion *mMetadataClientMockCreateVersion) Expect(ctx context.Context, bucket string, key string, blobID string, size int64, etag string, contentType string, class model.StorageClass) *mMetadataClientMockCreateVersion {
 	if mmCreateVersion.mock.funcCreateVersion != nil {
 		mmCreateVersion.mock.t.Fatalf("MetadataClientMock.CreateVersion mock is already set by Set")
 	}
@@ -149,7 +577,7 @@ func (mmCreateVersion *mMetadataClientMockCreateVersion) Expect(ctx context.Cont
 		mmCreateVersion.mock.t.Fatalf("MetadataClientMock.CreateVersion mock is already set by ExpectParams functions")
 	}
 
-	mmCreateVersion.defaultExpectation.params = &MetadataClientMockCreateVersionParams{ctx, bucket, key, blobID, size, etag, contentType}
+	mmCreateVersion.defaultExpectation.params = &MetadataClientMockCreateVersionParams{ctx, bucket, key, blobID, size, etag, contentType, class}
 	mmCreateVersion.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
 	for _, e := range mmCreateVersion.expectations {
 		if minimock.Equal(e.params, mmCreateVersion.defaultExpectation.params) {
@@ -321,8 +749,31 @@ func (mmCreateVersion *mMetadataClientMockCreateVersion) ExpectContentTypeParam7
 	return mmCreateVersion
 }
 
+// ExpectClassParam8 sets up expected param class for MetadataClient.CreateVersion
+func (mmCreateVersion *mMetadataClientMockCreateVersion) ExpectClassParam8(class model.StorageClass) *mMetadataClientMockCreateVersion {
+	if mmCreateVersion.mock.funcCreateVersion != nil {
+		mmCreateVersion.mock.t.Fatalf("MetadataClientMock.CreateVersion mock is already set by Set")
+	}
+
+	if mmCreateVersion.defaultExpectation == nil {
+		mmCreateVersion.defaultExpectation = &MetadataClientMockCreateVersionExpectation{}
+	}
+
+	if mmCreateVersion.defaultExpectation.params != nil {
+		mmCreateVersion.mock.t.Fatalf("MetadataClientMock.CreateVersion mock is already set by Expect")
+	}
+
+	if mmCreateVersion.defaultExpectation.paramPtrs == nil {
+		mmCreateVersion.defaultExpectation.paramPtrs = &MetadataClientMockCreateVersionParamPtrs{}
+	}
+	mmCreateVersion.defaultExpectation.paramPtrs.class = &class
+	mmCreateVersion.defaultExpectation.expectationOrigins.originClass = minimock.CallerInfo(1)
+
+	return mmCreateVersion
+}
+
 // Inspect accepts an inspector function that has same arguments as the MetadataClient.CreateVersion
-func (mmCreateVersion *mMetadataClientMockCreateVersion) Inspect(f func(ctx context.Context, bucket string, key string, blobID string, size int64, etag string, contentType string)) *mMetadataClientMockCreateVersion {
+func (mmCreateVersion *mMetadataClientMockCreateVersion) Inspect(f func(ctx context.Context, bucket string, key string, blobID string, size int64, etag string, contentType string, class model.StorageClass)) *mMetadataClientMockCreateVersion {
 	if mmCreateVersion.mock.inspectFuncCreateVersion != nil {
 		mmCreateVersion.mock.t.Fatalf("Inspect function is already set for MetadataClientMock.CreateVersion")
 	}
@@ -347,7 +798,7 @@ func (mmCreateVersion *mMetadataClientMockCreateVersion) Return(s1 string, err e
 }
 
 // Set uses given function f to mock the MetadataClient.CreateVersion method
-func (mmCreateVersion *mMetadataClientMockCreateVersion) Set(f func(ctx context.Context, bucket string, key string, blobID string, size int64, etag string, contentType string) (s1 string, err error)) *MetadataClientMock {
+func (mmCreateVersion *mMetadataClientMockCreateVersion) Set(f func(ctx context.Context, bucket string, key string, blobID string, size int64, etag string, contentType string, class model.StorageClass) (s1 string, err error)) *MetadataClientMock {
 	if mmCreateVersion.defaultExpectation != nil {
 		mmCreateVersion.mock.t.Fatalf("Default expectation is already set for the MetadataClient.CreateVersion method")
 	}
@@ -363,14 +814,14 @@ func (mmCreateVersion *mMetadataClientMockCreateVersion) Set(f func(ctx context.
 
 // When sets expectation for the MetadataClient.CreateVersion which will trigger the result defined by the following
 // Then helper
-func (mmCreateVersion *mMetadataClientMockCreateVersion) When(ctx context.Context, bucket string, key string, blobID string, size int64, etag string, contentType string) *MetadataClientMockCreateVersionExpectation {
+func (mmCreateVersion *mMetadataClientMockCreateVersion) When(ctx context.Context, bucket string, key string, blobID string, size int64, etag string, contentType string, class model.StorageClass) *MetadataClientMockCreateVersionExpectation {
 	if mmCreateVersion.mock.funcCreateVersion != nil {
 		mmCreateVersion.mock.t.Fatalf("MetadataClientMock.CreateVersion mock is already set by Set")
 	}
 
 	expectation := &MetadataClientMockCreateVersionExpectation{
 		mock:               mmCreateVersion.mock,
-		params:             &MetadataClientMockCreateVersionParams{ctx, bucket, key, blobID, size, etag, contentType},
+		params:             &MetadataClientMockCreateVersionParams{ctx, bucket, key, blobID, size, etag, contentType, class},
 		expectationOrigins: MetadataClientMockCreateVersionExpectationOrigins{origin: minimock.CallerInfo(1)},
 	}
 	mmCreateVersion.expectations = append(mmCreateVersion.expectations, expectation)
@@ -405,17 +856,17 @@ func (mmCreateVersion *mMetadataClientMockCreateVersion) invocationsDone() bool 
 }
 
 // CreateVersion implements mm_client.MetadataClient
-func (mmCreateVersion *MetadataClientMock) CreateVersion(ctx context.Context, bucket string, key string, blobID string, size int64, etag string, contentType string) (s1 string, err error) {
+func (mmCreateVersion *MetadataClientMock) CreateVersion(ctx context.Context, bucket string, key string, blobID string, size int64, etag string, contentType string, class model.StorageClass) (s1 string, err error) {
 	mm_atomic.AddUint64(&mmCreateVersion.beforeCreateVersionCounter, 1)
 	defer mm_atomic.AddUint64(&mmCreateVersion.afterCreateVersionCounter, 1)
 
 	mmCreateVersion.t.Helper()
 
 	if mmCreateVersion.inspectFuncCreateVersion != nil {
-		mmCreateVersion.inspectFuncCreateVersion(ctx, bucket, key, blobID, size, etag, contentType)
+		mmCreateVersion.inspectFuncCreateVersion(ctx, bucket, key, blobID, size, etag, contentType, class)
 	}
 
-	mm_params := MetadataClientMockCreateVersionParams{ctx, bucket, key, blobID, size, etag, contentType}
+	mm_params := MetadataClientMockCreateVersionParams{ctx, bucket, key, blobID, size, etag, contentType, class}
 
 	// Record call args
 	mmCreateVersion.CreateVersionMock.mutex.Lock()
@@ -434,7 +885,7 @@ func (mmCreateVersion *MetadataClientMock) CreateVersion(ctx context.Context, bu
 		mm_want := mmCreateVersion.CreateVersionMock.defaultExpectation.params
 		mm_want_ptrs := mmCreateVersion.CreateVersionMock.defaultExpectation.paramPtrs
 
-		mm_got := MetadataClientMockCreateVersionParams{ctx, bucket, key, blobID, size, etag, contentType}
+		mm_got := MetadataClientMockCreateVersionParams{ctx, bucket, key, blobID, size, etag, contentType, class}
 
 		if mm_want_ptrs != nil {
 
@@ -473,6 +924,11 @@ func (mmCreateVersion *MetadataClientMock) CreateVersion(ctx context.Context, bu
 					mmCreateVersion.CreateVersionMock.defaultExpectation.expectationOrigins.originContentType, *mm_want_ptrs.contentType, mm_got.contentType, minimock.Diff(*mm_want_ptrs.contentType, mm_got.contentType))
 			}
 
+			if mm_want_ptrs.class != nil && !minimock.Equal(*mm_want_ptrs.class, mm_got.class) {
+				mmCreateVersion.t.Errorf("MetadataClientMock.CreateVersion got unexpected parameter class, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmCreateVersion.CreateVersionMock.defaultExpectation.expectationOrigins.originClass, *mm_want_ptrs.class, mm_got.class, minimock.Diff(*mm_want_ptrs.class, mm_got.class))
+			}
+
 		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
 			mmCreateVersion.t.Errorf("MetadataClientMock.CreateVersion got unexpected parameters, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
 				mmCreateVersion.CreateVersionMock.defaultExpectation.expectationOrigins.origin, *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
@@ -485,9 +941,9 @@ func (mmCreateVersion *MetadataClientMock) CreateVersion(ctx context.Context, bu
 		return (*mm_results).s1, (*mm_results).err
 	}
 	if mmCreateVersion.funcCreateVersion != nil {
-		return mmCreateVersion.funcCreateVersion(ctx, bucket, key, blobID, size, etag, contentType)
+		return mmCreateVersion.funcCreateVersion(ctx, bucket, key, blobID, size, etag, contentType, class)
 	}
-	mmCreateVersion.t.Fatalf("Unexpected call to MetadataClientMock.CreateVersion. %v %v %v %v %v %v %v", ctx, bucket, key, blobID, size, etag, contentType)
+	mmCreateVersion.t.Fatalf("Unexpected call to MetadataClientMock.CreateVersion. %v %v %v %v %v %v %v %v", ctx, bucket, key, blobID, size, etag, contentType, class)
 	return
 }
 
@@ -556,6 +1012,379 @@ func (m *MetadataClientMock) MinimockCreateVersionInspect() {
 	if !m.CreateVersionMock.invocationsDone() && afterCreateVersionCounter > 0 {
 		m.t.Errorf("Expected %d calls to MetadataClientMock.CreateVersion at\n%s but found %d calls",
 			mm_atomic.LoadUint64(&m.CreateVersionMock.expectedInvocations), m.CreateVersionMock.expectedInvocationsOrigin, afterCreateVersionCounter)
+	}
+}
+
+type mMetadataClientMockDeleteObject struct {
+	optional           bool
+	mock               *MetadataClientMock
+	defaultExpectation *MetadataClientMockDeleteObjectExpectation
+	expectations       []*MetadataClientMockDeleteObjectExpectation
+
+	callArgs []*MetadataClientMockDeleteObjectParams
+	mutex    sync.RWMutex
+
+	expectedInvocations       uint64
+	expectedInvocationsOrigin string
+}
+
+// MetadataClientMockDeleteObjectExpectation specifies expectation struct of the MetadataClient.DeleteObject
+type MetadataClientMockDeleteObjectExpectation struct {
+	mock               *MetadataClientMock
+	params             *MetadataClientMockDeleteObjectParams
+	paramPtrs          *MetadataClientMockDeleteObjectParamPtrs
+	expectationOrigins MetadataClientMockDeleteObjectExpectationOrigins
+	results            *MetadataClientMockDeleteObjectResults
+	returnOrigin       string
+	Counter            uint64
+}
+
+// MetadataClientMockDeleteObjectParams contains parameters of the MetadataClient.DeleteObject
+type MetadataClientMockDeleteObjectParams struct {
+	ctx    context.Context
+	bucket string
+	key    string
+}
+
+// MetadataClientMockDeleteObjectParamPtrs contains pointers to parameters of the MetadataClient.DeleteObject
+type MetadataClientMockDeleteObjectParamPtrs struct {
+	ctx    *context.Context
+	bucket *string
+	key    *string
+}
+
+// MetadataClientMockDeleteObjectResults contains results of the MetadataClient.DeleteObject
+type MetadataClientMockDeleteObjectResults struct {
+	err error
+}
+
+// MetadataClientMockDeleteObjectOrigins contains origins of expectations of the MetadataClient.DeleteObject
+type MetadataClientMockDeleteObjectExpectationOrigins struct {
+	origin       string
+	originCtx    string
+	originBucket string
+	originKey    string
+}
+
+// Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
+// the test will fail minimock's automatic final call check if the mocked method was not called at least once.
+// Optional() makes method check to work in '0 or more' mode.
+// It is NOT RECOMMENDED to use this option unless you really need it, as default behaviour helps to
+// catch the problems when the expected method call is totally skipped during test run.
+func (mmDeleteObject *mMetadataClientMockDeleteObject) Optional() *mMetadataClientMockDeleteObject {
+	mmDeleteObject.optional = true
+	return mmDeleteObject
+}
+
+// Expect sets up expected params for MetadataClient.DeleteObject
+func (mmDeleteObject *mMetadataClientMockDeleteObject) Expect(ctx context.Context, bucket string, key string) *mMetadataClientMockDeleteObject {
+	if mmDeleteObject.mock.funcDeleteObject != nil {
+		mmDeleteObject.mock.t.Fatalf("MetadataClientMock.DeleteObject mock is already set by Set")
+	}
+
+	if mmDeleteObject.defaultExpectation == nil {
+		mmDeleteObject.defaultExpectation = &MetadataClientMockDeleteObjectExpectation{}
+	}
+
+	if mmDeleteObject.defaultExpectation.paramPtrs != nil {
+		mmDeleteObject.mock.t.Fatalf("MetadataClientMock.DeleteObject mock is already set by ExpectParams functions")
+	}
+
+	mmDeleteObject.defaultExpectation.params = &MetadataClientMockDeleteObjectParams{ctx, bucket, key}
+	mmDeleteObject.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
+	for _, e := range mmDeleteObject.expectations {
+		if minimock.Equal(e.params, mmDeleteObject.defaultExpectation.params) {
+			mmDeleteObject.mock.t.Fatalf("Expectation set by When has same params: %#v", *mmDeleteObject.defaultExpectation.params)
+		}
+	}
+
+	return mmDeleteObject
+}
+
+// ExpectCtxParam1 sets up expected param ctx for MetadataClient.DeleteObject
+func (mmDeleteObject *mMetadataClientMockDeleteObject) ExpectCtxParam1(ctx context.Context) *mMetadataClientMockDeleteObject {
+	if mmDeleteObject.mock.funcDeleteObject != nil {
+		mmDeleteObject.mock.t.Fatalf("MetadataClientMock.DeleteObject mock is already set by Set")
+	}
+
+	if mmDeleteObject.defaultExpectation == nil {
+		mmDeleteObject.defaultExpectation = &MetadataClientMockDeleteObjectExpectation{}
+	}
+
+	if mmDeleteObject.defaultExpectation.params != nil {
+		mmDeleteObject.mock.t.Fatalf("MetadataClientMock.DeleteObject mock is already set by Expect")
+	}
+
+	if mmDeleteObject.defaultExpectation.paramPtrs == nil {
+		mmDeleteObject.defaultExpectation.paramPtrs = &MetadataClientMockDeleteObjectParamPtrs{}
+	}
+	mmDeleteObject.defaultExpectation.paramPtrs.ctx = &ctx
+	mmDeleteObject.defaultExpectation.expectationOrigins.originCtx = minimock.CallerInfo(1)
+
+	return mmDeleteObject
+}
+
+// ExpectBucketParam2 sets up expected param bucket for MetadataClient.DeleteObject
+func (mmDeleteObject *mMetadataClientMockDeleteObject) ExpectBucketParam2(bucket string) *mMetadataClientMockDeleteObject {
+	if mmDeleteObject.mock.funcDeleteObject != nil {
+		mmDeleteObject.mock.t.Fatalf("MetadataClientMock.DeleteObject mock is already set by Set")
+	}
+
+	if mmDeleteObject.defaultExpectation == nil {
+		mmDeleteObject.defaultExpectation = &MetadataClientMockDeleteObjectExpectation{}
+	}
+
+	if mmDeleteObject.defaultExpectation.params != nil {
+		mmDeleteObject.mock.t.Fatalf("MetadataClientMock.DeleteObject mock is already set by Expect")
+	}
+
+	if mmDeleteObject.defaultExpectation.paramPtrs == nil {
+		mmDeleteObject.defaultExpectation.paramPtrs = &MetadataClientMockDeleteObjectParamPtrs{}
+	}
+	mmDeleteObject.defaultExpectation.paramPtrs.bucket = &bucket
+	mmDeleteObject.defaultExpectation.expectationOrigins.originBucket = minimock.CallerInfo(1)
+
+	return mmDeleteObject
+}
+
+// ExpectKeyParam3 sets up expected param key for MetadataClient.DeleteObject
+func (mmDeleteObject *mMetadataClientMockDeleteObject) ExpectKeyParam3(key string) *mMetadataClientMockDeleteObject {
+	if mmDeleteObject.mock.funcDeleteObject != nil {
+		mmDeleteObject.mock.t.Fatalf("MetadataClientMock.DeleteObject mock is already set by Set")
+	}
+
+	if mmDeleteObject.defaultExpectation == nil {
+		mmDeleteObject.defaultExpectation = &MetadataClientMockDeleteObjectExpectation{}
+	}
+
+	if mmDeleteObject.defaultExpectation.params != nil {
+		mmDeleteObject.mock.t.Fatalf("MetadataClientMock.DeleteObject mock is already set by Expect")
+	}
+
+	if mmDeleteObject.defaultExpectation.paramPtrs == nil {
+		mmDeleteObject.defaultExpectation.paramPtrs = &MetadataClientMockDeleteObjectParamPtrs{}
+	}
+	mmDeleteObject.defaultExpectation.paramPtrs.key = &key
+	mmDeleteObject.defaultExpectation.expectationOrigins.originKey = minimock.CallerInfo(1)
+
+	return mmDeleteObject
+}
+
+// Inspect accepts an inspector function that has same arguments as the MetadataClient.DeleteObject
+func (mmDeleteObject *mMetadataClientMockDeleteObject) Inspect(f func(ctx context.Context, bucket string, key string)) *mMetadataClientMockDeleteObject {
+	if mmDeleteObject.mock.inspectFuncDeleteObject != nil {
+		mmDeleteObject.mock.t.Fatalf("Inspect function is already set for MetadataClientMock.DeleteObject")
+	}
+
+	mmDeleteObject.mock.inspectFuncDeleteObject = f
+
+	return mmDeleteObject
+}
+
+// Return sets up results that will be returned by MetadataClient.DeleteObject
+func (mmDeleteObject *mMetadataClientMockDeleteObject) Return(err error) *MetadataClientMock {
+	if mmDeleteObject.mock.funcDeleteObject != nil {
+		mmDeleteObject.mock.t.Fatalf("MetadataClientMock.DeleteObject mock is already set by Set")
+	}
+
+	if mmDeleteObject.defaultExpectation == nil {
+		mmDeleteObject.defaultExpectation = &MetadataClientMockDeleteObjectExpectation{mock: mmDeleteObject.mock}
+	}
+	mmDeleteObject.defaultExpectation.results = &MetadataClientMockDeleteObjectResults{err}
+	mmDeleteObject.defaultExpectation.returnOrigin = minimock.CallerInfo(1)
+	return mmDeleteObject.mock
+}
+
+// Set uses given function f to mock the MetadataClient.DeleteObject method
+func (mmDeleteObject *mMetadataClientMockDeleteObject) Set(f func(ctx context.Context, bucket string, key string) (err error)) *MetadataClientMock {
+	if mmDeleteObject.defaultExpectation != nil {
+		mmDeleteObject.mock.t.Fatalf("Default expectation is already set for the MetadataClient.DeleteObject method")
+	}
+
+	if len(mmDeleteObject.expectations) > 0 {
+		mmDeleteObject.mock.t.Fatalf("Some expectations are already set for the MetadataClient.DeleteObject method")
+	}
+
+	mmDeleteObject.mock.funcDeleteObject = f
+	mmDeleteObject.mock.funcDeleteObjectOrigin = minimock.CallerInfo(1)
+	return mmDeleteObject.mock
+}
+
+// When sets expectation for the MetadataClient.DeleteObject which will trigger the result defined by the following
+// Then helper
+func (mmDeleteObject *mMetadataClientMockDeleteObject) When(ctx context.Context, bucket string, key string) *MetadataClientMockDeleteObjectExpectation {
+	if mmDeleteObject.mock.funcDeleteObject != nil {
+		mmDeleteObject.mock.t.Fatalf("MetadataClientMock.DeleteObject mock is already set by Set")
+	}
+
+	expectation := &MetadataClientMockDeleteObjectExpectation{
+		mock:               mmDeleteObject.mock,
+		params:             &MetadataClientMockDeleteObjectParams{ctx, bucket, key},
+		expectationOrigins: MetadataClientMockDeleteObjectExpectationOrigins{origin: minimock.CallerInfo(1)},
+	}
+	mmDeleteObject.expectations = append(mmDeleteObject.expectations, expectation)
+	return expectation
+}
+
+// Then sets up MetadataClient.DeleteObject return parameters for the expectation previously defined by the When method
+func (e *MetadataClientMockDeleteObjectExpectation) Then(err error) *MetadataClientMock {
+	e.results = &MetadataClientMockDeleteObjectResults{err}
+	return e.mock
+}
+
+// Times sets number of times MetadataClient.DeleteObject should be invoked
+func (mmDeleteObject *mMetadataClientMockDeleteObject) Times(n uint64) *mMetadataClientMockDeleteObject {
+	if n == 0 {
+		mmDeleteObject.mock.t.Fatalf("Times of MetadataClientMock.DeleteObject mock can not be zero")
+	}
+	mm_atomic.StoreUint64(&mmDeleteObject.expectedInvocations, n)
+	mmDeleteObject.expectedInvocationsOrigin = minimock.CallerInfo(1)
+	return mmDeleteObject
+}
+
+func (mmDeleteObject *mMetadataClientMockDeleteObject) invocationsDone() bool {
+	if len(mmDeleteObject.expectations) == 0 && mmDeleteObject.defaultExpectation == nil && mmDeleteObject.mock.funcDeleteObject == nil {
+		return true
+	}
+
+	totalInvocations := mm_atomic.LoadUint64(&mmDeleteObject.mock.afterDeleteObjectCounter)
+	expectedInvocations := mm_atomic.LoadUint64(&mmDeleteObject.expectedInvocations)
+
+	return totalInvocations > 0 && (expectedInvocations == 0 || expectedInvocations == totalInvocations)
+}
+
+// DeleteObject implements mm_client.MetadataClient
+func (mmDeleteObject *MetadataClientMock) DeleteObject(ctx context.Context, bucket string, key string) (err error) {
+	mm_atomic.AddUint64(&mmDeleteObject.beforeDeleteObjectCounter, 1)
+	defer mm_atomic.AddUint64(&mmDeleteObject.afterDeleteObjectCounter, 1)
+
+	mmDeleteObject.t.Helper()
+
+	if mmDeleteObject.inspectFuncDeleteObject != nil {
+		mmDeleteObject.inspectFuncDeleteObject(ctx, bucket, key)
+	}
+
+	mm_params := MetadataClientMockDeleteObjectParams{ctx, bucket, key}
+
+	// Record call args
+	mmDeleteObject.DeleteObjectMock.mutex.Lock()
+	mmDeleteObject.DeleteObjectMock.callArgs = append(mmDeleteObject.DeleteObjectMock.callArgs, &mm_params)
+	mmDeleteObject.DeleteObjectMock.mutex.Unlock()
+
+	for _, e := range mmDeleteObject.DeleteObjectMock.expectations {
+		if minimock.Equal(*e.params, mm_params) {
+			mm_atomic.AddUint64(&e.Counter, 1)
+			return e.results.err
+		}
+	}
+
+	if mmDeleteObject.DeleteObjectMock.defaultExpectation != nil {
+		mm_atomic.AddUint64(&mmDeleteObject.DeleteObjectMock.defaultExpectation.Counter, 1)
+		mm_want := mmDeleteObject.DeleteObjectMock.defaultExpectation.params
+		mm_want_ptrs := mmDeleteObject.DeleteObjectMock.defaultExpectation.paramPtrs
+
+		mm_got := MetadataClientMockDeleteObjectParams{ctx, bucket, key}
+
+		if mm_want_ptrs != nil {
+
+			if mm_want_ptrs.ctx != nil && !minimock.Equal(*mm_want_ptrs.ctx, mm_got.ctx) {
+				mmDeleteObject.t.Errorf("MetadataClientMock.DeleteObject got unexpected parameter ctx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmDeleteObject.DeleteObjectMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
+			}
+
+			if mm_want_ptrs.bucket != nil && !minimock.Equal(*mm_want_ptrs.bucket, mm_got.bucket) {
+				mmDeleteObject.t.Errorf("MetadataClientMock.DeleteObject got unexpected parameter bucket, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmDeleteObject.DeleteObjectMock.defaultExpectation.expectationOrigins.originBucket, *mm_want_ptrs.bucket, mm_got.bucket, minimock.Diff(*mm_want_ptrs.bucket, mm_got.bucket))
+			}
+
+			if mm_want_ptrs.key != nil && !minimock.Equal(*mm_want_ptrs.key, mm_got.key) {
+				mmDeleteObject.t.Errorf("MetadataClientMock.DeleteObject got unexpected parameter key, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmDeleteObject.DeleteObjectMock.defaultExpectation.expectationOrigins.originKey, *mm_want_ptrs.key, mm_got.key, minimock.Diff(*mm_want_ptrs.key, mm_got.key))
+			}
+
+		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
+			mmDeleteObject.t.Errorf("MetadataClientMock.DeleteObject got unexpected parameters, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+				mmDeleteObject.DeleteObjectMock.defaultExpectation.expectationOrigins.origin, *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
+		}
+
+		mm_results := mmDeleteObject.DeleteObjectMock.defaultExpectation.results
+		if mm_results == nil {
+			mmDeleteObject.t.Fatal("No results are set for the MetadataClientMock.DeleteObject")
+		}
+		return (*mm_results).err
+	}
+	if mmDeleteObject.funcDeleteObject != nil {
+		return mmDeleteObject.funcDeleteObject(ctx, bucket, key)
+	}
+	mmDeleteObject.t.Fatalf("Unexpected call to MetadataClientMock.DeleteObject. %v %v %v", ctx, bucket, key)
+	return
+}
+
+// DeleteObjectAfterCounter returns a count of finished MetadataClientMock.DeleteObject invocations
+func (mmDeleteObject *MetadataClientMock) DeleteObjectAfterCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmDeleteObject.afterDeleteObjectCounter)
+}
+
+// DeleteObjectBeforeCounter returns a count of MetadataClientMock.DeleteObject invocations
+func (mmDeleteObject *MetadataClientMock) DeleteObjectBeforeCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmDeleteObject.beforeDeleteObjectCounter)
+}
+
+// Calls returns a list of arguments used in each call to MetadataClientMock.DeleteObject.
+// The list is in the same order as the calls were made (i.e. recent calls have a higher index)
+func (mmDeleteObject *mMetadataClientMockDeleteObject) Calls() []*MetadataClientMockDeleteObjectParams {
+	mmDeleteObject.mutex.RLock()
+
+	argCopy := make([]*MetadataClientMockDeleteObjectParams, len(mmDeleteObject.callArgs))
+	copy(argCopy, mmDeleteObject.callArgs)
+
+	mmDeleteObject.mutex.RUnlock()
+
+	return argCopy
+}
+
+// MinimockDeleteObjectDone returns true if the count of the DeleteObject invocations corresponds
+// the number of defined expectations
+func (m *MetadataClientMock) MinimockDeleteObjectDone() bool {
+	if m.DeleteObjectMock.optional {
+		// Optional methods provide '0 or more' call count restriction.
+		return true
+	}
+
+	for _, e := range m.DeleteObjectMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			return false
+		}
+	}
+
+	return m.DeleteObjectMock.invocationsDone()
+}
+
+// MinimockDeleteObjectInspect logs each unmet expectation
+func (m *MetadataClientMock) MinimockDeleteObjectInspect() {
+	for _, e := range m.DeleteObjectMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			m.t.Errorf("Expected call to MetadataClientMock.DeleteObject at\n%s with params: %#v", e.expectationOrigins.origin, *e.params)
+		}
+	}
+
+	afterDeleteObjectCounter := mm_atomic.LoadUint64(&m.afterDeleteObjectCounter)
+	// if default expectation was set then invocations count should be greater than zero
+	if m.DeleteObjectMock.defaultExpectation != nil && afterDeleteObjectCounter < 1 {
+		if m.DeleteObjectMock.defaultExpectation.params == nil {
+			m.t.Errorf("Expected call to MetadataClientMock.DeleteObject at\n%s", m.DeleteObjectMock.defaultExpectation.returnOrigin)
+		} else {
+			m.t.Errorf("Expected call to MetadataClientMock.DeleteObject at\n%s with params: %#v", m.DeleteObjectMock.defaultExpectation.expectationOrigins.origin, *m.DeleteObjectMock.defaultExpectation.params)
+		}
+	}
+	// if func was set then invocations count should be greater than zero
+	if m.funcDeleteObject != nil && afterDeleteObjectCounter < 1 {
+		m.t.Errorf("Expected call to MetadataClientMock.DeleteObject at\n%s", m.funcDeleteObjectOrigin)
+	}
+
+	if !m.DeleteObjectMock.invocationsDone() && afterDeleteObjectCounter > 0 {
+		m.t.Errorf("Expected %d calls to MetadataClientMock.DeleteObject at\n%s but found %d calls",
+			mm_atomic.LoadUint64(&m.DeleteObjectMock.expectedInvocations), m.DeleteObjectMock.expectedInvocationsOrigin, afterDeleteObjectCounter)
 	}
 }
 
@@ -1280,7 +2109,11 @@ func (m *MetadataClientMock) MinimockHeadBucketInspect() {
 func (m *MetadataClientMock) MinimockFinish() {
 	m.finishOnce.Do(func() {
 		if !m.minimockDone() {
+			m.MinimockChooseWriteClassInspect()
+
 			m.MinimockCreateVersionInspect()
+
+			m.MinimockDeleteObjectInspect()
 
 			m.MinimockGetObjectInspect()
 
@@ -1308,7 +2141,9 @@ func (m *MetadataClientMock) MinimockWait(timeout mm_time.Duration) {
 func (m *MetadataClientMock) minimockDone() bool {
 	done := true
 	return done &&
+		m.MinimockChooseWriteClassDone() &&
 		m.MinimockCreateVersionDone() &&
+		m.MinimockDeleteObjectDone() &&
 		m.MinimockGetObjectDone() &&
 		m.MinimockHeadBucketDone()
 }
