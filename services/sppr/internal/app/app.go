@@ -10,6 +10,7 @@ import (
 
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/config"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/handler/health"
+	"github.com/alesplll/opens3-rebac/services/sppr/internal/handler/migration"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/service"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/closer"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/logger"
@@ -23,6 +24,8 @@ type App struct {
 	closer            *closer.Closer
 	provider          *serviceProvider
 	consumer          service.AccessConsumerService
+	executor          service.MigrationExecutor
+	cleanup           service.MigrationCleanup
 	server            *http.Server
 	listener          net.Listener
 	loggerInitialized bool
@@ -63,11 +66,27 @@ func (a *App) initDeps(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	return a.initHTTPServer(client.DB())
+	migrations, err := a.provider.MigrationService(ctx)
+	if err != nil {
+		return err
+	}
+	// The API answers with the executor disabled, so actions can be queued first.
+	if a.cfg.Migration.Enabled() {
+		if a.executor, err = a.provider.MigrationExecutor(ctx); err != nil {
+			return err
+		}
+		if a.cleanup, err = a.provider.MigrationCleanup(); err != nil {
+			return err
+		}
+	}
+	mux := http.NewServeMux()
+	mux.Handle("/", health.NewHandler(client.DB()))
+	mux.Handle(migration.Prefix+"/", migration.NewHandler(migrations))
+	return a.initHTTPServer(mux)
 }
 
-func (a *App) initHTTPServer(pg health.Pinger) error {
-	a.server = &http.Server{Addr: a.cfg.HTTP.Address(), Handler: health.NewHandler(pg), ReadHeaderTimeout: 3 * time.Second, WriteTimeout: 5 * time.Second, IdleTimeout: 30 * time.Second}
+func (a *App) initHTTPServer(handler http.Handler) error {
+	a.server = &http.Server{Addr: a.cfg.HTTP.Address(), Handler: handler, ReadHeaderTimeout: 3 * time.Second, WriteTimeout: 5 * time.Second, IdleTimeout: 30 * time.Second}
 	listener, err := net.Listen("tcp", a.cfg.HTTP.Address())
 	if err != nil {
 		return err
@@ -83,16 +102,30 @@ func (a *App) initHTTPServer(pg health.Pinger) error {
 	return nil
 }
 
-// Run serves health checks and consumes both topics until ctx is cancelled or
-// either of them fails. Close releases the dependencies afterwards.
+// Run serves HTTP, consumes both topics and, when enabled, runs the migration
+// executor until ctx is cancelled or the server or consumers fail. Close
+// releases the dependencies afterwards.
 func (a *App) Run(ctx context.Context) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	served := make(chan error, 1)
 	consumed := make(chan error, 1)
+	executed := make(chan error, 1)
+	cleaned := make(chan error, 1)
 	go func() { served <- a.server.Serve(a.listener) }()
 	go func() { consumed <- a.consumer.RunConsumer(ctx) }()
-	logger.Info(ctx, "SPPR listening", zap.String("address", a.listener.Addr().String()))
+	if a.executor != nil {
+		go func() { executed <- a.executor.Run(ctx) }()
+	} else {
+		executed <- nil
+	}
+	if a.cleanup != nil {
+		go func() { cleaned <- a.cleanup.Run(ctx) }()
+	} else {
+		cleaned <- nil
+	}
+	logger.Info(ctx, "SPPR listening", zap.String("address", a.listener.Addr().String()),
+		zap.Bool("migration_enabled", a.executor != nil))
 
 	var result error
 	serverDone, consumerDone := false, false
@@ -130,6 +163,19 @@ func (a *App) Run(ctx context.Context) error {
 			result = errors.Join(result, fmt.Errorf("stop consumers: %w", shutdown.Err()))
 		}
 	}
+	// An interrupted action stays running and is resumed on the next start.
+	select {
+	case err := <-executed:
+		result = errors.Join(result, err)
+	case <-shutdown.Done():
+		result = errors.Join(result, fmt.Errorf("stop migration workers: %w", shutdown.Err()))
+	}
+	select {
+	case err := <-cleaned:
+		result = errors.Join(result, err)
+	case <-shutdown.Done():
+		result = errors.Join(result, fmt.Errorf("stop migration cleanup: %w", shutdown.Err()))
+	}
 	return result
 }
 
@@ -138,8 +184,11 @@ func (a *App) Run(ctx context.Context) error {
 // partial initialization.
 func (a *App) Close(ctx context.Context) error {
 	var err error
+	if a.provider != nil {
+		err = errors.Join(err, a.provider.migrationMetrics.Close())
+	}
 	if a.closer != nil {
-		err = a.closer.CloseAll(ctx)
+		err = errors.Join(err, a.closer.CloseAll(ctx))
 	}
 	if a.loggerInitialized {
 		err = errors.Join(err, logger.Shutdown(ctx))

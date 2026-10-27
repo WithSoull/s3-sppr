@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -74,10 +75,14 @@ func TestAppKafkaIngestionAndShutdown(t *testing.T) {
 	defer conn.Exec(ctx, "DROP SCHEMA "+pgx.Identifier{schema}.Sanitize()+" CASCADE")
 	_, err = conn.Exec(ctx, "SET search_path TO "+pgx.Identifier{schema}.Sanitize())
 	require.NoError(t, err)
-	sql, err := os.ReadFile("../../migrations/20261021000000_ingestion.up.sql")
+	files, err := filepath.Glob("../../migrations/*.up.sql")
 	require.NoError(t, err)
-	_, err = conn.Exec(ctx, string(sql))
-	require.NoError(t, err)
+	for _, file := range files {
+		sql, err := os.ReadFile(file)
+		require.NoError(t, err)
+		_, err = conn.Exec(ctx, string(sql))
+		require.NoError(t, err, file)
+	}
 	appDSN := dsn
 	if strings.Contains(appDSN, "://") {
 		u, err := url.Parse(appDSN)

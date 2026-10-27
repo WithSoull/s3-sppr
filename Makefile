@@ -158,7 +158,7 @@ generate-quota-py:
 test-users:
 	go test ./services/users/... -count=1
 
-.PHONY: test-sppr test-sppr-integration up-sppr up-sppr-gateway smoke-sppr smoke-sppr-local require-gateway-access-producer
+.PHONY: test-sppr test-sppr-integration up-sppr up-sppr-gateway up-sppr-migration smoke-sppr smoke-sppr-local require-gateway-access-producer
 test-sppr:
 	go test -race ./services/sppr/... -count=1
 
@@ -173,6 +173,9 @@ require-gateway-access-producer:
 
 up-sppr-gateway: require-gateway-access-producer
 	ACCESS_EVENTS_ENABLED=true docker compose --profile services --profile sppr up --build -d gateway sppr metadata storage-hot storage-cold
+
+up-sppr-migration:
+	MIGRATION_ENABLED=true docker compose --profile services --profile sppr up --build -d gateway sppr metadata storage-hot storage-cold
 
 smoke-sppr: require-gateway-access-producer
 	SPPR_SMOKE_PG_DSN="$${SPPR_SMOKE_PG_DSN:-postgres://sppr_user:sppr_password@localhost:$${SPPR_DB_PORT:-5436}/sppr_db?sslmode=disable}" go run ./services/sppr/cmd/smoke
@@ -233,3 +236,12 @@ down-volumes:
 rebuild:
 	docker compose --profile services build --no-cache
 	docker compose --profile services up -d
+
+.PHONY: smoke-migration smoke-migration-local
+# Requires SPPR with MIGRATION_ENABLED=true and a dedicated Gateway stand.
+smoke-migration:
+	go run ./services/sppr/cmd/smoke-migration $(SMOKE_MIGRATION_ARGS)
+
+smoke-migration-local:
+	GATEWAY_MAX_READ_DURATION=2s MIGRATION_SOURCE_CLEANUP_DELAY=5s METADATA_DELETE_CLEANUP_DELAY=5s MIGRATION_CLEANUP_INTERVAL=250ms $(MAKE) up-sppr-migration
+	$(MAKE) smoke-migration

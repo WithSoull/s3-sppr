@@ -71,3 +71,23 @@ RETURNING` + copyColumns,
 		cleanupDelay.Milliseconds(),
 	)
 }
+
+// InsertOrphans keeps the blobs of every placed version of an object that is being
+// deleted, so the space stays counted until cleanup removes them from Storage.
+func (r *repo) InsertOrphans(ctx context.Context, objectID string, cleanupDelay time.Duration) error {
+	q := db.Query{
+		Name: "copy_repository:InsertOrphans",
+		QueryRaw: `
+INSERT INTO placement_copies (
+    version_id, role, storage_class, blob_id, size_bytes, state, cleanup_after
+)
+SELECT vp.version_id, 'orphan', vp.storage_class, vp.blob_id, v.size_bytes,
+       'cleanup_pending', now() + $2::bigint * interval '1 millisecond'
+FROM version_placements vp
+JOIN versions v ON v.id = vp.version_id
+WHERE v.object_id = $1`,
+	}
+
+	_, err := r.db.DB().ExecContext(ctx, q, objectID, cleanupDelay.Milliseconds())
+	return err
+}

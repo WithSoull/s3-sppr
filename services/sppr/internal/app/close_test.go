@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"net"
+	"net/http"
 	"testing"
 	"time"
 
@@ -13,16 +14,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type pinger struct{}
-
-func (pinger) Ping(context.Context) error { return nil }
-
 func TestCloseReleasesListenerBeforeRun(t *testing.T) {
 	t.Setenv("HTTP_ADDRESS", "127.0.0.1:0")
 	httpCfg, err := env.NewHTTPConfig()
 	require.NoError(t, err)
 	a := &App{cfg: &config.Config{HTTP: httpCfg}, closer: closer.New(&logger.NoopLogger{}, time.Second)}
-	require.NoError(t, a.initHTTPServer(pinger{}))
+	require.NoError(t, a.initHTTPServer(http.NotFoundHandler()))
 
 	require.NoError(t, a.Close(context.Background()))
 	reopened, err := net.Listen("tcp", a.listener.Addr().String())

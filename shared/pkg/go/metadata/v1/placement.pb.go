@@ -263,16 +263,19 @@ func (x *StorageClassInfo) GetFreeBytes() int64 {
 }
 
 type PlacementCopyInfo struct {
-	state              protoimpl.MessageState `protogen:"open.v1"`
-	CopyId             string                 `protobuf:"bytes,1,opt,name=copy_id,json=copyId,proto3" json:"copy_id,omitempty"`
-	MigrationId        string                 `protobuf:"bytes,2,opt,name=migration_id,json=migrationId,proto3" json:"migration_id,omitempty"`
-	VersionId          string                 `protobuf:"bytes,3,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`          // пусто, если версия удалена после создания копии
-	Role               string                 `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`                                     // "target" — копия для переноса, "source" — прежний blob
-	StorageClass       string                 `protobuf:"bytes,5,opt,name=storage_class,json=storageClass,proto3" json:"storage_class,omitempty"` // класс, в котором лежит blob копии
-	BlobId             string                 `protobuf:"bytes,6,opt,name=blob_id,json=blobId,proto3" json:"blob_id,omitempty"`
-	SizeBytes          int64                  `protobuf:"varint,7,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
-	ExpectedGeneration int64                  `protobuf:"varint,8,opt,name=expected_generation,json=expectedGeneration,proto3" json:"expected_generation,omitempty"` // только target: поколение для CAS
-	ExpectedClass      string                 `protobuf:"bytes,9,opt,name=expected_class,json=expectedClass,proto3" json:"expected_class,omitempty"`                 // только target: исходный класс для CAS
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	CopyId      string                 `protobuf:"bytes,1,opt,name=copy_id,json=copyId,proto3" json:"copy_id,omitempty"`
+	MigrationId string                 `protobuf:"bytes,2,opt,name=migration_id,json=migrationId,proto3" json:"migration_id,omitempty"` // пусто для role "orphan"
+	VersionId   string                 `protobuf:"bytes,3,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`       // пусто, если версия удалена после создания копии
+	// "target" — копия для переноса, "source" — прежний blob после переключения,
+	// "orphan" — blob версии удалённого объекта (DeleteObjectMeta), ждёт
+	// cleanup_after = время удаления + METADATA_DELETE_CLEANUP_DELAY.
+	Role               string `protobuf:"bytes,4,opt,name=role,proto3" json:"role,omitempty"`
+	StorageClass       string `protobuf:"bytes,5,opt,name=storage_class,json=storageClass,proto3" json:"storage_class,omitempty"` // класс, в котором лежит blob копии
+	BlobId             string `protobuf:"bytes,6,opt,name=blob_id,json=blobId,proto3" json:"blob_id,omitempty"`
+	SizeBytes          int64  `protobuf:"varint,7,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`
+	ExpectedGeneration int64  `protobuf:"varint,8,opt,name=expected_generation,json=expectedGeneration,proto3" json:"expected_generation,omitempty"` // только target: поколение для CAS
+	ExpectedClass      string `protobuf:"bytes,9,opt,name=expected_class,json=expectedClass,proto3" json:"expected_class,omitempty"`                 // только target: исходный класс для CAS
 	// reserved, promoted, cleanup_pending, cleanup_failed, deleted
 	State           string `protobuf:"bytes,10,opt,name=state,proto3" json:"state,omitempty"`
 	VerifiedMd5     string `protobuf:"bytes,11,opt,name=verified_md5,json=verifiedMd5,proto3" json:"verified_md5,omitempty"`

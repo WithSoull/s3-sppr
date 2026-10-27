@@ -12,9 +12,14 @@ func CopyToDomain(c *repoModel.PlacementCopy) *domainModel.PlacementCopy {
 		expectedClass = &class
 	}
 
+	var migrationID string
+	if c.MigrationID != nil {
+		migrationID = *c.MigrationID
+	}
+
 	return &domainModel.PlacementCopy{
 		CopyID:             c.CopyID,
-		MigrationID:        c.MigrationID,
+		MigrationID:        migrationID,
 		VersionID:          c.VersionID,
 		Role:               domainModel.CopyRole(c.Role),
 		StorageClass:       domainModel.StorageClass(c.StorageClass),

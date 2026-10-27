@@ -5,9 +5,11 @@ import (
 	"fmt"
 
 	"github.com/IBM/sarama"
+	"github.com/alesplll/opens3-rebac/services/sppr/internal/client"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/config"
 	converterKafka "github.com/alesplll/opens3-rebac/services/sppr/internal/converter/kafka"
 	decoderKafka "github.com/alesplll/opens3-rebac/services/sppr/internal/converter/kafka/decoder"
+	"github.com/alesplll/opens3-rebac/services/sppr/internal/model"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/observability"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/repository"
 	eventRepository "github.com/alesplll/opens3-rebac/services/sppr/internal/repository/event"
@@ -44,6 +46,16 @@ type serviceProvider struct {
 	objectWrittenDecoder       converterKafka.ObjectWrittenDecoder
 
 	accessConsumerService service.AccessConsumerService
+
+	actionRepository   repository.ActionRepository
+	settingsRepository repository.SettingsRepository
+	pinRepository      repository.PinRepository
+	migrationService   service.MigrationService
+	placementClient    client.PlacementClient
+	storageClients     map[model.StorageClass]client.StorageClient
+	migrationExecutor  service.MigrationExecutor
+	migrationCleanup   service.MigrationCleanup
+	migrationMetrics   *observability.MigrationMetrics
 }
 
 func newServiceProvider(cfg *config.Config, closer *closer.Closer) *serviceProvider {
@@ -66,9 +78,10 @@ func (s *serviceProvider) PGClient(ctx context.Context) (db.Client, error) {
 		var schema bool
 		err = client.DB().QueryRowContext(ctx, db.Query{Name: "schema:check", QueryRaw: `SELECT
 			to_regclass('ingestion_streams') IS NOT NULL AND to_regclass('access_events') IS NOT NULL
-			AND to_regclass('ingestion_gaps') IS NOT NULL AND to_regclass('read_aggregates') IS NOT NULL`}).Scan(&schema)
+			AND to_regclass('ingestion_gaps') IS NOT NULL AND to_regclass('read_aggregates') IS NOT NULL
+			AND to_regclass('migration_actions') IS NOT NULL AND to_regclass('migration_settings') IS NOT NULL`}).Scan(&schema)
 		if err != nil || !schema {
-			return nil, fmt.Errorf("ingestion schema unavailable; apply migrations (query error: %v)", err)
+			return nil, fmt.Errorf("SPPR schema unavailable; apply migrations (query error: %v)", err)
 		}
 		s.pgClient = client
 	}

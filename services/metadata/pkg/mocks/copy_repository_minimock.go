@@ -27,6 +27,13 @@ type CopyRepositoryMock struct {
 	beforeGetByMigrationCounter uint64
 	GetByMigrationMock          mCopyRepositoryMockGetByMigration
 
+	funcInsertOrphans          func(ctx context.Context, objectID string, cleanupDelay time.Duration) (err error)
+	funcInsertOrphansOrigin    string
+	inspectFuncInsertOrphans   func(ctx context.Context, objectID string, cleanupDelay time.Duration)
+	afterInsertOrphansCounter  uint64
+	beforeInsertOrphansCounter uint64
+	InsertOrphansMock          mCopyRepositoryMockInsertOrphans
+
 	funcInsertSource          func(ctx context.Context, migrationID string, placement *model.Placement, cleanupDelay time.Duration) (pp1 *model.PlacementCopy, err error)
 	funcInsertSourceOrigin    string
 	inspectFuncInsertSource   func(ctx context.Context, migrationID string, placement *model.Placement, cleanupDelay time.Duration)
@@ -108,6 +115,9 @@ func NewCopyRepositoryMock(t minimock.Tester) *CopyRepositoryMock {
 
 	m.GetByMigrationMock = mCopyRepositoryMockGetByMigration{mock: m}
 	m.GetByMigrationMock.callArgs = []*CopyRepositoryMockGetByMigrationParams{}
+
+	m.InsertOrphansMock = mCopyRepositoryMockInsertOrphans{mock: m}
+	m.InsertOrphansMock.callArgs = []*CopyRepositoryMockInsertOrphansParams{}
 
 	m.InsertSourceMock = mCopyRepositoryMockInsertSource{mock: m}
 	m.InsertSourceMock.callArgs = []*CopyRepositoryMockInsertSourceParams{}
@@ -515,6 +525,379 @@ func (m *CopyRepositoryMock) MinimockGetByMigrationInspect() {
 	if !m.GetByMigrationMock.invocationsDone() && afterGetByMigrationCounter > 0 {
 		m.t.Errorf("Expected %d calls to CopyRepositoryMock.GetByMigration at\n%s but found %d calls",
 			mm_atomic.LoadUint64(&m.GetByMigrationMock.expectedInvocations), m.GetByMigrationMock.expectedInvocationsOrigin, afterGetByMigrationCounter)
+	}
+}
+
+type mCopyRepositoryMockInsertOrphans struct {
+	optional           bool
+	mock               *CopyRepositoryMock
+	defaultExpectation *CopyRepositoryMockInsertOrphansExpectation
+	expectations       []*CopyRepositoryMockInsertOrphansExpectation
+
+	callArgs []*CopyRepositoryMockInsertOrphansParams
+	mutex    sync.RWMutex
+
+	expectedInvocations       uint64
+	expectedInvocationsOrigin string
+}
+
+// CopyRepositoryMockInsertOrphansExpectation specifies expectation struct of the CopyRepository.InsertOrphans
+type CopyRepositoryMockInsertOrphansExpectation struct {
+	mock               *CopyRepositoryMock
+	params             *CopyRepositoryMockInsertOrphansParams
+	paramPtrs          *CopyRepositoryMockInsertOrphansParamPtrs
+	expectationOrigins CopyRepositoryMockInsertOrphansExpectationOrigins
+	results            *CopyRepositoryMockInsertOrphansResults
+	returnOrigin       string
+	Counter            uint64
+}
+
+// CopyRepositoryMockInsertOrphansParams contains parameters of the CopyRepository.InsertOrphans
+type CopyRepositoryMockInsertOrphansParams struct {
+	ctx          context.Context
+	objectID     string
+	cleanupDelay time.Duration
+}
+
+// CopyRepositoryMockInsertOrphansParamPtrs contains pointers to parameters of the CopyRepository.InsertOrphans
+type CopyRepositoryMockInsertOrphansParamPtrs struct {
+	ctx          *context.Context
+	objectID     *string
+	cleanupDelay *time.Duration
+}
+
+// CopyRepositoryMockInsertOrphansResults contains results of the CopyRepository.InsertOrphans
+type CopyRepositoryMockInsertOrphansResults struct {
+	err error
+}
+
+// CopyRepositoryMockInsertOrphansOrigins contains origins of expectations of the CopyRepository.InsertOrphans
+type CopyRepositoryMockInsertOrphansExpectationOrigins struct {
+	origin             string
+	originCtx          string
+	originObjectID     string
+	originCleanupDelay string
+}
+
+// Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
+// the test will fail minimock's automatic final call check if the mocked method was not called at least once.
+// Optional() makes method check to work in '0 or more' mode.
+// It is NOT RECOMMENDED to use this option unless you really need it, as default behaviour helps to
+// catch the problems when the expected method call is totally skipped during test run.
+func (mmInsertOrphans *mCopyRepositoryMockInsertOrphans) Optional() *mCopyRepositoryMockInsertOrphans {
+	mmInsertOrphans.optional = true
+	return mmInsertOrphans
+}
+
+// Expect sets up expected params for CopyRepository.InsertOrphans
+func (mmInsertOrphans *mCopyRepositoryMockInsertOrphans) Expect(ctx context.Context, objectID string, cleanupDelay time.Duration) *mCopyRepositoryMockInsertOrphans {
+	if mmInsertOrphans.mock.funcInsertOrphans != nil {
+		mmInsertOrphans.mock.t.Fatalf("CopyRepositoryMock.InsertOrphans mock is already set by Set")
+	}
+
+	if mmInsertOrphans.defaultExpectation == nil {
+		mmInsertOrphans.defaultExpectation = &CopyRepositoryMockInsertOrphansExpectation{}
+	}
+
+	if mmInsertOrphans.defaultExpectation.paramPtrs != nil {
+		mmInsertOrphans.mock.t.Fatalf("CopyRepositoryMock.InsertOrphans mock is already set by ExpectParams functions")
+	}
+
+	mmInsertOrphans.defaultExpectation.params = &CopyRepositoryMockInsertOrphansParams{ctx, objectID, cleanupDelay}
+	mmInsertOrphans.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
+	for _, e := range mmInsertOrphans.expectations {
+		if minimock.Equal(e.params, mmInsertOrphans.defaultExpectation.params) {
+			mmInsertOrphans.mock.t.Fatalf("Expectation set by When has same params: %#v", *mmInsertOrphans.defaultExpectation.params)
+		}
+	}
+
+	return mmInsertOrphans
+}
+
+// ExpectCtxParam1 sets up expected param ctx for CopyRepository.InsertOrphans
+func (mmInsertOrphans *mCopyRepositoryMockInsertOrphans) ExpectCtxParam1(ctx context.Context) *mCopyRepositoryMockInsertOrphans {
+	if mmInsertOrphans.mock.funcInsertOrphans != nil {
+		mmInsertOrphans.mock.t.Fatalf("CopyRepositoryMock.InsertOrphans mock is already set by Set")
+	}
+
+	if mmInsertOrphans.defaultExpectation == nil {
+		mmInsertOrphans.defaultExpectation = &CopyRepositoryMockInsertOrphansExpectation{}
+	}
+
+	if mmInsertOrphans.defaultExpectation.params != nil {
+		mmInsertOrphans.mock.t.Fatalf("CopyRepositoryMock.InsertOrphans mock is already set by Expect")
+	}
+
+	if mmInsertOrphans.defaultExpectation.paramPtrs == nil {
+		mmInsertOrphans.defaultExpectation.paramPtrs = &CopyRepositoryMockInsertOrphansParamPtrs{}
+	}
+	mmInsertOrphans.defaultExpectation.paramPtrs.ctx = &ctx
+	mmInsertOrphans.defaultExpectation.expectationOrigins.originCtx = minimock.CallerInfo(1)
+
+	return mmInsertOrphans
+}
+
+// ExpectObjectIDParam2 sets up expected param objectID for CopyRepository.InsertOrphans
+func (mmInsertOrphans *mCopyRepositoryMockInsertOrphans) ExpectObjectIDParam2(objectID string) *mCopyRepositoryMockInsertOrphans {
+	if mmInsertOrphans.mock.funcInsertOrphans != nil {
+		mmInsertOrphans.mock.t.Fatalf("CopyRepositoryMock.InsertOrphans mock is already set by Set")
+	}
+
+	if mmInsertOrphans.defaultExpectation == nil {
+		mmInsertOrphans.defaultExpectation = &CopyRepositoryMockInsertOrphansExpectation{}
+	}
+
+	if mmInsertOrphans.defaultExpectation.params != nil {
+		mmInsertOrphans.mock.t.Fatalf("CopyRepositoryMock.InsertOrphans mock is already set by Expect")
+	}
+
+	if mmInsertOrphans.defaultExpectation.paramPtrs == nil {
+		mmInsertOrphans.defaultExpectation.paramPtrs = &CopyRepositoryMockInsertOrphansParamPtrs{}
+	}
+	mmInsertOrphans.defaultExpectation.paramPtrs.objectID = &objectID
+	mmInsertOrphans.defaultExpectation.expectationOrigins.originObjectID = minimock.CallerInfo(1)
+
+	return mmInsertOrphans
+}
+
+// ExpectCleanupDelayParam3 sets up expected param cleanupDelay for CopyRepository.InsertOrphans
+func (mmInsertOrphans *mCopyRepositoryMockInsertOrphans) ExpectCleanupDelayParam3(cleanupDelay time.Duration) *mCopyRepositoryMockInsertOrphans {
+	if mmInsertOrphans.mock.funcInsertOrphans != nil {
+		mmInsertOrphans.mock.t.Fatalf("CopyRepositoryMock.InsertOrphans mock is already set by Set")
+	}
+
+	if mmInsertOrphans.defaultExpectation == nil {
+		mmInsertOrphans.defaultExpectation = &CopyRepositoryMockInsertOrphansExpectation{}
+	}
+
+	if mmInsertOrphans.defaultExpectation.params != nil {
+		mmInsertOrphans.mock.t.Fatalf("CopyRepositoryMock.InsertOrphans mock is already set by Expect")
+	}
+
+	if mmInsertOrphans.defaultExpectation.paramPtrs == nil {
+		mmInsertOrphans.defaultExpectation.paramPtrs = &CopyRepositoryMockInsertOrphansParamPtrs{}
+	}
+	mmInsertOrphans.defaultExpectation.paramPtrs.cleanupDelay = &cleanupDelay
+	mmInsertOrphans.defaultExpectation.expectationOrigins.originCleanupDelay = minimock.CallerInfo(1)
+
+	return mmInsertOrphans
+}
+
+// Inspect accepts an inspector function that has same arguments as the CopyRepository.InsertOrphans
+func (mmInsertOrphans *mCopyRepositoryMockInsertOrphans) Inspect(f func(ctx context.Context, objectID string, cleanupDelay time.Duration)) *mCopyRepositoryMockInsertOrphans {
+	if mmInsertOrphans.mock.inspectFuncInsertOrphans != nil {
+		mmInsertOrphans.mock.t.Fatalf("Inspect function is already set for CopyRepositoryMock.InsertOrphans")
+	}
+
+	mmInsertOrphans.mock.inspectFuncInsertOrphans = f
+
+	return mmInsertOrphans
+}
+
+// Return sets up results that will be returned by CopyRepository.InsertOrphans
+func (mmInsertOrphans *mCopyRepositoryMockInsertOrphans) Return(err error) *CopyRepositoryMock {
+	if mmInsertOrphans.mock.funcInsertOrphans != nil {
+		mmInsertOrphans.mock.t.Fatalf("CopyRepositoryMock.InsertOrphans mock is already set by Set")
+	}
+
+	if mmInsertOrphans.defaultExpectation == nil {
+		mmInsertOrphans.defaultExpectation = &CopyRepositoryMockInsertOrphansExpectation{mock: mmInsertOrphans.mock}
+	}
+	mmInsertOrphans.defaultExpectation.results = &CopyRepositoryMockInsertOrphansResults{err}
+	mmInsertOrphans.defaultExpectation.returnOrigin = minimock.CallerInfo(1)
+	return mmInsertOrphans.mock
+}
+
+// Set uses given function f to mock the CopyRepository.InsertOrphans method
+func (mmInsertOrphans *mCopyRepositoryMockInsertOrphans) Set(f func(ctx context.Context, objectID string, cleanupDelay time.Duration) (err error)) *CopyRepositoryMock {
+	if mmInsertOrphans.defaultExpectation != nil {
+		mmInsertOrphans.mock.t.Fatalf("Default expectation is already set for the CopyRepository.InsertOrphans method")
+	}
+
+	if len(mmInsertOrphans.expectations) > 0 {
+		mmInsertOrphans.mock.t.Fatalf("Some expectations are already set for the CopyRepository.InsertOrphans method")
+	}
+
+	mmInsertOrphans.mock.funcInsertOrphans = f
+	mmInsertOrphans.mock.funcInsertOrphansOrigin = minimock.CallerInfo(1)
+	return mmInsertOrphans.mock
+}
+
+// When sets expectation for the CopyRepository.InsertOrphans which will trigger the result defined by the following
+// Then helper
+func (mmInsertOrphans *mCopyRepositoryMockInsertOrphans) When(ctx context.Context, objectID string, cleanupDelay time.Duration) *CopyRepositoryMockInsertOrphansExpectation {
+	if mmInsertOrphans.mock.funcInsertOrphans != nil {
+		mmInsertOrphans.mock.t.Fatalf("CopyRepositoryMock.InsertOrphans mock is already set by Set")
+	}
+
+	expectation := &CopyRepositoryMockInsertOrphansExpectation{
+		mock:               mmInsertOrphans.mock,
+		params:             &CopyRepositoryMockInsertOrphansParams{ctx, objectID, cleanupDelay},
+		expectationOrigins: CopyRepositoryMockInsertOrphansExpectationOrigins{origin: minimock.CallerInfo(1)},
+	}
+	mmInsertOrphans.expectations = append(mmInsertOrphans.expectations, expectation)
+	return expectation
+}
+
+// Then sets up CopyRepository.InsertOrphans return parameters for the expectation previously defined by the When method
+func (e *CopyRepositoryMockInsertOrphansExpectation) Then(err error) *CopyRepositoryMock {
+	e.results = &CopyRepositoryMockInsertOrphansResults{err}
+	return e.mock
+}
+
+// Times sets number of times CopyRepository.InsertOrphans should be invoked
+func (mmInsertOrphans *mCopyRepositoryMockInsertOrphans) Times(n uint64) *mCopyRepositoryMockInsertOrphans {
+	if n == 0 {
+		mmInsertOrphans.mock.t.Fatalf("Times of CopyRepositoryMock.InsertOrphans mock can not be zero")
+	}
+	mm_atomic.StoreUint64(&mmInsertOrphans.expectedInvocations, n)
+	mmInsertOrphans.expectedInvocationsOrigin = minimock.CallerInfo(1)
+	return mmInsertOrphans
+}
+
+func (mmInsertOrphans *mCopyRepositoryMockInsertOrphans) invocationsDone() bool {
+	if len(mmInsertOrphans.expectations) == 0 && mmInsertOrphans.defaultExpectation == nil && mmInsertOrphans.mock.funcInsertOrphans == nil {
+		return true
+	}
+
+	totalInvocations := mm_atomic.LoadUint64(&mmInsertOrphans.mock.afterInsertOrphansCounter)
+	expectedInvocations := mm_atomic.LoadUint64(&mmInsertOrphans.expectedInvocations)
+
+	return totalInvocations > 0 && (expectedInvocations == 0 || expectedInvocations == totalInvocations)
+}
+
+// InsertOrphans implements mm_repository.CopyRepository
+func (mmInsertOrphans *CopyRepositoryMock) InsertOrphans(ctx context.Context, objectID string, cleanupDelay time.Duration) (err error) {
+	mm_atomic.AddUint64(&mmInsertOrphans.beforeInsertOrphansCounter, 1)
+	defer mm_atomic.AddUint64(&mmInsertOrphans.afterInsertOrphansCounter, 1)
+
+	mmInsertOrphans.t.Helper()
+
+	if mmInsertOrphans.inspectFuncInsertOrphans != nil {
+		mmInsertOrphans.inspectFuncInsertOrphans(ctx, objectID, cleanupDelay)
+	}
+
+	mm_params := CopyRepositoryMockInsertOrphansParams{ctx, objectID, cleanupDelay}
+
+	// Record call args
+	mmInsertOrphans.InsertOrphansMock.mutex.Lock()
+	mmInsertOrphans.InsertOrphansMock.callArgs = append(mmInsertOrphans.InsertOrphansMock.callArgs, &mm_params)
+	mmInsertOrphans.InsertOrphansMock.mutex.Unlock()
+
+	for _, e := range mmInsertOrphans.InsertOrphansMock.expectations {
+		if minimock.Equal(*e.params, mm_params) {
+			mm_atomic.AddUint64(&e.Counter, 1)
+			return e.results.err
+		}
+	}
+
+	if mmInsertOrphans.InsertOrphansMock.defaultExpectation != nil {
+		mm_atomic.AddUint64(&mmInsertOrphans.InsertOrphansMock.defaultExpectation.Counter, 1)
+		mm_want := mmInsertOrphans.InsertOrphansMock.defaultExpectation.params
+		mm_want_ptrs := mmInsertOrphans.InsertOrphansMock.defaultExpectation.paramPtrs
+
+		mm_got := CopyRepositoryMockInsertOrphansParams{ctx, objectID, cleanupDelay}
+
+		if mm_want_ptrs != nil {
+
+			if mm_want_ptrs.ctx != nil && !minimock.Equal(*mm_want_ptrs.ctx, mm_got.ctx) {
+				mmInsertOrphans.t.Errorf("CopyRepositoryMock.InsertOrphans got unexpected parameter ctx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmInsertOrphans.InsertOrphansMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
+			}
+
+			if mm_want_ptrs.objectID != nil && !minimock.Equal(*mm_want_ptrs.objectID, mm_got.objectID) {
+				mmInsertOrphans.t.Errorf("CopyRepositoryMock.InsertOrphans got unexpected parameter objectID, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmInsertOrphans.InsertOrphansMock.defaultExpectation.expectationOrigins.originObjectID, *mm_want_ptrs.objectID, mm_got.objectID, minimock.Diff(*mm_want_ptrs.objectID, mm_got.objectID))
+			}
+
+			if mm_want_ptrs.cleanupDelay != nil && !minimock.Equal(*mm_want_ptrs.cleanupDelay, mm_got.cleanupDelay) {
+				mmInsertOrphans.t.Errorf("CopyRepositoryMock.InsertOrphans got unexpected parameter cleanupDelay, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmInsertOrphans.InsertOrphansMock.defaultExpectation.expectationOrigins.originCleanupDelay, *mm_want_ptrs.cleanupDelay, mm_got.cleanupDelay, minimock.Diff(*mm_want_ptrs.cleanupDelay, mm_got.cleanupDelay))
+			}
+
+		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
+			mmInsertOrphans.t.Errorf("CopyRepositoryMock.InsertOrphans got unexpected parameters, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+				mmInsertOrphans.InsertOrphansMock.defaultExpectation.expectationOrigins.origin, *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
+		}
+
+		mm_results := mmInsertOrphans.InsertOrphansMock.defaultExpectation.results
+		if mm_results == nil {
+			mmInsertOrphans.t.Fatal("No results are set for the CopyRepositoryMock.InsertOrphans")
+		}
+		return (*mm_results).err
+	}
+	if mmInsertOrphans.funcInsertOrphans != nil {
+		return mmInsertOrphans.funcInsertOrphans(ctx, objectID, cleanupDelay)
+	}
+	mmInsertOrphans.t.Fatalf("Unexpected call to CopyRepositoryMock.InsertOrphans. %v %v %v", ctx, objectID, cleanupDelay)
+	return
+}
+
+// InsertOrphansAfterCounter returns a count of finished CopyRepositoryMock.InsertOrphans invocations
+func (mmInsertOrphans *CopyRepositoryMock) InsertOrphansAfterCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmInsertOrphans.afterInsertOrphansCounter)
+}
+
+// InsertOrphansBeforeCounter returns a count of CopyRepositoryMock.InsertOrphans invocations
+func (mmInsertOrphans *CopyRepositoryMock) InsertOrphansBeforeCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmInsertOrphans.beforeInsertOrphansCounter)
+}
+
+// Calls returns a list of arguments used in each call to CopyRepositoryMock.InsertOrphans.
+// The list is in the same order as the calls were made (i.e. recent calls have a higher index)
+func (mmInsertOrphans *mCopyRepositoryMockInsertOrphans) Calls() []*CopyRepositoryMockInsertOrphansParams {
+	mmInsertOrphans.mutex.RLock()
+
+	argCopy := make([]*CopyRepositoryMockInsertOrphansParams, len(mmInsertOrphans.callArgs))
+	copy(argCopy, mmInsertOrphans.callArgs)
+
+	mmInsertOrphans.mutex.RUnlock()
+
+	return argCopy
+}
+
+// MinimockInsertOrphansDone returns true if the count of the InsertOrphans invocations corresponds
+// the number of defined expectations
+func (m *CopyRepositoryMock) MinimockInsertOrphansDone() bool {
+	if m.InsertOrphansMock.optional {
+		// Optional methods provide '0 or more' call count restriction.
+		return true
+	}
+
+	for _, e := range m.InsertOrphansMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			return false
+		}
+	}
+
+	return m.InsertOrphansMock.invocationsDone()
+}
+
+// MinimockInsertOrphansInspect logs each unmet expectation
+func (m *CopyRepositoryMock) MinimockInsertOrphansInspect() {
+	for _, e := range m.InsertOrphansMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			m.t.Errorf("Expected call to CopyRepositoryMock.InsertOrphans at\n%s with params: %#v", e.expectationOrigins.origin, *e.params)
+		}
+	}
+
+	afterInsertOrphansCounter := mm_atomic.LoadUint64(&m.afterInsertOrphansCounter)
+	// if default expectation was set then invocations count should be greater than zero
+	if m.InsertOrphansMock.defaultExpectation != nil && afterInsertOrphansCounter < 1 {
+		if m.InsertOrphansMock.defaultExpectation.params == nil {
+			m.t.Errorf("Expected call to CopyRepositoryMock.InsertOrphans at\n%s", m.InsertOrphansMock.defaultExpectation.returnOrigin)
+		} else {
+			m.t.Errorf("Expected call to CopyRepositoryMock.InsertOrphans at\n%s with params: %#v", m.InsertOrphansMock.defaultExpectation.expectationOrigins.origin, *m.InsertOrphansMock.defaultExpectation.params)
+		}
+	}
+	// if func was set then invocations count should be greater than zero
+	if m.funcInsertOrphans != nil && afterInsertOrphansCounter < 1 {
+		m.t.Errorf("Expected call to CopyRepositoryMock.InsertOrphans at\n%s", m.funcInsertOrphansOrigin)
+	}
+
+	if !m.InsertOrphansMock.invocationsDone() && afterInsertOrphansCounter > 0 {
+		m.t.Errorf("Expected %d calls to CopyRepositoryMock.InsertOrphans at\n%s but found %d calls",
+			mm_atomic.LoadUint64(&m.InsertOrphansMock.expectedInvocations), m.InsertOrphansMock.expectedInvocationsOrigin, afterInsertOrphansCounter)
 	}
 }
 
@@ -4232,6 +4615,8 @@ func (m *CopyRepositoryMock) MinimockFinish() {
 		if !m.minimockDone() {
 			m.MinimockGetByMigrationInspect()
 
+			m.MinimockInsertOrphansInspect()
+
 			m.MinimockInsertSourceInspect()
 
 			m.MinimockInsertTargetInspect()
@@ -4275,6 +4660,7 @@ func (m *CopyRepositoryMock) minimockDone() bool {
 	done := true
 	return done &&
 		m.MinimockGetByMigrationDone() &&
+		m.MinimockInsertOrphansDone() &&
 		m.MinimockInsertSourceDone() &&
 		m.MinimockInsertTargetDone() &&
 		m.MinimockListByMigrationDone() &&

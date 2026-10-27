@@ -14,6 +14,7 @@ type config struct {
 	GRPC        GRPCConfig
 	PG          PGConfig
 	Kafka       KafkaConfig
+	Cleanup     CleanupConfig
 	Tracing     TracingConfig
 	Metrics     MetricsConfig
 	RateLimiter RateLimiterConfig
@@ -45,6 +46,11 @@ func Load(path ...string) error {
 		return err
 	}
 
+	cleanupCfg, err := env.NewCleanupConfig()
+	if err != nil {
+		return err
+	}
+
 	tracingCfg, err := env.NewTracingConfig()
 	if err != nil {
 		return err
@@ -65,6 +71,7 @@ func Load(path ...string) error {
 		GRPC:        grpcCfg,
 		PG:          pgCfg,
 		Kafka:       kafkaCfg,
+		Cleanup:     cleanupCfg,
 		Tracing:     tracingCfg,
 		Metrics:     metricsCfg,
 		RateLimiter: rateLimiterCfg,

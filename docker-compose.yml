@@ -72,8 +72,22 @@ services:
       OTEL_ENVIRONMENT: development
       OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
       OTEL_METRICS_PUSH_TIMEOUT: 10s
+      MIGRATION_ENABLED: "${MIGRATION_ENABLED:-false}"
+      MIGRATION_CLEANUP_INTERVAL: "${MIGRATION_CLEANUP_INTERVAL:-30s}"
+      MIGRATION_WORKERS: "${MIGRATION_WORKERS:-2}"
+      MIGRATION_MAX_ATTEMPTS: "${MIGRATION_MAX_ATTEMPTS:-5}"
+      MIGRATION_RETRY_BACKOFF: "${MIGRATION_RETRY_BACKOFF:-1s}"
+      MIGRATION_SOURCE_CLEANUP_DELAY: "${MIGRATION_SOURCE_CLEANUP_DELAY:-10m}"
+      GATEWAY_MAX_READ_DURATION: "${GATEWAY_MAX_READ_DURATION:-5m}"
+      MIGRATION_BUDGET_BYTES: "${MIGRATION_BUDGET_BYTES:-1GiB}"
+      MIGRATION_BUDGET_WINDOW: "${MIGRATION_BUDGET_WINDOW:-1h}"
+      MIGRATION_MIN_INTERVAL: "${MIGRATION_MIN_INTERVAL:-1h}"
+      METADATA_GRPC_ADDR: metadata:50052
+      STORAGE_HOT_GRPC_ADDR: storage-hot:50053
+      STORAGE_COLD_GRPC_ADDR: storage-cold:50053
+    # The migration API has no authentication yet, so it stays on the host loopback.
     ports:
-      - "${SPPR_HTTP_PORT:-8086}:8086"
+      - "127.0.0.1:${SPPR_HTTP_PORT:-8086}:8086"
     networks: [opens3-network]
     restart: unless-stopped
     depends_on:
@@ -325,6 +339,11 @@ services:
       - "50052:50052"
     env_file:
       - services/metadata/.env
+    environment:
+      # Blobs of a deleted object stay until GETs started before DELETE finish;
+      # Metadata refuses to start unless the delay exceeds the Gateway read limit.
+      METADATA_DELETE_CLEANUP_DELAY: "${METADATA_DELETE_CLEANUP_DELAY:-10m}"
+      GATEWAY_MAX_READ_DURATION: "${GATEWAY_MAX_READ_DURATION:-5m}"
     networks:
       - opens3-network
     restart: unless-stopped

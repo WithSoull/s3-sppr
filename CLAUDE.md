@@ -24,7 +24,7 @@ Repo: https://github.com/alesplll/opens3-rebac
 | Service | Lang | Port | Owner | Status |
 |---|---|---|---|---|
 | **Gateway** | Go | `:8080` HTTP | Max | 🟡 Local PUT/GET/DELETE with Range and HOT/COLD routing; Auth/AuthZ/Quota pending |
-| **SPPR** | Go | `:8086` health HTTP | — | Kafka Ingestor; standalone profile `sppr` |
+| **SPPR** | Go | `:8086` health + migration API (127.0.0.1) | — | Kafka Ingestor; HOT/COLD migration executor (`MIGRATION_ENABLED`); profile `sppr` |
 | **Auth** | Go | `:50050` gRPC | — | ✅ Complete |
 | **AuthZ (ReBAC)** | Python | `:50051` gRPC | Alexa | ✅ Complete |
 | **Metadata** | Go | `:50052` gRPC | Anya | ✅ Complete; HOT/COLD placements + PlacementService |
@@ -53,7 +53,8 @@ Auth AuthZ Meta Storage
   │  Redis  Kafka
 Users :50054 ── PostgreSQL
 Quota :50055 ── Redis ── Kafka
-Kafka object-read, object-written → SPPR :8086 (health) → PostgreSQL SPPR
+Kafka object-read, object-written → SPPR :8086 (health, /api/migration) → PostgreSQL SPPR
+SPPR migration executor → Metadata PlacementService + Storage HOT/COLD (direct, not via Gateway)
 ```
 
 Gateway → Auth and Gateway → AuthZ are not implemented yet: Gateway currently
@@ -96,7 +97,10 @@ Metadata is the source of truth for where each version is stored:
 size stays in HOT if it fits (no reservation). Gateway reads and writes through
 `storage-hot` or `storage-cold` by that class; their addresses are Gateway config.
 `PlacementService` (same port as MetadataService) lets the migration executor
-reserve a copy, switch the placement by CAS and record cleanup. See
+reserve a copy, switch the placement by CAS and record cleanup. The executor runs
+in SPPR ([README](services/sppr/README.md#перенос-версии)); its cleanup loop deletes
+due source, aborted target and orphan blobs, then confirms deletion to Metadata.
+Migration pause does not stop cleanup; both run only with `MIGRATION_ENABLED=true`. See
 [Metadata README](services/metadata/README.md#перенос-версии-между-классами).
 
 Публичные relations: `MEMBER_OF`, `HAS_PERMISSION`, `PARENT_OF`. Для владельца

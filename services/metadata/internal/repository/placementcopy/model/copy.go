@@ -4,7 +4,7 @@ import "time"
 
 type PlacementCopy struct {
 	CopyID             string     `db:"copy_id"`
-	MigrationID        string     `db:"migration_id"`
+	MigrationID        *string    `db:"migration_id"`
 	VersionID          *string    `db:"version_id"`
 	Role               string     `db:"role"`
 	StorageClass       string     `db:"storage_class"`

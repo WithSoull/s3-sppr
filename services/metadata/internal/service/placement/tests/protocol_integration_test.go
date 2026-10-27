@@ -195,10 +195,19 @@ func (s *PlacementProtocolSuite) TestOverwriteAfterReservationRejectsSwitch() {
 func (s *PlacementProtocolSuite) TestDeletedObjectLeavesCopyForCleanup() {
 	s.mustCreateBucket()
 	versionID := s.mustUpload("a.txt", "v1")
+	uploadBlob := s.placementBlob(versionID)
 	target := s.mustReserve(s.migrationID("m"), versionID, 1, model.StorageClassCold, model.StorageClassHot)
 
-	_, _, err := s.objects.Delete(s.Context(), s.bucketName(), "a.txt")
+	_, _, err := s.objectSvc.DeleteObjectMeta(s.Context(), s.bucketName(), "a.txt")
 	s.Require().NoError(err)
+
+	// The target stays reserved: only the executor knows whether it is still
+	// writing the blob.
+	copies, err := s.placements.ListMigrationCopies(s.Context(), s.migrationID("m"))
+	s.Require().NoError(err)
+	s.Require().Len(copies, 1)
+	s.Require().Equal(model.CopyStateReserved, copies[0].State)
+	s.Require().Nil(copies[0].VersionID)
 
 	_, err = s.placements.SwitchPlacement(s.Context(), s.migrationID("m"), objectSize, md5OfCopy, time.Minute)
 	s.Require().ErrorIs(err, domainerrors.ErrVersionNotCurrent)
@@ -207,9 +216,79 @@ func (s *PlacementProtocolSuite) TestDeletedObjectLeavesCopyForCleanup() {
 	s.Require().NoError(err)
 	s.Require().Nil(aborted.VersionID)
 
+	// The aborted target is due at once; the deleted version's blob waits for reads.
 	due, err := s.placements.ListDueCleanups(s.Context(), 10)
 	s.Require().NoError(err)
 	s.Require().Len(due, 1)
 	s.Require().Equal(target.BlobID, due[0].BlobID)
 	s.Require().Equal(model.StorageClassHot, due[0].StorageClass)
+
+	s.expireCleanupDelays()
+	due, err = s.placements.ListDueCleanups(s.Context(), 10)
+	s.Require().NoError(err)
+	s.Require().Len(due, 2)
+	orphan := s.copyByBlob(due, uploadBlob)
+	s.Require().Equal(model.CopyRoleOrphan, orphan.Role)
+	s.Require().Equal(model.StorageClassCold, orphan.StorageClass)
+}
+
+func (s *PlacementProtocolSuite) TestDeletedObjectKeepsSpaceUntilBlobsAreDeleted() {
+	s.mustCreateBucket()
+	first := s.mustUpload("a.txt", "v1")
+	s.mustReserve(s.migrationID("to-hot"), first, 1, model.StorageClassCold, model.StorageClassHot)
+	_, err := s.placements.SwitchPlacement(s.Context(), s.migrationID("to-hot"), objectSize, md5OfCopy, time.Hour)
+	s.Require().NoError(err)
+	second := s.mustUpload("a.txt", "v2")
+
+	hotBlob := s.placementBlob(first)
+	coldBlob := s.placementBlob(second)
+	hotBefore := s.usage(model.StorageClassHot)
+	coldBefore := s.usage(model.StorageClassCold)
+	s.Require().Equal(int64(objectSize), hotBefore.PlacedBytes)
+	// v2 placement plus the COLD source of the migrated v1.
+	s.Require().Equal(int64(2*objectSize), coldBefore.PlacedBytes+coldBefore.CopyBytes)
+
+	_, _, err = s.objectSvc.DeleteObjectMeta(s.Context(), s.bucketName(), "a.txt")
+	s.Require().NoError(err)
+
+	s.Require().Equal(int64(0), s.MustCount("version_placements"))
+	s.requireOccupied(model.StorageClassHot, hotBefore)
+	s.requireOccupied(model.StorageClassCold, coldBefore)
+
+	due, err := s.placements.ListDueCleanups(s.Context(), 10)
+	s.Require().NoError(err)
+	s.Require().Empty(due)
+
+	s.expireCleanupDelays()
+	due, err = s.placements.ListDueCleanups(s.Context(), 10)
+	s.Require().NoError(err)
+	s.Require().Len(due, 3) // two orphans and the source of the earlier switch
+
+	for _, blob := range []string{hotBlob, coldBlob} {
+		orphan := s.copyByBlob(due, blob)
+		s.Require().Equal(model.CopyRoleOrphan, orphan.Role)
+		s.Require().Equal(model.CopyStateCleanupPending, orphan.State)
+		s.Require().Empty(orphan.MigrationID)
+		s.Require().Nil(orphan.VersionID)
+		s.Require().Equal(int64(objectSize), orphan.SizeBytes)
+	}
+	s.Require().Equal(model.StorageClassHot, s.copyByBlob(due, hotBlob).StorageClass)
+	s.Require().Equal(model.StorageClassCold, s.copyByBlob(due, coldBlob).StorageClass)
+
+	failed, err := s.placements.CompleteCleanup(s.Context(), s.copyByBlob(due, hotBlob).CopyID, false, "storage unavailable")
+	s.Require().NoError(err)
+	s.Require().Equal(model.CopyStateCleanupFailed, failed.State)
+	s.requireOccupied(model.StorageClassHot, hotBefore)
+
+	_, err = s.placements.CompleteCleanup(s.Context(), failed.CopyID, true, "")
+	s.Require().NoError(err)
+	s.Require().Equal(int64(0), s.usage(model.StorageClassHot).CopyBytes)
+}
+
+func (s *PlacementProtocolSuite) TestDeleteOfMissingObjectSchedulesNothing() {
+	s.mustCreateBucket()
+
+	_, _, err := s.objectSvc.DeleteObjectMeta(s.Context(), s.bucketName(), "missing.txt")
+	s.Require().ErrorIs(err, domainerrors.ErrObjectNotFound)
+	s.Require().Equal(int64(0), s.MustCount("placement_copies"))
 }

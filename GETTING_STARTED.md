@@ -53,6 +53,15 @@ Gateway producer поставляется отдельным [PR #1](https://git
 После мержа обоих PR доступен `make smoke-sppr-local`: дополнительная проверка
 HTTP → Kafka → PostgreSQL. Она не нужна для автономных тестов Ingestor.
 
+`make up-sppr-migration` поднимает SPPR с включённым исполнителем переносов
+(`MIGRATION_ENABLED=true`) вместе с Gateway, Metadata и обеими Storage. API
+переносов — `http://localhost:8086/api/migration`. Очистка источников, отменённых
+целей и blobs удалённых объектов работает независимо от паузы переносов. Проверка
+полного цикла — `make smoke-migration SMOKE_MIGRATION_ARGS="-timeout 12m"`;
+быстрый отдельный Compose-стенд — `make smoke-migration-local` (сокращает лимит
+чтения и обе задержки очистки согласованно). Примеры curl и условия stand-тестов — в
+[README SPPR](services/sppr/README.md#примеры-использования).
+
 ## Порты на хосте
 
 Gateway в Compose публикует события обращений в Kafka (`object-read`,
@@ -71,7 +80,7 @@ Kafka должна быть доступна на старте Gateway. Consumer
 | Quota | `localhost:50055` |
 | Gateway HTTP | `127.0.0.1:8080` |
 | Gateway Swagger UI | `http://127.0.0.1:8080/swagger/index.html` |
-| SPPR health HTTP (профиль `sppr`) | `localhost:8086` |
+| SPPR health и API переносов (профиль `sppr`) | `127.0.0.1:8086` |
 | PostgreSQL SPPR (профиль `sppr`) | `localhost:5436` |
 | PostgreSQL Users | `localhost:5432` |
 | PostgreSQL Metadata | `localhost:5433` |

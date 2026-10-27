@@ -13,9 +13,24 @@ type objectDeletedEvent struct {
 }
 
 func (s *objectService) DeleteObjectMeta(ctx context.Context, bucketName, key string) (string, string, error) {
-	objectID, blobID, err := s.repo.Delete(ctx, bucketName, key)
-	if err != nil {
-		return "", "", err
+	var objectID, blobID string
+	txErr := s.txManager.ReadCommitted(ctx, func(ctx context.Context) error {
+		lockedID, err := s.repo.LockForDelete(ctx, bucketName, key)
+		if err != nil {
+			return err
+		}
+
+		// Blobs stay in Storage and in class usage until the executor's cleanup
+		// deletes them; the delay lets GETs started before the delete finish.
+		if err := s.copyRepo.InsertOrphans(ctx, lockedID, s.deleteCleanupDelay); err != nil {
+			return err
+		}
+
+		objectID, blobID, err = s.repo.Delete(ctx, bucketName, key)
+		return err
+	})
+	if txErr != nil {
+		return "", "", txErr
 	}
 
 	payload, _ := json.Marshal(objectDeletedEvent{ObjectID: objectID, BlobID: blobID})

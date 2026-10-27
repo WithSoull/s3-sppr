@@ -10,7 +10,8 @@ Go 1.24.1 gRPC-сервис каталога объектного хранили
 - регистрация committed blob-версии и переключение current version;
 - получение текущей или конкретной committed версии;
 - постраничный список объектов с фильтром prefix;
-- удаление метаданных и публикация событий удаления;
+- удаление метаданных и публикация событий удаления; blobs всех версий
+  удалённого объекта остаются в учёте занятости до очистки;
 - действующее расположение каждой committed blob-версии: класс HOT/COLD, blob_id
   и поколение записи; выбор класса новой версии (`ChooseWriteClass`): новый ключ —
   COLD, перезапись HOT-ключа остаётся в HOT, если размер известен и есть место;
@@ -92,7 +93,7 @@ Wire-контракты: [metadata.proto](../../shared/api/metadata/v1/metadata.
 | `CreateObjectVersion` | bucket_name, key, blob_id, size_bytes, etag, content_type, storage_class (пусто — COLD) → object_id, version_id |
 | `GetObjectMeta` | bucket_name, key, необязательный version_id → blob_id, storage_class, placement_generation и metadata |
 | `ListObjects` | bucket_name, prefix, continuation_token, max_keys → объекты и следующий token |
-| `DeleteObjectMeta` | bucket_name + key → object_id, текущий blob_id, success |
+| `DeleteObjectMeta` | bucket_name + key → object_id, текущий blob_id, success; blobs всех версий становятся копиями `orphan` для очистки |
 | `HealthCheck` | пустой запрос → SERVING / NOT_SERVING по PostgreSQL и Kafka |
 
 `ChooseWriteClass` вызывается до записи байтов, потому что Gateway должен знать,
@@ -125,7 +126,7 @@ Wire-контракты: [metadata.proto](../../shared/api/metadata/v1/metadata.
 | `SwitchPlacement` | migration_id, проверенные размер и MD5, пауза до удаления источника → новое поколение и копия-источник |
 | `AbortCopy` | migration_id, reason → целевая копия в cleanup_pending |
 | `ListMigrationCopies` | migration_id → копии миграции для восстановления после перезапуска |
-| `ListDueCleanups` | limit → копии, blob которых пора удалить |
+| `ListDueCleanups` | limit → копии, blob которых пора удалить: отменённые цели, источники переносов и blobs удалённых объектов |
 | `CompleteCleanup` | copy_id, deleted, error_message → deleted или cleanup_failed |
 
 Повтор `ReserveCopy` и `SwitchPlacement` с тем же migration_id возвращает уже
@@ -155,7 +156,7 @@ buckets (id, name UNIQUE, owner_id)
                       created_at, committed_at, aborted_at)
               ├── version_placements (version_id PK, storage_class, blob_id,
               │                       generation, updated_at)
-              └── placement_copies (copy_id, migration_id, version_id NULL, role,
+              └── placement_copies (copy_id, migration_id NULL, version_id NULL, role,
                                     storage_class, blob_id, size_bytes,
                                     expected_generation, expected_class, state,
                                     verified_md5, cleanup_after, cleanup_attempts,
@@ -176,6 +177,20 @@ COLD с тем же blob_id. Ёмкость классов в миграции �
 [Миграция копий](migrations/20261026010000_placement_copies.sql) добавляет
 `placement_copies`. Строки копий не удаляются вместе с версией (`version_id`
 становится NULL), чтобы удаление объекта во время переноса не скрыло blob.
+Миграции [роли orphan](migrations/20261027000000_placement_copy_role_orphan.sql) и
+[копий удалённых объектов](migrations/20261027000100_orphan_copies.sql) добавляют
+роль `orphan`; только у неё `migration_id` пуст (CHECK). Добавление значения enum
+вынесено в отдельный файл: PostgreSQL не даёт использовать новое значение в той же
+транзакции, а CHECK второй миграции на него ссылается. Откат второй миграции
+удаляет строки `orphan`, то есть забывает ещё не удалённые blobs.
+
+Роли копий:
+
+| Роль | Откуда | `migration_id` |
+|---|---|---|
+| `target` | `ReserveCopy`: новая копия при переносе | миграция |
+| `source` | `SwitchPlacement`: прежний blob после переключения | миграция |
+| `orphan` | `DeleteObjectMeta`: blob версии удалённого объекта | пусто |
 
 ### Регистрация версии
 
@@ -255,10 +270,28 @@ GetPlacement ─► ReserveCopy ─► запись blob_id в Storage целе�
 гарантирует восстановления события. Storage/AuthZ cleanup consumers для этих
 событий пока не реализованы; outbox остаётся отдельной работой.
 
-DeleteObjectMeta удаляет object и каскадно все его versions, но возвращает лишь
-текущий blob_id. Это не delete marker и не полная очистка физических версий:
-ссылки на старые blobs теряются. До version-aware GC не полагайтесь на удаление
-каталога как на освобождение всех байтов.
+DeleteObjectMeta в одной READ COMMITTED транзакции:
+
+1. Блокирует строку объекта (`FOR UPDATE`). Перезапись (`CreateObjectVersion`) и
+   `ReserveCopy`/`SwitchPlacement` блокируют ту же строку, поэтому ждут удаления
+   и не добавляют версию или blob, который шаг 2 не увидит.
+2. Для каждой версии с расположением вставляет копию `orphan` в
+   `cleanup_pending` с классом и blob_id расположения, размером версии и
+   `cleanup_after = now() + METADATA_DELETE_CLEANUP_DELAY`.
+3. Удаляет object; versions и `version_placements` уходят каскадно.
+
+Ошибка любого шага откатывает всё: объект остаётся, копий нет. Событие
+`object-deleted` по-прежнему содержит только текущий blob_id и отправляется после
+commit. Это не delete marker: после удаления версии недоступны, а место в классах
+остаётся занятым копиями `orphan`, пока очистка не удалит blob из Storage и не
+вызовет `CompleteCleanup(deleted=true)`. Задержка нужна, чтобы GET, начатый до
+DELETE и уже получивший blob_id, дочитал файл; поэтому она обязана превышать
+`GATEWAY_MAX_READ_DURATION`.
+
+Зарезервированная целевая копия удаляемой версии остаётся `reserved` с пустым
+`version_id`: blob, возможно, ещё пишется. `SwitchPlacement` такой копии вернёт
+`ABORTED` (версия не текущая), после чего исполнитель вызывает `AbortCopy`, и
+цель сразу попадает в очистку.
 
 ## Конфигурация
 
@@ -274,6 +307,8 @@ Go загружает `.env` из текущего каталога; можно 
 | `PG_SSL_MODE`, `PG_TIMEOUT`, `PG_LOGGING` | defaults кода `disable`, `5s`, `false` |
 | `KAFKA_BOOTSTRAP` | обязательный, Compose `kafka:29092` |
 | `KAFKA_OBJECT_DELETED_TOPIC`, `KAFKA_BUCKET_DELETED_TOPIC` | обязательные; `object-deleted`, `bucket-deleted` |
+| `METADATA_DELETE_CLEANUP_DELAY` | default `10m`; через сколько после удаления объекта blobs его версий становятся доступны для очистки |
+| `GATEWAY_MAX_READ_DURATION` | default `5m`; тот же параметр, что в Gateway. Старт завершается ошибкой, если `METADATA_DELETE_CLEANUP_DELAY` не больше него. Compose передаёт обоим сервисам одну переменную |
 | `RATE_LIMITER_LIMIT`, `RATE_LIMITER_PERIOD` | defaults `100`, `1s`, локальный limiter |
 | `LOGGER_LEVEL`, `LOGGER_AS_JSON`, `LOGGER_ENABLE_OLTP` | обязательные настройки Go logger; написание **OLTP** соответствует коду |
 | `OTEL_SERVICE_NAME`, `OTEL_SERVICE_VERSION`, `OTEL_ENVIRONMENT` | обязательные атрибуты telemetry |
@@ -355,9 +390,18 @@ grpcurl -plaintext -d '{"bucket_name":"docs-demo","key":"example.txt"}' \
 `ABORTED: placement generation or class changed`. Через минуту
 `ListDueCleanups` вернёт старый blob в COLD.
 
-Удаление demo metadata через DeleteObjectMeta не удалит blob автоматически:
-cleanup-сценарий ещё не собран. Для ручной уборки сохраните blob_id и удалите blob
-отдельным Storage DeleteObject, затем metadata и пустой bucket.
+Удаление demo metadata через DeleteObjectMeta не удаляет blob из Storage, но
+оставляет его в учёте: после `METADATA_DELETE_CLEANUP_DELAY` он появится в
+`ListDueCleanups` с `role: "orphan"`. Цикла очистки пока нет; вручную удалите blob
+через Storage DeleteObject и подтвердите:
+
+```bash
+grpcurl -plaintext -d '{"bucket_name":"docs-demo","key":"example.txt"}' \
+  localhost:50052 opens3.metadata.v1.MetadataService/DeleteObjectMeta
+grpcurl -plaintext -d '{"limit":10}' localhost:50052 opens3.metadata.v1.PlacementService/ListDueCleanups
+grpcurl -plaintext -d '{"copy_id":"<copy-id>","deleted":true}' \
+  localhost:50052 opens3.metadata.v1.PlacementService/CompleteCleanup
+```
 
 ## Наблюдаемость и диагностика
 
@@ -394,7 +438,8 @@ make down-e2e
 [сценарии протокола переноса](internal/service/placement/tests/protocol_integration_test.go)
 с настоящими транзакциями: цикл COLD → HOT → COLD, повторы команд, учёт копий в
 ёмкости, конкурентные резервирования, перезапись и удаление объекта во время
-переноса, [выбор класса записи](internal/service/placement/tests/write_class_integration_test.go)
+переноса, копии `orphan` версий удалённого объекта в HOT и COLD и сохранение
+занятости до `CompleteCleanup`, [выбор класса записи](internal/service/placement/tests/write_class_integration_test.go)
 (наследование HOT при перезаписи, COLD без размера и при нехватке места). Пакеты запускаются последовательно (`-p 1`),
 поскольку используют одну тестовую БД. Не запускайте несколько таких команд
 одновременно против этой БД. Suite пересоздаёт схему и чистит таблицы —
@@ -413,16 +458,17 @@ Generated outputs вручную не редактируются.
 - prefix/pagination имеют описанные выше отличия от внешнего S3-контракта;
 - проверка непустоты bucket и конкурентное создание объектов требуют согласования
   lifecycle; наличие транзакции само по себе не доказывает нужную сериализацию;
-- событие `object-deleted` не содержит класс хранения, а удаление каскадно убирает
-  расположения версий, поэтому их blobs (в том числе в HOT) перестают учитываться
-  в занятости, хотя файлы остаются в Storage;
+- событие `object-deleted` не содержит класс хранения и лишь текущий blob_id;
+  полный список blobs удалённого объекта — копии `orphan` в `ListDueCleanups`;
 - `ListPlacements` отдаёт только текущие версии; нетекущие версии в HOT Planner
   пока не видит и выселить не может (нужно для этапа Planner);
 - ёмкость классов задаётся миграцией или SQL, RPC для настройки нет; адреса
   экземпляров Storage в `storage_classes` не хранятся;
-- исполнителя миграций нет: протокол проверен вызовами API и тестами;
-- удаление объекта не превращает расположения его версий в копии для очистки:
-  blob текущей версии передаётся в `object-deleted`, старые версии не учитываются.
+- исполнитель переносов работает в SPPR ([README SPPR](../sppr/README.md#перенос-версии)),
+  его цикл очистки при `MIGRATION_ENABLED=true` удаляет due-копии всех ролей
+  (`source`, отменённые `target`, `orphan`) напрямую из Storage и вызывает
+  `CompleteCleanup`; пауза переносов очистку не останавливает. Без запущенного
+  исполнителя или при ошибке Storage копии продолжают занимать место.
 
 ## Связанные документы
 
