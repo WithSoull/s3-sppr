@@ -42,7 +42,7 @@ func TestListActionsBlockedBy(t *testing.T) {
 				settings.GetMock.Return(tt.settings, nil)
 				settings.SpentMock.Expect(minimock.AnyContext, time.Hour).Return(70, nil)
 			}
-			s := migration.NewService(actions, settings, mocks.NewPinRepositoryMock(mc), mocks.NewTxManagerMock(mc))
+			s := migration.NewService(actions, settings, mocks.NewPinRepositoryMock(mc), mocks.NewTxManagerMock(mc), nil)
 			page, err := s.ListActions(context.Background(), model.ActionFilter{})
 			require.NoError(t, err)
 			require.Len(t, page.Actions, 1)
@@ -60,7 +60,7 @@ func TestListActionsPagination(t *testing.T) {
 			{ActionSpec: model.ActionSpec{ActionID: actionC}, Status: model.ActionSucceeded},
 			{ActionSpec: model.ActionSpec{ActionID: version}, Status: model.ActionSucceeded},
 		}, nil)
-	s := migration.NewService(actions, mocks.NewSettingsRepositoryMock(mc), mocks.NewPinRepositoryMock(mc), mocks.NewTxManagerMock(mc))
+	s := migration.NewService(actions, mocks.NewSettingsRepositoryMock(mc), mocks.NewPinRepositoryMock(mc), mocks.NewTxManagerMock(mc), nil)
 	page, err := s.ListActions(context.Background(), model.ActionFilter{PlanID: planID, Status: model.ActionSucceeded, PageSize: 2, PageToken: actionA})
 	require.NoError(t, err)
 	require.Len(t, page.Actions, 2)
@@ -126,7 +126,7 @@ func TestSettingsChanges(t *testing.T) {
 				settings.GetForUpdateMock.Return(defaults, nil)
 				settings.UpdateMock.Expect(minimock.AnyContext, tt.want).Return(nil)
 			}
-			s := migration.NewService(mocks.NewActionRepositoryMock(mc), settings, mocks.NewPinRepositoryMock(mc), tx)
+			s := migration.NewService(mocks.NewActionRepositoryMock(mc), settings, mocks.NewPinRepositoryMock(mc), tx, nil)
 			err := tt.change(context.Background(), s)
 			if tt.wantErr {
 				require.ErrorIs(t, err, model.ErrInvalidArgument)

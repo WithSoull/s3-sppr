@@ -72,6 +72,7 @@ type step struct {
 }
 
 type deps struct {
+	observer   service.MigrationObserver
 	actions    *mocks.ActionRepositoryMock
 	settings   *mocks.SettingsRepositoryMock
 	pins       *mocks.PinRepositoryMock
@@ -109,7 +110,7 @@ func (d *deps) executor() service.MigrationExecutor {
 		Workers: 1, MaxAttempts: maxAttempts, RetryBackoff: time.Millisecond,
 		SourceCleanupDelay: 10 * time.Minute, PollInterval: time.Millisecond,
 	}, d.actions, d.settings, d.pins, d.tx, d.placements,
-		map[model.StorageClass]client.StorageClient{model.StorageClassHot: d.hot, model.StorageClassCold: d.cold})
+		map[model.StorageClass]client.StorageClient{model.StorageClassHot: d.hot, model.StorageClassCold: d.cold}, d.observer)
 }
 
 func (d *deps) checks(pinned bool, minInterval time.Duration) {

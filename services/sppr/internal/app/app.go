@@ -168,8 +168,11 @@ func (a *App) Run(ctx context.Context) error {
 // partial initialization.
 func (a *App) Close(ctx context.Context) error {
 	var err error
+	if a.provider != nil {
+		err = errors.Join(err, a.provider.migrationMetrics.Close())
+	}
 	if a.closer != nil {
-		err = a.closer.CloseAll(ctx)
+		err = errors.Join(err, a.closer.CloseAll(ctx))
 	}
 	if a.loggerInitialized {
 		err = errors.Join(err, logger.Shutdown(ctx))

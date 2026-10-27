@@ -54,6 +54,7 @@ type serviceProvider struct {
 	placementClient    client.PlacementClient
 	storageClients     map[model.StorageClass]client.StorageClient
 	migrationExecutor  service.MigrationExecutor
+	migrationMetrics   *observability.MigrationMetrics
 }
 
 func newServiceProvider(cfg *config.Config, closer *closer.Closer) *serviceProvider {

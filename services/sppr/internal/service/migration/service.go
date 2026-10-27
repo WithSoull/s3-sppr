@@ -17,6 +17,7 @@ type migrationService struct {
 	settings repository.SettingsRepository
 	pins     repository.PinRepository
 	tx       db.TxManager
+	observer service.MigrationObserver
 }
 
 func NewService(
@@ -24,6 +25,7 @@ func NewService(
 	settings repository.SettingsRepository,
 	pins repository.PinRepository,
 	tx db.TxManager,
+	observer service.MigrationObserver,
 ) service.MigrationService {
-	return &migrationService{actions: actions, settings: settings, pins: pins, tx: tx}
+	return &migrationService{actions: actions, settings: settings, pins: pins, tx: tx, observer: observer}
 }

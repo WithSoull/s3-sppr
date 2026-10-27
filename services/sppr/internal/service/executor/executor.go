@@ -26,6 +26,7 @@ type Config struct {
 }
 
 type executor struct {
+	observer   service.MigrationObserver
 	cfg        Config
 	actions    repository.ActionRepository
 	settings   repository.SettingsRepository
@@ -48,9 +49,11 @@ func NewExecutor(
 	tx db.TxManager,
 	placements client.PlacementClient,
 	storages map[model.StorageClass]client.StorageClient,
+	observer service.MigrationObserver,
 ) service.MigrationExecutor {
 	return &executor{
 		cfg:        cfg,
+		observer:   observer,
 		actions:    actions,
 		settings:   settings,
 		pins:       pins,
@@ -152,6 +155,17 @@ func (e *executor) move(ctx context.Context, a *model.Action, t model.Transition
 	})
 	if err != nil {
 		return fmt.Errorf("record %s/%s of action %s: %w", t.Status, t.Step, a.ActionID, err)
+	}
+	if e.observer != nil {
+		if t.Status.Terminal() {
+			e.observer.Actions(ctx, string(t.Status), string(t.Reason), 1)
+			if a.StartedAt != nil {
+				e.observer.Duration(ctx, time.Since(*a.StartedAt))
+			}
+		}
+		if len(dependents) > 0 {
+			e.observer.Actions(ctx, string(model.ActionCancelled), string(model.ReasonDependencyFailed), int64(len(dependents)))
+		}
 	}
 	a.Status, a.Step, a.Reason = t.Status, t.Step, t.Reason
 	if t.Settle {
