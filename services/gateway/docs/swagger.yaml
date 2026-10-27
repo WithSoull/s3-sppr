@@ -106,6 +106,54 @@ paths:
       summary: Read the current object version
       tags:
       - objects
+    head:
+      description: Development-only API. Calls Metadata only, without reading Storage
+        or publishing object-read. Returns the headers of a full GET without a body.
+        Range and If-Range are ignored. Bounded by METADATA_RPC_TIMEOUT, not GATEWAY_MAX_READ_DURATION.
+      parameters:
+      - description: Bucket name
+        in: path
+        name: bucket
+        required: true
+        type: string
+      - description: Object key (may contain slashes)
+        in: path
+        name: key
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          headers:
+            Accept-Ranges:
+              description: bytes
+              type: string
+            Content-Length:
+              description: Full object size in bytes
+              type: integer
+            Content-Type:
+              description: Object content type; application/octet-stream when empty
+              type: string
+            ETag:
+              description: Quoted object ETag
+              type: string
+            X-Content-Type-Options:
+              description: nosniff
+              type: string
+            X-Object-Version-Id:
+              description: Current version ID
+              type: string
+        "404":
+          description: Not Found
+        "502":
+          description: Bad Gateway
+        "503":
+          description: Service Unavailable
+        "504":
+          description: Gateway Timeout
+      summary: Read metadata of the current object version
+      tags:
+      - objects
     put:
       consumes:
       - application/octet-stream

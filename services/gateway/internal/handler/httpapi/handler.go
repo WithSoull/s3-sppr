@@ -45,6 +45,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		h.PutObject(w, r)
 	case http.MethodGet:
 		h.GetObject(w, r)
+	case http.MethodHead:
+		h.HeadObject(w, r)
 	case http.MethodDelete:
 		h.DeleteObject(w, r)
 	default:
@@ -52,7 +54,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.NotFound(w, r)
 			return
 		}
-		w.Header().Set("Allow", "GET, PUT, DELETE")
+		w.Header().Set("Allow", "GET, HEAD, PUT, DELETE")
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 }

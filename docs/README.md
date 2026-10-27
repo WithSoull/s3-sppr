@@ -15,7 +15,7 @@
 | Metadata | buckets, keys, версии и их расположение HOT/COLD | [README](../services/metadata/README.md) |
 | Storage | blob bytes и multipart | [README](../services/storage/README.md) |
 | Quota | резервирование и учёт квот | [README](../services/quota/README.md) |
-| Gateway | локальный HTTP PUT/GET | [README](../services/gateway/README.md) |
+| Gateway | локальный HTTP PUT/GET/HEAD/DELETE | [README](../services/gateway/README.md) |
 | SPPR | Kafka Ingestor, история и агрегаты спроса | [README](../services/sppr/README.md), [онбординг](../services/sppr/ONBOARDING.md) |
 
 У всех сервисных README одинаковый порядок: назначение → архитектура → структура →
