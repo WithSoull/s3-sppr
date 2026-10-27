@@ -45,7 +45,15 @@ func (s *PlacementProtocolSuite) TestOverwriteInheritsHotWhileItFits() {
 	s.Require().Equal(model.StorageClassHot, current.StorageClass)
 
 	// The non-current v1 still occupies HOT until the Planner evicts it.
-	hot := s.usage(model.StorageClassHot)
+	classes, err := s.placements.ListStorageClasses(s.Context())
+	s.Require().NoError(err)
+	var hot *model.StorageClassUsage
+	for _, class := range classes {
+		if class.Name == model.StorageClassHot {
+			hot = class
+		}
+	}
+	s.Require().NotNil(hot)
 	s.Require().Equal(int64(2), hot.PlacedVersions)
 	s.Require().Equal(int64(0), hot.FreeBytes())
 
