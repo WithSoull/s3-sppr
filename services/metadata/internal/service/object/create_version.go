@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/alesplll/opens3-rebac/services/metadata/internal/model"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/sys/validate"
 )
 
@@ -43,6 +44,11 @@ func (s *objectService) CreateObjectVersion(ctx context.Context, bucketName, key
 
 		versionID, createdAt, err = s.repo.InsertVersion(ctx, objectID, blobID, sizeBytes, etag, contentType)
 		if err != nil {
+			return err
+		}
+
+		// New versions start in COLD so uploads never fill HOT outside an approved plan.
+		if err := s.placementRepo.Create(ctx, versionID, blobID, model.StorageClassCold); err != nil {
 			return err
 		}
 

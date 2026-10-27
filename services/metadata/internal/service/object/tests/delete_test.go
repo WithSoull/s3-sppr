@@ -103,7 +103,7 @@ func TestDeleteObjectMeta(t *testing.T) {
 			txMock := mocks.NewTxManagerMock(mc)
 			producerMock := tt.buildProducerMock(mc)
 
-			svc := objectService.NewService(repoMock, txMock, producerMock, nil, nil)
+			svc := objectService.NewService(repoMock, mocks.NewPlacementRepositoryMock(mc), txMock, producerMock, nil, nil)
 
 			objectID, blobID, err := svc.DeleteObjectMeta(tt.args.ctx, tt.args.bucketName, tt.args.key)
 

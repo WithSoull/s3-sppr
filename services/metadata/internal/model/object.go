@@ -25,6 +25,13 @@ const (
 	VersionStateAborted   VersionState = "aborted"
 )
 
+type StorageClass string
+
+const (
+	StorageClassHot  StorageClass = "HOT"
+	StorageClassCold StorageClass = "COLD"
+)
+
 type Object struct {
 	ID               string
 	BucketID         string
@@ -49,15 +56,18 @@ type Version struct {
 	AbortedAt     *time.Time
 }
 
-// ObjectMeta combines object and version data for GetObjectMeta response.
+// ObjectMeta combines object, version and placement data for GetObjectMeta response.
+// BlobID and StorageClass come from the version placement, not from versions.blob_id.
 type ObjectMeta struct {
-	ObjectID     string
-	VersionID    string
-	BlobID       string
-	SizeBytes    int64
-	Etag         string
-	ContentType  string
-	LastModified time.Time
+	ObjectID            string
+	VersionID           string
+	BlobID              string
+	SizeBytes           int64
+	Etag                string
+	ContentType         string
+	LastModified        time.Time
+	StorageClass        StorageClass
+	PlacementGeneration int64
 }
 
 // ObjectListItem is used for ListObjects response.

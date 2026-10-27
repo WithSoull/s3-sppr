@@ -91,7 +91,8 @@ AuthZ проверяет прямые `HAS_PERMISSION` и разрешения �
 ### Metadata
 
 Metadata предоставляет каталог buckets/objects/versions и публикует события
-удаления после изменения БД. До внедрения transactional outbox это best-effort
+удаления после изменения БД. Он также хранит расположение версий в классах HOT/COLD
+и через `PlacementService` переключает его после проверенного копирования. До внедрения transactional outbox это best-effort
 граница: успешное изменение БД и публикация в Kafka не атомарны.
 
 ### Storage

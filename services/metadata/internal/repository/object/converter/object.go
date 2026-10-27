@@ -7,13 +7,15 @@ import (
 
 func MetaToDomain(m *repoModel.ObjectMeta) *domainModel.ObjectMeta {
 	return &domainModel.ObjectMeta{
-		ObjectID:     m.ObjectID,
-		VersionID:    m.VersionID,
-		BlobID:       m.BlobID,
-		SizeBytes:    m.SizeBytes,
-		Etag:         m.Etag,
-		ContentType:  m.ContentType,
-		LastModified: m.LastModified,
+		ObjectID:            m.ObjectID,
+		VersionID:           m.VersionID,
+		BlobID:              m.BlobID,
+		SizeBytes:           m.SizeBytes,
+		Etag:                m.Etag,
+		ContentType:         m.ContentType,
+		LastModified:        m.LastModified,
+		StorageClass:        domainModel.StorageClass(m.StorageClass),
+		PlacementGeneration: m.PlacementGeneration,
 	}
 }
 

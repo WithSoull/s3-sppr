@@ -1,0 +1,219 @@
+syntax = "proto3";
+
+package opens3.metadata.v1;
+
+option go_package = "github.com/alesplll/opens3-rebac/shared/pkg/go/metadata/v1;metadatav1";
+
+// PlacementService управляет расположением версий в классах хранения HOT/COLD.
+// Работает в процессе Metadata на том же порту, что и MetadataService.
+// Клиенты — СППР (каталог и занятость классов для Planner) и исполнитель миграций.
+// Gateway читает расположение только через MetadataService.GetObjectMeta.
+//
+// Инварианты:
+//   - у committed blob-версии ровно одна запись version_placements, чтение
+//     использует только её;
+//   - расположение меняется только через SwitchPlacement (CAS по поколению и
+//     исходному классу, зафиксированным в ReserveCopy);
+//   - временные копии и ожидающие удаления blobs учитываются в занятости класса,
+//     пока Storage не подтвердит удаление через CompleteCleanup.
+//
+// Перенос одной версии:
+//   GetPlacement → ReserveCopy → запись blob_id копии в Storage целевого класса →
+//   сверка размера и MD5 с источником → SwitchPlacement →
+//   после cleanup_after удаление старого blob → CompleteCleanup.
+// Ошибка до SwitchPlacement: AbortCopy → удаление целевого blob → CompleteCleanup.
+//
+// PostgreSQL: version_placements, storage_classes, placement_copies.
+service PlacementService {
+  // ListStorageClasses возвращает ёмкость и занятость классов. В занятость входят
+  // расположения всех версий (включая нетекущие) и копии, ещё занимающие место.
+  rpc ListStorageClasses(ListStorageClassesRequest) returns (ListStorageClassesResponse);
+
+  // ListPlacements постранично возвращает текущие версии активных объектов с их
+  // расположением — каталог для Planner. Порядок — по version_id.
+  // Ошибки: INVALID_ARGUMENT (page_token не UUID).
+  rpc ListPlacements(ListPlacementsRequest) returns (ListPlacementsResponse);
+
+  // GetPlacement возвращает действующее расположение версии и признак текущей версии.
+  // Ошибки: INVALID_ARGUMENT, NOT_FOUND.
+  rpc GetPlacement(GetPlacementRequest) returns (GetPlacementResponse);
+
+  // ReserveCopy проверяет, что версия текущая, а поколение и класс расположения
+  // совпадают с ожидаемыми, резервирует место в целевом классе и выдаёт blob_id
+  // для записи копии. Повтор с тем же migration_id возвращает уже созданную копию
+  // в её текущем состоянии.
+  // Ошибки: INVALID_ARGUMENT, NOT_FOUND (нет расположения),
+  //         ABORTED (версия не текущая, расположение изменилось, у версии уже есть
+  //                  зарезервированная копия), RESOURCE_EXHAUSTED (нет места),
+  //         FAILED_PRECONDITION (migration_id уже использован с другими параметрами).
+  rpc ReserveCopy(ReserveCopyRequest) returns (ReserveCopyResponse);
+
+  // SwitchPlacement переключает расположение на проверенную целевую копию (CAS).
+  // Прежний blob становится копией с ролью source в состоянии cleanup_pending,
+  // удалять его можно после cleanup_after. Повтор после успешного переключения
+  // возвращает тот же результат.
+  // Ошибки: INVALID_ARGUMENT, NOT_FOUND (нет копии),
+  //         ABORTED (версия не текущая или расположение изменилось; расположение
+  //                  не меняется, копию следует отменить через AbortCopy),
+  //         FAILED_PRECONDITION (копия отменена или проверенный размер не совпал).
+  rpc SwitchPlacement(SwitchPlacementRequest) returns (SwitchPlacementResponse);
+
+  // AbortCopy отменяет зарезервированную целевую копию до переключения:
+  // копия переходит в cleanup_pending для удаления blob. Идемпотентен.
+  // Ошибки: INVALID_ARGUMENT, NOT_FOUND, FAILED_PRECONDITION (переключение уже выполнено).
+  rpc AbortCopy(AbortCopyRequest) returns (AbortCopyResponse);
+
+  // ListMigrationCopies возвращает копии одной миграции (target и, после
+  // переключения, source). Используется для восстановления после перезапуска.
+  rpc ListMigrationCopies(ListMigrationCopiesRequest) returns (ListMigrationCopiesResponse);
+
+  // ListDueCleanups возвращает копии, blob которых пора удалить из Storage:
+  // cleanup_pending и cleanup_failed с cleanup_after <= now().
+  rpc ListDueCleanups(ListDueCleanupsRequest) returns (ListDueCleanupsResponse);
+
+  // CompleteCleanup фиксирует результат удаления blob копии. deleted=true
+  // освобождает место; deleted=false переводит копию в cleanup_failed,
+  // место остаётся занятым.
+  // Ошибки: INVALID_ARGUMENT, NOT_FOUND, FAILED_PRECONDITION (копия не ожидает удаления).
+  rpc CompleteCleanup(CompleteCleanupRequest) returns (CompleteCleanupResponse);
+}
+
+// ─── Общие структуры ─────────────────────────────────────────────────────────
+
+message PlacementInfo {
+  string version_id    = 1;
+  string object_id     = 2;
+  string bucket_name   = 3;
+  string key           = 4;
+  bool   is_current    = 5;  // версия является current_version_id активного объекта
+  string storage_class = 6;  // "HOT" или "COLD"
+  string blob_id       = 7;
+  int64  generation    = 8;  // растёт при каждом SwitchPlacement
+  int64  size_bytes    = 9;
+  int64  updated_at    = 10; // Unix timestamp в миллисекундах
+  // У версии есть зарезервированная целевая копия: перенос уже выполняется.
+  bool   migration_in_progress = 11;
+}
+
+message StorageClassInfo {
+  string name            = 1; // "HOT" или "COLD"
+  int64  capacity_bytes  = 2;
+  double max_utilization = 3; // доля ёмкости, доступная для размещения
+  int64  usable_bytes    = 4; // floor(capacity_bytes * max_utilization)
+  int64  placed_bytes    = 5; // версии с расположением в классе
+  int64  placed_versions = 6;
+  int64  copy_bytes      = 7; // копии в состояниях reserved, cleanup_pending, cleanup_failed
+  int64  copies          = 8;
+  int64  failed_cleanups = 9; // копии в cleanup_failed
+  int64  free_bytes      = 10; // usable - placed - copy; может быть отрицательным
+}
+
+message PlacementCopyInfo {
+  string copy_id             = 1;
+  string migration_id        = 2;
+  string version_id          = 3;  // пусто, если версия удалена после создания копии
+  string role                = 4;  // "target" — копия для переноса, "source" — прежний blob
+  string storage_class       = 5;  // класс, в котором лежит blob копии
+  string blob_id             = 6;
+  int64  size_bytes          = 7;
+  int64  expected_generation = 8;  // только target: поколение для CAS
+  string expected_class      = 9;  // только target: исходный класс для CAS
+  // reserved, promoted, cleanup_pending, cleanup_failed, deleted
+  string state               = 10;
+  string verified_md5        = 11;
+  int64  cleanup_after       = 12; // Unix timestamp в миллисекундах; 0 — не задано
+  int32  cleanup_attempts    = 13;
+  string last_error          = 14;
+  int64  created_at          = 15;
+  int64  updated_at          = 16;
+}
+
+// ─── RPC messages ─────────────────────────────────────────────────────────────
+
+message ListStorageClassesRequest {}
+
+message ListStorageClassesResponse {
+  repeated StorageClassInfo storage_classes = 1;
+}
+
+message ListPlacementsRequest {
+  int32  page_size  = 1; // по умолчанию и максимум 1000
+  string page_token = 2; // next_page_token предыдущего ответа; пусто — первая страница
+}
+
+message ListPlacementsResponse {
+  repeated PlacementInfo placements      = 1;
+  string                 next_page_token = 2; // пусто — страниц больше нет
+}
+
+message GetPlacementRequest {
+  string version_id = 1;
+}
+
+message GetPlacementResponse {
+  PlacementInfo placement = 1;
+}
+
+message ReserveCopyRequest {
+  string migration_id        = 1; // UUID, задаётся исполнителем; ключ идемпотентности
+  string version_id          = 2;
+  int64  expected_generation = 3;
+  string source_class        = 4;
+  string target_class        = 5;
+}
+
+message ReserveCopyResponse {
+  PlacementCopyInfo copy = 1;
+}
+
+message SwitchPlacementRequest {
+  string migration_id               = 1;
+  // Размер и MD5 целевой копии, сверенные исполнителем с источником.
+  int64  verified_size_bytes        = 2;
+  string verified_md5               = 3; // 32 hex-символа в нижнем регистре
+  // Пауза до удаления прежнего blob; должна превышать предельное время чтения в Gateway.
+  int64  source_cleanup_delay_ms    = 4;
+}
+
+message SwitchPlacementResponse {
+  string            version_id     = 1;
+  int64             new_generation = 2;
+  string            storage_class  = 3;
+  string            blob_id        = 4;
+  PlacementCopyInfo source_copy    = 5;
+}
+
+message AbortCopyRequest {
+  string migration_id = 1;
+  string reason       = 2;
+}
+
+message AbortCopyResponse {
+  PlacementCopyInfo copy = 1;
+}
+
+message ListMigrationCopiesRequest {
+  string migration_id = 1;
+}
+
+message ListMigrationCopiesResponse {
+  repeated PlacementCopyInfo copies = 1;
+}
+
+message ListDueCleanupsRequest {
+  int32 limit = 1; // по умолчанию 100, максимум 1000
+}
+
+message ListDueCleanupsResponse {
+  repeated PlacementCopyInfo copies = 1;
+}
+
+message CompleteCleanupRequest {
+  string copy_id       = 1;
+  bool   deleted       = 2;
+  string error_message = 3; // обязателен при deleted=false
+}
+
+message CompleteCleanupResponse {
+  PlacementCopyInfo copy = 1;
+}

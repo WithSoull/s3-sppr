@@ -72,7 +72,7 @@ generate-metadata-go:
 		--plugin=protoc-gen-go=$(LOCAL_BIN)/protoc-gen-go \
 		--go-grpc_out=$(GO_PROTO_OUT)/metadata/v1 --go-grpc_opt=paths=source_relative \
 		--plugin=protoc-gen-go-grpc=$(LOCAL_BIN)/protoc-gen-go-grpc \
-		shared/api/metadata/v1/metadata.proto
+		shared/api/metadata/v1/metadata.proto shared/api/metadata/v1/placement.proto
 
 generate-user-py:
 	mkdir -p $(PY_PROTO_OUT)/user/v1
@@ -110,9 +110,10 @@ generate-metadata-py:
 		--proto_path=shared/api/metadata/v1 \
 		--python_out=$(PY_PROTO_OUT)/metadata/v1 \
 		--grpc_python_out=$(PY_PROTO_OUT)/metadata/v1 \
-		shared/api/metadata/v1/metadata.proto
+		shared/api/metadata/v1/metadata.proto shared/api/metadata/v1/placement.proto
 	touch shared/__init__.py shared/pkg/__init__.py $(PY_PROTO_OUT)/__init__.py $(PY_PROTO_OUT)/metadata/__init__.py $(PY_PROTO_OUT)/metadata/v1/__init__.py
 	perl -0pi -e 's/^import metadata_pb2 as metadata__pb2/from . import metadata_pb2 as metadata__pb2/m' $(PY_PROTO_OUT)/metadata/v1/metadata_pb2_grpc.py
+	perl -0pi -e 's/^import placement_pb2 as placement__pb2/from . import placement_pb2 as placement__pb2/m' $(PY_PROTO_OUT)/metadata/v1/placement_pb2_grpc.py
 
 generate-authz-py:
 	mkdir -p $(PY_PROTO_OUT)/authz/v1
@@ -197,10 +198,10 @@ test-users-service:
 	go test ./services/users/internal/service/user/tests -count=1
 
 test-metadata-integration:
-	cd services/metadata && go test -p 1 -tags=integration ./internal/repository/bucket/tests ./internal/repository/object/tests -count=1
+	cd services/metadata && go test -p 1 -tags=integration ./internal/repository/bucket/tests ./internal/repository/object/tests ./internal/service/placement/tests -count=1
 
 test-metadata-integration-local: up-e2e
-	cd services/metadata && go test -p 1 -tags=integration ./internal/repository/bucket/tests ./internal/repository/object/tests -count=1
+	cd services/metadata && go test -p 1 -tags=integration ./internal/repository/bucket/tests ./internal/repository/object/tests ./internal/service/placement/tests -count=1
 
 # ── Docker ─────────────────────────────────────────────────────────────────────
 

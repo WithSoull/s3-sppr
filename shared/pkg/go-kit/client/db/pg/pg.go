@@ -44,8 +44,13 @@ func (p *pg) withOpTimeout(ctx context.Context) (context.Context, context.Cancel
 	return context.WithTimeout(ctx, p.cfg.Timeout())
 }
 
+// The operation timeout must cover reading the rows: cancelling it right after
+// Query returns makes the scan fail with "context canceled" and closes the conn.
 func (p *pg) ScanOneContext(ctx context.Context, dest any, q db.Query, args ...any) error {
-	row, err := p.QueryContext(ctx, q, args...)
+	ctx, cancel := p.withOpTimeout(ctx)
+	defer cancel()
+
+	row, err := p.query(ctx, q, args...)
 	if err != nil {
 		return err
 	}
@@ -54,7 +59,10 @@ func (p *pg) ScanOneContext(ctx context.Context, dest any, q db.Query, args ...a
 }
 
 func (p *pg) ScanAllContext(ctx context.Context, dest any, q db.Query, args ...any) error {
-	rows, err := p.QueryContext(ctx, q, args...)
+	ctx, cancel := p.withOpTimeout(ctx)
+	defer cancel()
+
+	rows, err := p.query(ctx, q, args...)
 	if err != nil {
 		return err
 	}
@@ -76,10 +84,20 @@ func (p *pg) ExecContext(ctx context.Context, q db.Query, args ...any) (pgconn.C
 	return p.dbc.Exec(ctx, q.QueryRaw, args...)
 }
 
+// QueryContext keeps the operation timeout alive until the caller closes rows.
 func (p *pg) QueryContext(ctx context.Context, q db.Query, args ...any) (pgx.Rows, error) {
 	ctx, cancel := p.withOpTimeout(ctx)
-	defer cancel()
 
+	rows, err := p.query(ctx, q, args...)
+	if err != nil {
+		cancel()
+		return nil, err
+	}
+
+	return &cancelOnCloseRows{Rows: rows, cancel: cancel}, nil
+}
+
+func (p *pg) query(ctx context.Context, q db.Query, args ...any) (pgx.Rows, error) {
 	p.logQuery(ctx, q, args...)
 
 	tx, ok := txctx.ExtractTx(ctx)
@@ -88,6 +106,16 @@ func (p *pg) QueryContext(ctx context.Context, q db.Query, args ...any) (pgx.Row
 	}
 
 	return p.dbc.Query(ctx, q.QueryRaw, args...)
+}
+
+type cancelOnCloseRows struct {
+	pgx.Rows
+	cancel context.CancelFunc
+}
+
+func (r *cancelOnCloseRows) Close() {
+	r.Rows.Close()
+	r.cancel()
 }
 
 func (p *pg) QueryRowContext(ctx context.Context, q db.Query, args ...any) pgx.Row {

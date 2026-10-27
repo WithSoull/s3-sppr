@@ -13,12 +13,14 @@ func (h *handler) GetObjectMeta(ctx context.Context, req *metadatav1.GetObjectMe
 	}
 
 	return &metadatav1.GetObjectMetaResponse{
-		ObjectId:     meta.ObjectID,
-		VersionId:    meta.VersionID,
-		BlobId:       meta.BlobID,
-		SizeBytes:    meta.SizeBytes,
-		Etag:         meta.Etag,
-		ContentType:  meta.ContentType,
-		LastModified: meta.LastModified.UnixMilli(),
+		ObjectId:            meta.ObjectID,
+		VersionId:           meta.VersionID,
+		BlobId:              meta.BlobID,
+		SizeBytes:           meta.SizeBytes,
+		Etag:                meta.Etag,
+		ContentType:         meta.ContentType,
+		LastModified:        meta.LastModified.UnixMilli(),
+		StorageClass:        string(meta.StorageClass),
+		PlacementGeneration: meta.PlacementGeneration,
 	}, nil
 }

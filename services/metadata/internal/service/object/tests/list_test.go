@@ -151,7 +151,7 @@ func TestListObjects(t *testing.T) {
 			txMock := mocks.NewTxManagerMock(mc)
 			producerMock := mocks.NewProducerMock(mc)
 
-			svc := objectService.NewService(repoMock, txMock, producerMock, nil, nil)
+			svc := objectService.NewService(repoMock, mocks.NewPlacementRepositoryMock(mc), txMock, producerMock, nil, nil)
 
 			gotItems, gotNextToken, gotIsTruncated, err := svc.ListObjects(
 				tt.args.ctx,

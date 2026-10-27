@@ -27,7 +27,7 @@ Repo: https://github.com/alesplll/opens3-rebac
 | **SPPR** | Go | `:8086` health HTTP | — | Kafka Ingestor; standalone profile `sppr` |
 | **Auth** | Go | `:50050` gRPC | — | ✅ Complete |
 | **AuthZ (ReBAC)** | Python | `:50051` gRPC | Alexa | ✅ Complete |
-| **Metadata** | Go | `:50052` gRPC | Anya | ✅ Complete |
+| **Metadata** | Go | `:50052` gRPC | Anya | ✅ Complete; HOT/COLD placements + PlacementService |
 | **Storage** | Go | `:50053` gRPC | Ilya | ✅ Complete |
 | **Users** | Go | `:50054` gRPC | — | ✅ Complete |
 | **Quota** | Rust | `:50055` gRPC | — | ✅ Complete |
@@ -87,6 +87,14 @@ without waiting for it; see [Kafka spec](docs/kafka-spec.md).
 | `auth-audit` | AuthZ | — (log sink) |
 | `object-read` | Gateway (успешный GET) | SPPR |
 | `object-written` | Gateway (успешный PUT) | SPPR |
+
+### HOT/COLD placement
+
+Metadata is the source of truth for where each version is stored:
+`version_placements` (class, blob_id, generation). New versions go to COLD.
+`PlacementService` (same port as MetadataService) lets the migration executor
+reserve a copy, switch the placement by CAS and record cleanup. See
+[Metadata README](services/metadata/README.md#перенос-версии-между-классами).
 
 Публичные relations: `MEMBER_OF`, `HAS_PERMISSION`, `PARENT_OF`. Для владельца
 используйте `HAS_PERMISSION` с уровнем `ADMIN`; `OWNER_OF` — только legacy-чтение

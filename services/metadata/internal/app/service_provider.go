@@ -7,12 +7,16 @@ import (
 	"github.com/IBM/sarama"
 	"github.com/alesplll/opens3-rebac/services/metadata/internal/config"
 	metadataHandler "github.com/alesplll/opens3-rebac/services/metadata/internal/handler/metadata"
+	placementHandler "github.com/alesplll/opens3-rebac/services/metadata/internal/handler/placement"
 	bucketRepo "github.com/alesplll/opens3-rebac/services/metadata/internal/repository/bucket"
 	objectRepo "github.com/alesplll/opens3-rebac/services/metadata/internal/repository/object"
+	placementRepo "github.com/alesplll/opens3-rebac/services/metadata/internal/repository/placement"
+	placementCopyRepo "github.com/alesplll/opens3-rebac/services/metadata/internal/repository/placementcopy"
 	"github.com/alesplll/opens3-rebac/services/metadata/internal/repository"
 	"github.com/alesplll/opens3-rebac/services/metadata/internal/service"
 	bucketSvc "github.com/alesplll/opens3-rebac/services/metadata/internal/service/bucket"
 	objectSvc "github.com/alesplll/opens3-rebac/services/metadata/internal/service/object"
+	placementSvc "github.com/alesplll/opens3-rebac/services/metadata/internal/service/placement"
 	metadatav1 "github.com/alesplll/opens3-rebac/shared/pkg/go/metadata/v1"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/client/db"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/client/db/pg"
@@ -29,16 +33,20 @@ type serviceProvider struct {
 	saramaClient sarama.Client
 	syncProducer sarama.SyncProducer
 
-	bucketRepository repository.BucketRepository
-	objectRepository repository.ObjectRepository
+	bucketRepository    repository.BucketRepository
+	objectRepository    repository.ObjectRepository
+	placementRepository repository.PlacementRepository
+	copyRepository      repository.CopyRepository
 
 	objectDeletedProducer kafka.Producer
 	bucketDeletedProducer kafka.Producer
 
-	bucketService service.BucketService
-	objectService service.ObjectService
+	bucketService    service.BucketService
+	objectService    service.ObjectService
+	placementService service.PlacementService
 
-	metadataHandler metadatav1.MetadataServiceServer
+	metadataHandler  metadatav1.MetadataServiceServer
+	placementHandler metadatav1.PlacementServiceServer
 }
 
 func newServiceProvider() *serviceProvider {
@@ -154,6 +162,22 @@ func (s *serviceProvider) ObjectRepository(ctx context.Context) repository.Objec
 	return s.objectRepository
 }
 
+func (s *serviceProvider) PlacementRepository(ctx context.Context) repository.PlacementRepository {
+	if s.placementRepository == nil {
+		s.placementRepository = placementRepo.NewRepository(s.PGClient(ctx))
+	}
+
+	return s.placementRepository
+}
+
+func (s *serviceProvider) CopyRepository(ctx context.Context) repository.CopyRepository {
+	if s.copyRepository == nil {
+		s.copyRepository = placementCopyRepo.NewRepository(s.PGClient(ctx))
+	}
+
+	return s.copyRepository
+}
+
 func (s *serviceProvider) BucketService(ctx context.Context) service.BucketService {
 	if s.bucketService == nil {
 		s.bucketService = bucketSvc.NewService(
@@ -170,6 +194,7 @@ func (s *serviceProvider) ObjectService(ctx context.Context) service.ObjectServi
 	if s.objectService == nil {
 		s.objectService = objectSvc.NewService(
 			s.ObjectRepository(ctx),
+			s.PlacementRepository(ctx),
 			s.TxManager(ctx),
 			s.ObjectDeletedProducer(ctx),
 			s.PGClient(ctx),
@@ -178,6 +203,18 @@ func (s *serviceProvider) ObjectService(ctx context.Context) service.ObjectServi
 	}
 
 	return s.objectService
+}
+
+func (s *serviceProvider) PlacementService(ctx context.Context) service.PlacementService {
+	if s.placementService == nil {
+		s.placementService = placementSvc.NewService(
+			s.PlacementRepository(ctx),
+			s.CopyRepository(ctx),
+			s.TxManager(ctx),
+		)
+	}
+
+	return s.placementService
 }
 
 func (s *serviceProvider) MetadataHandler(ctx context.Context) metadatav1.MetadataServiceServer {
@@ -189,4 +226,12 @@ func (s *serviceProvider) MetadataHandler(ctx context.Context) metadatav1.Metada
 	}
 
 	return s.metadataHandler
+}
+
+func (s *serviceProvider) PlacementHandler(ctx context.Context) metadatav1.PlacementServiceServer {
+	if s.placementHandler == nil {
+		s.placementHandler = placementHandler.NewHandler(s.PlacementService(ctx))
+	}
+
+	return s.placementHandler
 }

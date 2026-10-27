@@ -15,7 +15,7 @@ DELETE FROM objects o
 USING buckets b
 WHERE o.bucket_id = b.id AND b.name = $1 AND o.key = $2
 RETURNING o.id,
-  (SELECT blob_id FROM versions WHERE object_id = o.id AND id = o.current_version_id)`
+  (SELECT blob_id FROM version_placements WHERE version_id = o.current_version_id)`
 
 	q := db.Query{
 		Name:     "object_repository:Delete",
