@@ -184,7 +184,7 @@ func (s *serviceProvider) MigrationExecutor(ctx context.Context) (service.Migrat
 	return s.migrationExecutor, nil
 }
 
-func (s *serviceProvider) MigrationCleanup() (service.MigrationCleanup, error) {
+func (s *serviceProvider) MigrationCleanup(ctx context.Context) (service.MigrationCleanup, error) {
 	if s.migrationCleanup == nil {
 		placements, err := s.PlacementClient()
 		if err != nil {
@@ -194,7 +194,11 @@ func (s *serviceProvider) MigrationCleanup() (service.MigrationCleanup, error) {
 		if err != nil {
 			return nil, err
 		}
-		s.migrationCleanup = cleanupService.NewService(s.cfg.Migration.CleanupInterval(), placements, storages, s.migrationMetrics)
+		actions, err := s.ActionRepository(ctx)
+		if err != nil {
+			return nil, err
+		}
+		s.migrationCleanup = cleanupService.NewService(s.cfg.Migration.CleanupInterval(), actions, placements, storages, s.migrationMetrics)
 	}
 	return s.migrationCleanup, nil
 }

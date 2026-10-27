@@ -137,6 +137,17 @@ func TestDependentWaitsForPredecessor(t *testing.T) {
 
 	s.transition(t, model.Transition{ActionID: first.ActionID, FromStatus: model.ActionRunning, FromStep: model.StepReserving,
 		Status: model.ActionSucceeded, Settle: true, Bytes: 1})
+	require.True(t, s.get(t, second.ActionID).DepsPending, "the predecessor's source still holds space")
+	require.Nil(t, s.claim(t), "the dependent must wait until the source blob is deleted")
+
+	waiting, err := s.actions.ListAwaitingSourceCleanup(context.Background(), 10)
+	require.NoError(t, err)
+	require.Equal(t, []string{first.ActionID}, waiting)
+	require.NoError(t, s.actions.MarkSourceCleaned(context.Background(), first.ActionID))
+	waiting, err = s.actions.ListAwaitingSourceCleanup(context.Background(), 10)
+	require.NoError(t, err)
+	require.Empty(t, waiting)
+
 	require.False(t, s.get(t, second.ActionID).DepsPending)
 	next := s.claim(t)
 	require.NotNil(t, next)

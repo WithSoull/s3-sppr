@@ -23,7 +23,12 @@ type ActionRepository interface {
 	ListRunning(ctx context.Context) ([]*model.Action, error)
 	// Insert stores pending actions with their dependency edges; requires a transaction.
 	Insert(ctx context.Context, specs []model.ActionSpec) error
-	// Claim takes the oldest pending action whose dependencies succeeded and whose
+	// ListAwaitingSourceCleanup returns succeeded actions whose source blob is not
+	// known to be deleted yet while a pending action depends on them.
+	ListAwaitingSourceCleanup(ctx context.Context, limit int) ([]string, error)
+	MarkSourceCleaned(ctx context.Context, actionID string) error
+	// Claim takes the oldest pending action whose dependencies succeeded with
+	// their source blob deleted (so the space they free is really free) and whose
 	// size fits maxBytes, skipping rows locked by other claims, charges its size
 	// and marks it running/reserving. It returns nil when nothing is runnable and
 	// requires a transaction.

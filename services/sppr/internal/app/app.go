@@ -75,7 +75,7 @@ func (a *App) initDeps(ctx context.Context) error {
 		if a.executor, err = a.provider.MigrationExecutor(ctx); err != nil {
 			return err
 		}
-		if a.cleanup, err = a.provider.MigrationCleanup(); err != nil {
+		if a.cleanup, err = a.provider.MigrationCleanup(ctx); err != nil {
 			return err
 		}
 	}

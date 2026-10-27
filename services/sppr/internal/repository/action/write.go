@@ -60,7 +60,8 @@ func (r *repo) Claim(ctx context.Context, maxBytes int64) (*model.Action, error)
 			WHERE a.status = 'pending' AND a.size_bytes <= $1
 			  AND NOT EXISTS (SELECT 1 FROM migration_action_deps d
 			                  JOIN migration_actions p ON p.action_id = d.depends_on
-			                  WHERE d.action_id = a.action_id AND p.status <> 'succeeded')
+			                  WHERE d.action_id = a.action_id
+			                    AND (p.status <> 'succeeded' OR p.source_cleaned_at IS NULL))
 			ORDER BY a.created_at, a.action_id
 			LIMIT 1
 			FOR UPDATE OF a SKIP LOCKED
@@ -205,4 +206,24 @@ func (r *repo) scanIDs(ctx context.Context, q db.Query, args ...any) ([]string, 
 		ids = append(ids, id)
 	}
 	return ids, rows.Err()
+}
+
+func (r *repo) ListAwaitingSourceCleanup(ctx context.Context, limit int) ([]string, error) {
+	var ids []string
+	err := r.db.DB().ScanAllContext(ctx, &ids, db.Query{Name: "action:list_awaiting_source_cleanup", QueryRaw: `
+		SELECT p.action_id::text FROM migration_actions p
+		WHERE p.status = 'succeeded' AND p.source_cleaned_at IS NULL
+		  AND EXISTS (SELECT 1 FROM migration_action_deps d
+		              JOIN migration_actions a ON a.action_id = d.action_id
+		              WHERE d.depends_on = p.action_id AND a.status = 'pending')
+		ORDER BY p.finished_at, p.action_id
+		LIMIT $1`}, limit)
+	return ids, err
+}
+
+func (r *repo) MarkSourceCleaned(ctx context.Context, actionID string) error {
+	_, err := r.db.DB().ExecContext(ctx, db.Query{Name: "action:mark_source_cleaned", QueryRaw: `
+		UPDATE migration_actions SET source_cleaned_at = now()
+		WHERE action_id = $1::uuid AND status = 'succeeded' AND source_cleaned_at IS NULL`}, actionID)
+	return err
 }
