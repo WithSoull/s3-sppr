@@ -15,6 +15,7 @@ import (
 	eventRepository "github.com/alesplll/opens3-rebac/services/sppr/internal/repository/event"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/service"
 	accessConsumerService "github.com/alesplll/opens3-rebac/services/sppr/internal/service/consumer/access"
+	featureService "github.com/alesplll/opens3-rebac/services/sppr/internal/service/features"
 	ingestorService "github.com/alesplll/opens3-rebac/services/sppr/internal/service/ingestor"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/client/db"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/client/db/pg"
@@ -36,6 +37,7 @@ type serviceProvider struct {
 	txManager       db.TxManager
 	eventRepository repository.EventRepository
 	ingestor        service.Ingestor
+	featureBuilder  service.FeatureBuilder
 
 	objectReadConsumerGroup sarama.ConsumerGroup
 	objectReadConsumer      kafka.Consumer
@@ -60,6 +62,13 @@ type serviceProvider struct {
 
 func newServiceProvider(cfg *config.Config, closer *closer.Closer) *serviceProvider {
 	return &serviceProvider{cfg: cfg, closer: closer}
+}
+
+func (s *serviceProvider) FeatureBuilder() service.FeatureBuilder {
+	if s.featureBuilder == nil {
+		s.featureBuilder = featureService.NewService()
+	}
+	return s.featureBuilder
 }
 
 func (s *serviceProvider) PGClient(ctx context.Context) (db.Client, error) {

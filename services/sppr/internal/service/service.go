@@ -55,3 +55,7 @@ type MigrationObserver interface {
 	Duration(ctx context.Context, elapsed time.Duration)
 	Cleanup(ctx context.Context, outcome string)
 }
+
+type FeatureBuilder interface {
+	Build(context.Context, model.FeatureRequest) ([]model.FeatureSnapshot, error)
+}
