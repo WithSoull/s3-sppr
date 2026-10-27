@@ -34,7 +34,7 @@ competing SPPR executor/cleanup. See the SPPR README for endpoint overrides.
 - `make generate`: regenerate shared Go and Python protobuf bindings from `shared/api`.
 - `go test ./...` from `services/auth`, `services/users`, `services/metadata`, or `services/storage`: run tests for one Go service module.
 - `make test-gateway`: run the Gateway Go tests.
-- `make smoke-gateway-local`: build/start the Gateway stack and run the real-service smoke (PUT/GET, HOT/COLD routing, Range, DELETE); `make smoke-gateway` checks an already running stack.
+- `make smoke-gateway-local`: build/start the Gateway stack and run the real-service smoke (PUT/GET/HEAD, HOT/COLD routing, Range, DELETE); `make smoke-gateway` checks an already running stack.
 - `make smoke-migration`: check COLD → HOT → COLD through the running SPPR API, source deletion and HOT occupancy; `SMOKE_MIGRATION_ARGS` forwards CLI flags.
 - `make smoke-migration-local`: start the dedicated Compose demo with coordinated short read/cleanup limits and run the migration smoke.
 - `make up-sppr-migration`: start SPPR with the migration executor enabled, plus Gateway, Metadata and both Storage instances.

@@ -15,7 +15,7 @@
 
 В репозитории реализованы внутренние gRPC-сервисы Auth, Users, AuthZ, Metadata,
 Storage и Quota, а также локальный экспериментальный HTTP Gateway для
-PUT/GET/DELETE поверх Metadata и двух экземпляров Storage (HOT и COLD). В Gateway пока нет Auth/AuthZ, квоты и SigV4, поэтому
+PUT/GET/HEAD/DELETE поверх Metadata и двух экземпляров Storage (HOT и COLD). В Gateway пока нет Auth/AuthZ, квоты и SigV4, поэтому
 его нельзя открывать наружу и использовать как S3 endpoint для `aws-cli`, boto3
 и других стандартных S3 клиентов. Диаграммы распределённого хранения,
 репликации и части Kafka-flow в `docs/` и Wiki описывают проектируемую архитектуру.
@@ -28,7 +28,7 @@ PUT/GET/DELETE поверх Metadata и двух экземпляров Storage 
 | Storage | Go | 50053 (`storage-cold`), 50056 (`storage-hot`) | локальная файловая система; два тома |
 | Users | Go | 50054 | PostgreSQL |
 | Quota | Rust | 50055 | Redis |
-| [Gateway](services/gateway/README.md) | Go, локальный PUT/GET/DELETE, Range | 8080 (localhost) | Metadata, Storage HOT и COLD |
+| [Gateway](services/gateway/README.md) | Go, локальный PUT/GET/HEAD/DELETE, Range | 8080 (localhost) | Metadata, Storage HOT и COLD |
 | SPPR | Go | 8086 (health и API переносов, 127.0.0.1) | PostgreSQL, Kafka; Metadata и Storage при `MIGRATION_ENABLED`; отдельный профиль `sppr` |
 
 Сервис Storage хранит immutable blobs и поддерживает внутренние RPC для обычной и
@@ -52,7 +52,7 @@ docker compose ps
 ```bash
 make up-services
 make up-gateway
-make smoke-gateway  # PUT/GET, HOT/COLD, Range и DELETE на поднятом стенде
+make smoke-gateway  # PUT/GET/HEAD, HOT/COLD, Range и DELETE на поднятом стенде
 make up-e2e
 make test-metadata-integration
 make test-metadata-integration-local
@@ -126,7 +126,7 @@ Ingestor читает protobuf-события `object-read` и `object-written` 
 
 ### Gateway
 
-Gateway предоставляет локальные PUT/GET/DELETE по `/objects/{bucket}/{key}` (GET —
+Gateway предоставляет локальные PUT/GET/HEAD/DELETE по `/objects/{bucket}/{key}` (GET —
 целиком или один диапазон Range) и `/healthz`. Класс записи Gateway узнаёт у
 Metadata (`ChooseWriteClass`), пишет в Storage этого класса и возвращает успех
 записи только после регистрации текущей версии. GET читает из Storage того

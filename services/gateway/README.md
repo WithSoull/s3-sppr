@@ -1,11 +1,11 @@
 # Gateway Service
 
-Минимальный HTTP-вход в локальный стенд OpenS3-ReBAC: PUT/GET/DELETE объекта с
+Минимальный HTTP-вход в локальный стенд OpenS3-ReBAC: PUT/GET/HEAD/DELETE объекта с
 классами хранения HOT/COLD, а не полный S3 API.
 
 ## Назначение и возможности
 
-Gateway принимает PUT, GET (целиком или один диапазон Range) и DELETE объекта,
+Gateway принимает PUT, GET (целиком или один диапазон Range), HEAD и DELETE объекта,
 передаёт байты в Storage того класса, который назначил Metadata, и работает с
 каталогом Metadata. HTTP-сервер также предоставляет `GET /healthz` и завершает
 активные запросы при SIGINT/SIGTERM. Для локальной разработки доступны Swagger
@@ -43,7 +43,7 @@ internal/app/               загрузка настроек, сборка за
 internal/client/            адаптеры Metadata и Storage, streaming и trace propagation
 internal/model/             модели объекта и результаты PUT/GET
 internal/errors/domain_errors/ ошибки сценариев и чтения тела запроса
-internal/service/object/    сценарии PUT/GET/DELETE с Metadata и Storage нужного класса
+internal/service/object/    сценарии PUT/GET/HEAD/DELETE; HEAD обращается только к Metadata
 internal/handler/httpapi/   HTTP-маршруты, заголовки и коды ответов
 internal/observability/     HTTP spans и метрики с нормализованными route
 internal/service/producer/access/ потоки с номерами и публикация ObjectRead/ObjectWritten; noop при выключенных событиях
@@ -53,7 +53,7 @@ docs/                       сгенерированная Swagger/OpenAPI 2.0 �
 
 В `internal/client/storage/` загрузка и чтение разделены на `store.go` и
 `retrieve.go`; управление span и передача trace context находятся в `tracing.go`.
-В `internal/service/object/` сценарии вынесены в `put.go`, `get.go` и
+В `internal/service/object/` сценарии вынесены в `put.go`, `get.go`, `head.go` и
 `delete.go`, а `service.go` содержит зависимости, конструктор и выбор клиента
 Storage по классу (`map[model.StorageClass]client.StorageClient`).
 Контракты Metadata/Storage находятся в `internal/client/client.go`, отдельно
@@ -66,6 +66,7 @@ Storage по классу (`map[model.StorageClass]client.StorageClient`).
 |---|---|
 | `PUT /objects/{bucket}/{key}` | сохранить тело и зарегистрировать текущую версию; `200`, `ETag`, `X-Object-Version-Id` |
 | `GET /objects/{bucket}/{key}` | вернуть байты текущей версии, `Content-Type`, `Content-Length`, `ETag`, `Accept-Ranges: bytes` |
+| `HEAD /objects/{bucket}/{key}` | метаданные текущей версии: `200`, заголовки полного GET без тела; Storage не вызывается |
 | `GET` с `Range: bytes=…` | один диапазон: `206` и `Content-Range`; диапазон за концом объекта — `416` и `Content-Range: bytes */size` |
 | `DELETE /objects/{bucket}/{key}` | удалить объект из каталога Metadata; `204`, отсутствующий объект — `404` |
 | `GET /healthz` | `200 ok` при работающем HTTP-процессе |
@@ -73,7 +74,7 @@ Storage по классу (`map[model.StorageClass]client.StorageClient`).
 | `GET /swagger/doc.json` | Swagger/OpenAPI 2.0 схема |
 
 `key` может содержать `/`. Пустые bucket/key не принимаются. GET по `version_id`,
-HEAD, multipart и S3 authentication пока отсутствуют. Range поддерживает
+multipart и S3 authentication пока отсутствуют. Range поддерживает
 `bytes=first-last`, `bytes=first-` и `bytes=-suffix`; несколько диапазонов,
 другая единица или неверный синтаксис игнорируются, и Gateway отдаёт объект
 целиком (RFC 9110 это допускает). `If-Range` со strong ETag сохраняет диапазон
@@ -114,7 +115,15 @@ Storage только `offset/length`. Последний байт удержив
 обрывается до передачи полного Content-Length. Для пустого объекта EOF
 проверяется до отправки успешного ответа.
 
-Этот путь использует существующий `CreateObjectVersion`, который сразу создаёт
+HEAD вызывает только Metadata `GetObjectMeta`: возвращает `Content-Type` (пустой →
+`application/octet-stream`), `Content-Length` полного объекта, `ETag` в кавычках,
+`X-Object-Version-Id`, `Accept-Ranges: bytes` и `X-Content-Type-Options: nosniff`.
+`Range` и `If-Range` игнорируются; успешный ответ всегда `200`. Storage не
+вызывается, поэтому HEAD работает и при отсутствующем blob. Ошибки Metadata
+отображаются так же, как для GET (`404`, `503`, `504`, `502`); тела нет и при ошибке.
+HEAD не создаёт `object-read`, поскольку содержимое объекта не читается.
+
+PUT использует существующий `CreateObjectVersion`, который сразу создаёт
 committed-версию. `pending/committed/aborted` orchestration, operation ID и
 восстановление после разрыва между записью blob и Metadata ещё не реализованы.
 При ошибке Metadata после успешной записи в Storage может остаться blob без
@@ -126,7 +135,7 @@ committed-версию. `pending/committed/aborted` orchestration, operation ID 
 ещё одну версию: идемпотентность и проверка результата по operation ID пока
 отсутствуют.
 
-При включённых событиях object service публикует только успешные операции.
+При включённых событиях object service публикует только успешные GET и PUT.
 `ObjectRead` уходит в `object-read` после открытия потока из Storage; `bytes` —
 размер объекта или длина отданного диапазона. Чтение, оборванное на середине передачи,
 считается чтением: спрос был. `ObjectWritten` уходит в `object-written` после
@@ -189,7 +198,8 @@ timeout (10 s). Пример локальных настроек — [.env.examp
 Более короткий deadline исходного контекста сохраняется. Таймаут действует
 отдельно на HeadBucket, ChooseWriteClass, CreateObjectVersion, GetObjectMeta и
 DeleteObjectMeta, не на передачу байтов Storage; зависший Metadata возвращает
-HTTP 504.
+HTTP 504. Для HEAD достаточно этого таймаута: `GATEWAY_MAX_READ_DURATION`
+к нему не применяется.
 
 `GATEWAY_MAX_READ_DURATION` (положительная duration) ограничивает весь GET: от
 запроса в Metadata до последнего байта клиенту. Срок действует и на контекст
@@ -255,6 +265,7 @@ grpcurl -plaintext -d '{"name":"gateway-demo","owner_id":"11111111-1111-4111-811
 printf 'hello' | curl -i -X PUT -H 'Content-Type: text/plain' --data-binary @- \
   http://127.0.0.1:8080/objects/gateway-demo/example.txt
 curl -i http://127.0.0.1:8080/objects/gateway-demo/example.txt
+curl -I http://127.0.0.1:8080/objects/gateway-demo/example.txt  # HEAD: метаданные без тела
 curl -i -H 'Range: bytes=1-3' http://127.0.0.1:8080/objects/gateway-demo/example.txt  # 206, "ell"
 grpcurl -plaintext -d '{"bucket_name":"gateway-demo","key":"example.txt"}' \
   localhost:50052 opens3.metadata.v1.MetadataService/GetObjectMeta  # storage_class: COLD
@@ -287,17 +298,19 @@ labels отсутствуют. `/healthz` не проверяет Kafka: пол�
 
 ```bash
 make test-gateway
+GOFLAGS=-race make test-gateway
 (cd services/gateway && go generate ./pkg/mocks)  # после изменения интерфейсов
 make -C services/gateway swagger  # после изменения HTTP-аннотаций
-make smoke-gateway-local  # собрать/поднять стенд и проверить PUT/GET
+make smoke-gateway-local  # собрать/поднять стенд и проверить PUT/GET/HEAD
 # Для уже запущенного стенда: make smoke-gateway
 docker compose --profile services config --quiet
 ```
 
 Smoke сам создаёт уникальный bucket `gateway-smoke-<UUID>` и проверяет пустой
 объект, бинарные данные больше 20 MiB, chunked PUT без Content-Length и перезапись
-ключа. Каждый GET выполняется сразу после PUT, без повторов; проверяются SHA-256,
-MD5/ETag, размер, Content-Type и версия.
+ключа. HEAD и GET выполняются после PUT без ожидания и повторов; проверяются SHA-256,
+MD5/ETag, размер, Content-Type и версия. HEAD сразу после PUT проверяет те же
+метаданные и отсутствие тела.
 
 Затем smoke проверяет классы хранения (`cmd/smoke/classes.go`): новый ключ
 попадает в COLD; версия вручную переносится в HOT по протоколу `PlacementService`
@@ -328,23 +341,29 @@ go run ./services/gateway/cmd/smoke -gateway http://127.0.0.1:8080 -metadata 127
 - `internal/handler/httpapi/errors_test.go`: единственная таблица «ошибка → HTTP-статус».
   Unit-тесты handler (`*_unit_test.go`, minimock) проверяют разбор пути, аргументы вызова
   сервиса, заголовки и закрытие тела (включая обрыв GET), а не повторяют таблицу статусов.
+  `head_unit_test.go` проверяет заголовки, игнорирование Range/If-Range и отсутствие
+  тела на сыром HTTP-соединении, включая 404, а также отсутствие GET deadline.
   Каждый case создаёт свой minimock controller; версия генератора minimock закреплена в
   `pkg/mocks/generate.go`.
 - `internal/service/object/tests/`: порядок вызовов Metadata и Storage, выбор Storage
   по классу при PUT и GET, передача класса в `CreateVersion`, разрешение Range и 416
   без обращения к Storage, `WithoutCancel` при регистрации версии, отсутствие
   downstream-вызовов при раннем отказе, вызов `AccessProducerService` только после успеха.
+  `head_test.go`: Metadata получает bucket/key, ошибка пробрасывается, Storage и
+  AccessProducer не вызываются ни при успехе, ни при ошибке.
 - `internal/handler/httpapi/*_test.go` (component): настоящий HTTP и настоящие gRPC-клиенты
   поверх фейков Metadata/Storage. Проверяют потоковую передачу PUT до EOF, публикацию версии
   только после commit Storage, обрыв GET, отмену клиента и то, что неудачный PUT ничего не
   оставляет (`TestUpstreamFailures`). `storage_class_test.go`: запись и чтение идут в
   Storage нужного класса, `ChooseWriteClass` получает размер только при
   `Content-Length`. `range_test.go`: разбор Range, If-Range и заголовки 206/416.
-  `delete_test.go`: 204/404 и сохранение blob. `read_duration_test.go`: GET обрывается
+  `head_test.go`: HEAD после PUT совпадает с GET по заголовкам, работает без blob
+  для HOT/COLD и пустого объекта. `delete_test.go`: 204/404 и сохранение blob.
+  `read_duration_test.go`: GET обрывается
   по `GATEWAY_MAX_READ_DURATION` и при зависшем Storage, и при клиенте, который не
   читает ответ; тот же срок получает Metadata, а следующий keep-alive запрос его не наследует.
 - `internal/app`: сборка приложения (`newTestApp`), 503 при недоступном Metadata,
-  `METADATA_RPC_TIMEOUT` → 504, graceful shutdown, noop без Kafka client при
+  `METADATA_RPC_TIMEOUT` → 504 (включая HEAD), graceful shutdown, noop без Kafka client при
   выключенных событиях, ошибка startup при недоступной Kafka.
 - `internal/config/env/config_test.go`: имена переменных, валидация и корректность
   idempotent-настроек sarama.

@@ -237,6 +237,72 @@ const docTemplate = `{
                         }
                     }
                 }
+            },
+            "head": {
+                "description": "Development-only API. Calls Metadata only, without reading Storage or publishing object-read. Returns the headers of a full GET without a body. Range and If-Range are ignored. Bounded by METADATA_RPC_TIMEOUT, not GATEWAY_MAX_READ_DURATION.",
+                "tags": [
+                    "objects"
+                ],
+                "summary": "Read metadata of the current object version",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Bucket name",
+                        "name": "bucket",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Object key (may contain slashes)",
+                        "name": "key",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "headers": {
+                            "Accept-Ranges": {
+                                "type": "string",
+                                "description": "bytes"
+                            },
+                            "Content-Length": {
+                                "type": "integer",
+                                "description": "Full object size in bytes"
+                            },
+                            "Content-Type": {
+                                "type": "string",
+                                "description": "Object content type; application/octet-stream when empty"
+                            },
+                            "ETag": {
+                                "type": "string",
+                                "description": "Quoted object ETag"
+                            },
+                            "X-Content-Type-Options": {
+                                "type": "string",
+                                "description": "nosniff"
+                            },
+                            "X-Object-Version-Id": {
+                                "type": "string",
+                                "description": "Current version ID"
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found"
+                    },
+                    "502": {
+                        "description": "Bad Gateway"
+                    },
+                    "503": {
+                        "description": "Service Unavailable"
+                    },
+                    "504": {
+                        "description": "Gateway Timeout"
+                    }
+                }
             }
         }
     }
