@@ -111,7 +111,7 @@ func prepareStoredBlob(t *testing.T) (repository.StorageRepository, string, []by
 
 	content := []byte("0123456789abcdef")
 	blobID := "blob-retrieve"
-	meta, err := repo.StoreBlob(context.Background(), blobID, bytes.NewReader(content))
+	meta, err := repo.StoreBlob(context.Background(), blobID, bytes.NewReader(content), nil)
 	require.NoError(t, err)
 
 	return repo, meta.BlobID, content

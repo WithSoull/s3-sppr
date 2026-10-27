@@ -31,7 +31,7 @@ func (s *storageService) StoreObject(ctx context.Context, blobID string, reader 
 		contentType = defaultContentType
 	}
 
-	meta, err := s.repo.StoreBlob(ctx, blobID, reader)
+	meta, err := s.repo.StoreBlob(ctx, blobID, reader, size)
 	if err != nil {
 		logger.Error(
 			ctx,
@@ -41,21 +41,6 @@ func (s *storageService) StoreObject(ctx context.Context, blobID string, reader 
 			zap.String("content_type", contentType),
 		)
 		return nil, err
-	}
-
-	if size != nil && meta.SizeBytes != *size {
-		if deleteErr := s.repo.DeleteBlob(ctx, meta.BlobID); deleteErr != nil {
-			logger.Error(ctx, "failed to cleanup blob after size mismatch", zap.Error(deleteErr), zap.String("blob_id", meta.BlobID))
-		}
-
-		logger.Error(
-			ctx,
-			"stored blob size mismatch",
-			zap.String("blob_id", meta.BlobID),
-			zap.Int64("expected_size", *size),
-			zap.Int64("actual_size", meta.SizeBytes),
-		)
-		return nil, domainerrors.ErrInvalidBlobSize
 	}
 
 	meta.ContentType = contentType

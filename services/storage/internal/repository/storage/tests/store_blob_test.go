@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	domainerrors "github.com/alesplll/opens3-rebac/services/storage/internal/errors/domain_errors"
 	storageRepo "github.com/alesplll/opens3-rebac/services/storage/internal/repository/storage"
 	"github.com/stretchr/testify/require"
 )
@@ -26,7 +27,7 @@ func TestStoreBlob_Success(t *testing.T) {
 	content := []byte("storage blob content")
 	blobID := "blob-1"
 
-	meta, err := repository.StoreBlob(context.Background(), blobID, bytes.NewReader(content))
+	meta, err := repository.StoreBlob(context.Background(), blobID, bytes.NewReader(content), nil)
 	require.NoError(t, err)
 	require.Equal(t, blobID, meta.BlobID)
 	require.Equal(t, int64(len(content)), meta.SizeBytes)
@@ -52,7 +53,7 @@ func TestStoreBlob_CleanupTempFileOnReadError(t *testing.T) {
 	_, err := repository.StoreBlob(context.Background(), "blob-read-error", &failingReader{
 		chunks: [][]byte{[]byte("partial")},
 		err:    errors.New("read failed"),
-	})
+	}, nil)
 	require.Error(t, err)
 
 	entries, readErr := os.ReadDir(dataDir)
@@ -75,7 +76,7 @@ func TestStoreBlob_LargeFile(t *testing.T) {
 		content[i] = byte(i % 256)
 	}
 
-	meta, err := repository.StoreBlob(context.Background(), blobID, bytes.NewReader(content))
+	meta, err := repository.StoreBlob(context.Background(), blobID, bytes.NewReader(content), nil)
 	require.NoError(t, err)
 	require.Equal(t, blobID, meta.BlobID)
 	require.Equal(t, int64(len(content)), meta.SizeBytes)
@@ -96,7 +97,7 @@ func TestStoreBlob_EmptyBlob(t *testing.T) {
 	})
 	blobID := "blob-empty"
 
-	meta, err := repository.StoreBlob(context.Background(), blobID, bytes.NewReader(nil))
+	meta, err := repository.StoreBlob(context.Background(), blobID, bytes.NewReader(nil), nil)
 	require.NoError(t, err)
 	require.Equal(t, blobID, meta.BlobID)
 	require.Equal(t, int64(0), meta.SizeBytes)
@@ -119,7 +120,7 @@ func TestStoreBlob_ContextCanceled(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 
-	_, err := repository.StoreBlob(ctx, "blob-cancelled", bytes.NewReader([]byte("should not be stored")))
+	_, err := repository.StoreBlob(ctx, "blob-cancelled", bytes.NewReader([]byte("should not be stored")), nil)
 	require.Error(t, err)
 
 	entries, readErr := os.ReadDir(dataDir)
@@ -141,7 +142,7 @@ func TestStoreBlob_IgnoresStaleTempFileOnRetry(t *testing.T) {
 	require.NoError(t, os.WriteFile(blobFilePath(dataDir, blobID)+".tmp", []byte("stale temp"), 0o644))
 
 	content := []byte("storage blob content")
-	meta, err := repository.StoreBlob(context.Background(), blobID, bytes.NewReader(content))
+	meta, err := repository.StoreBlob(context.Background(), blobID, bytes.NewReader(content), nil)
 	require.NoError(t, err)
 	require.Equal(t, blobID, meta.BlobID)
 
@@ -214,4 +215,45 @@ func (r *failingReader) Read(p []byte) (int, error) {
 	n := copy(p, r.chunks[r.index])
 	r.index++
 	return n, nil
+}
+
+// A rejected write under an existing ID must leave the published blob intact:
+// the migration executor retries copies under the same blob_id.
+func TestStoreBlob_SizeMismatchKeepsExistingBlob(t *testing.T) {
+	t.Parallel()
+
+	dataDir := t.TempDir()
+	multipartDir := t.TempDir()
+	repository := storageRepo.NewRepository(testStorageConfig{
+		dataDir:      dataDir,
+		multipartDir: multipartDir,
+	})
+	blobID := "blob-retried"
+	_, err := repository.StoreBlob(context.Background(), blobID, bytes.NewReader([]byte("good")), nil)
+	require.NoError(t, err)
+
+	expected := int64(4)
+	_, err = repository.StoreBlob(context.Background(), blobID, bytes.NewReader([]byte("x")), &expected)
+	require.ErrorIs(t, err, domainerrors.ErrInvalidBlobSize)
+
+	stored, err := os.ReadFile(blobFilePath(dataDir, blobID))
+	require.NoError(t, err)
+	require.Equal(t, []byte("good"), stored)
+	_, err = os.Stat(singlePartUploadPath(multipartDir, blobID))
+	require.ErrorIs(t, err, os.ErrNotExist, "rejected staging must be cleaned up")
+}
+
+func TestStoreBlob_SizeMismatchPublishesNothing(t *testing.T) {
+	t.Parallel()
+
+	dataDir := t.TempDir()
+	repository := storageRepo.NewRepository(testStorageConfig{
+		dataDir:      dataDir,
+		multipartDir: t.TempDir(),
+	})
+	expected := int64(10)
+	_, err := repository.StoreBlob(context.Background(), "blob-short", bytes.NewReader([]byte("short")), &expected)
+	require.ErrorIs(t, err, domainerrors.ErrInvalidBlobSize)
+	_, err = os.Stat(blobFilePath(dataDir, "blob-short"))
+	require.ErrorIs(t, err, os.ErrNotExist)
 }

@@ -8,7 +8,9 @@ import (
 )
 
 type StorageRepository interface {
-	StoreBlob(ctx context.Context, blobID string, reader io.Reader) (*model.BlobMeta, error)
+	// StoreBlob checks expectedSize, when set, before publishing the blob, so a
+	// rejected write never replaces an existing blob with the same ID.
+	StoreBlob(ctx context.Context, blobID string, reader io.Reader, expectedSize *int64) (*model.BlobMeta, error)
 	RetrieveBlob(ctx context.Context, blobID string) (io.ReadCloser, int64, error)
 	RetrieveBlobRange(ctx context.Context, blobID string, offset, length int64) (io.ReadCloser, int64, error)
 	DeleteBlob(ctx context.Context, blobID string) error
