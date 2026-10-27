@@ -102,18 +102,19 @@ const (
 )
 
 type ForecastExplanation struct {
-	Method          string   `json:"method"`
-	HorizonSeconds  int64    `json:"horizon_seconds"`
-	ExpectedReads   float64  `json:"expected_reads"`
-	ReadFraction    float64  `json:"read_fraction"`
-	ExpectedMiB     float64  `json:"expected_mib"`
-	Quality         string   `json:"quality"`
-	LastReadSeconds *float64 `json:"last_read_seconds,omitempty"`
-	Reads5m         int64    `json:"reads_5m"`
-	Reads1h         int64    `json:"reads_1h"`
-	Reads6h         int64    `json:"reads_6h"`
-	Reads24h        int64    `json:"reads_24h"`
-	EWMA1h          float64  `json:"ewma_1h"`
+	Hurdle          *HurdleForecast `json:"hurdle,omitempty"`
+	Method          string          `json:"method"`
+	HorizonSeconds  int64           `json:"horizon_seconds"`
+	ExpectedReads   float64         `json:"expected_reads"`
+	ReadFraction    float64         `json:"read_fraction"`
+	ExpectedMiB     float64         `json:"expected_mib"`
+	Quality         string          `json:"quality"`
+	LastReadSeconds *float64        `json:"last_read_seconds,omitempty"`
+	Reads5m         int64           `json:"reads_5m"`
+	Reads1h         int64           `json:"reads_1h"`
+	Reads6h         int64           `json:"reads_6h"`
+	Reads24h        int64           `json:"reads_24h"`
+	EWMA1h          float64         `json:"ewma_1h"`
 	// Percentile of ExpectedReads among current versions of the catalogue, 0..100.
 	Percentile float64 `json:"percentile"`
 }
@@ -222,6 +223,7 @@ type Plan struct {
 	Trigger       PlanTrigger
 	Status        PlanStatus
 	MethodVersion string
+	ModelVersion  string
 	Params        PlannerParams
 	Summary       PlanSummary
 	// Reason explains history_incomplete and failed plans.
@@ -327,6 +329,8 @@ type PlannerStatus struct {
 	Hot, Cold      ClassState
 	HistoryQuality DataQuality
 	MethodVersion  string
+	ModelVersion   string
+	FallbackReason string
 	Migration      MigrationSettings
 	Budget         BudgetStatus
 	LatestPlan     *Plan

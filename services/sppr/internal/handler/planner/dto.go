@@ -47,6 +47,7 @@ type planDTO struct {
 	Trigger       string            `json:"trigger"`
 	Status        string            `json:"status"`
 	MethodVersion string            `json:"method_version"`
+	ModelVersion  string            `json:"model_version"`
 	Params        paramsDTO         `json:"params"`
 	Summary       model.PlanSummary `json:"summary"`
 	Reason        string            `json:"reason,omitempty"`
@@ -58,7 +59,7 @@ func planFromModel(p model.Plan) planDTO {
 	pr := p.Params
 	return planDTO{
 		PlanID: p.PlanID, Revision: p.Revision, Trigger: string(p.Trigger), Status: string(p.Status),
-		MethodVersion: p.MethodVersion, Summary: p.Summary, Reason: p.Reason, CreatedAt: p.CreatedAt, FinishedAt: p.FinishedAt,
+		MethodVersion: p.MethodVersion, ModelVersion: p.ModelVersion, Summary: p.Summary, Reason: p.Reason, CreatedAt: p.CreatedAt, FinishedAt: p.FinishedAt,
 		Params: paramsFromSettings(model.PlannerSettings{
 			Horizon: pr.Horizon, HotFixedMs: pr.HotFixedMs, HotMiBPerMs: pr.HotMiBPerMs, ColdFixedMs: pr.ColdFixedMs,
 			ColdMiBPerMs: pr.ColdMiBPerMs, PenaltyMsPerMiB: pr.PenaltyMsPerMiB, MinGainMs: pr.MinGainMs,
@@ -150,6 +151,8 @@ type statusDTO struct {
 	Cold           classDTO          `json:"cold"`
 	HistoryQuality model.DataQuality `json:"history_quality"`
 	MethodVersion  string            `json:"method_version"`
+	ModelVersion   string            `json:"model_version"`
+	FallbackReason string            `json:"fallback_reason"`
 	Paused         bool              `json:"paused"`
 	MinIntervalSec int64             `json:"min_interval_seconds"`
 	BudgetBytes    int64             `json:"budget_bytes"`

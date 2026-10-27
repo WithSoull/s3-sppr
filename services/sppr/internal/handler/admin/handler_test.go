@@ -27,6 +27,12 @@ func TestPages(t *testing.T) {
 		{"status", "/admin", func(p *mocks.PlannerServiceMock, m *mocks.MigrationServiceMock, f *mocks.FormCommandsMock) {
 			p.StatusMock.Return(model.PlannerStatus{MethodVersion: "ewma-1h-v1"}, nil)
 		}, "ewma-1h-v1"},
+		{"ML status", "/admin", func(p *mocks.PlannerServiceMock, m *mocks.MigrationServiceMock, f *mocks.FormCommandsMock) {
+			p.StatusMock.Return(model.PlannerStatus{MethodVersion: "lgbm-hurdle-v1", ModelVersion: "spike-fixture-v1"}, nil)
+		}, "spike-fixture-v1"},
+		{"fallback status", "/admin", func(p *mocks.PlannerServiceMock, m *mocks.MigrationServiceMock, f *mocks.FormCommandsMock) {
+			p.StatusMock.Return(model.PlannerStatus{MethodVersion: "ewma-1h-v1", FallbackReason: "classifier.txt: SHA-256 mismatch"}, nil)
+		}, "classifier.txt: SHA-256 mismatch"},
 		{"settings", "/admin/settings", func(p *mocks.PlannerServiceMock, m *mocks.MigrationServiceMock, f *mocks.FormCommandsMock) {
 			p.GetSettingsMock.Return(model.PlannerSettings{Horizon: time.Hour}, nil)
 			m.GetSettingsMock.Return(model.MigrationSettings{}, nil)
@@ -255,6 +261,25 @@ func TestRecommendationPresentation(t *testing.T) {
 	h.ServeHTTP(w, httptest.NewRequest("GET", "/admin/recommendations/"+recID+"?plan_id="+planID, nil))
 	require.Equal(t, 200, w.Code, w.Body.String())
 	for _, s := range []string{`title="65536 байт">64 КиБ`, `title="promote">в HOT`, "1 491,3 мс", "12,0 / 100 %", "66,7", "1 ч", `да / <span title="">—</span>`} {
+		require.Contains(t, w.Body.String(), s)
+	}
+}
+
+func TestMLRecommendationPresentation(t *testing.T) {
+	mc := minimock.NewController(t)
+	p := mocks.NewPlannerServiceMock(mc)
+	a := mocks.NewAuthorizerMock(mc)
+	a.AuthorizeMock.Return(userID, nil)
+	p.GetPlanMock.Expect(minimock.AnyContext, planID).Return(model.Plan{PlanID: planID}, nil)
+	p.ListRecommendationsMock.Return(model.RecommendationPage{Recommendations: []model.Recommendation{{
+		RecommendationID: recID, PlanID: planID, Selected: true, Kind: model.KindPromote, SizeBytes: 65536,
+		Explanation: model.Explanation{Forecast: model.ForecastExplanation{Hurdle: &model.HurdleForecast{Probability: 0.75, ConditionalReads: 16, EWMAExpectedReads: 9.5}, HorizonSeconds: 3600, ExpectedReads: 12, ReadFraction: 1, Percentile: 66.6666}, Effect: model.EffectExplanation{GainMs: 1491.26}},
+	}}}, nil)
+	h := admin.NewHandler(p, mocks.NewMigrationServiceMock(mc), nil, nil, a)
+	w := httptest.NewRecorder()
+	h.ServeHTTP(w, httptest.NewRequest("GET", "/admin/recommendations/"+recID+"?plan_id="+planID, nil))
+	require.Equal(t, 200, w.Code, w.Body.String())
+	for _, s := range []string{"p = P(N ≥ 1)", "75 % / 16,0", "N̂ = p·m", "Оценка EWMA для сравнения", "9,5", `title="65536 байт">64 КиБ`, `title="promote">в HOT`, "1 491,3 мс", "12,0 / 100 %", "66,7", "1 ч", `да / <span title="">—</span>`} {
 		require.Contains(t, w.Body.String(), s)
 	}
 }

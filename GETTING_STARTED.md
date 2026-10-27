@@ -71,6 +71,10 @@ HTTP → Kafka → PostgreSQL. Она не нужна для автономны�
 
 ## Панель размещения Planner
 
+Planner использует EWMA по умолчанию. Go-предиктор LightGBM выбирается через
+`PLANNER_PREDICTOR=lgbm` и `PLANNER_MODEL_DIR`; каталог, read-only mount и
+fallback описаны в [README SPPR](services/sppr/README.md#выбор-предиктора-и-каталог-модели).
+
 ```bash
 make up-sppr-planner
 make seed-planner-admin

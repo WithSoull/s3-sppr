@@ -60,10 +60,11 @@ type FeatureBuilder interface {
 	Build(context.Context, model.FeatureRequest) ([]model.FeatureSnapshot, error)
 }
 
-// Predictor turns a feature snapshot into a demand forecast; EWMA now, the ML
-// model of stage 8 later.
+// Predictor turns a feature snapshot into a demand forecast.
 type Predictor interface {
 	MethodVersion() string
+	// ModelVersion is empty for methods without a model artifact (EWMA).
+	ModelVersion() string
 	Predict(snapshot model.FeatureSnapshot, horizon time.Duration) (model.DemandForecast, error)
 }
 

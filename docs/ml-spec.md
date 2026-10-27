@@ -94,6 +94,66 @@ validation `[48, 72 ч)`, test `[72 ч, конец)`. Метка не перес
   `p`, `m`, `N̂` из Python. Обязательно есть нули, популярные объекты,
   отсутствующие значения (`null` → NaN), крайние значения.
 
+### Схема файлов экспорта v1
+
+Имена полей фиксированы для независимой реализации Go и Python.
+`manifest.json` — JSON-объект:
+
+| Поле | Тип / значение |
+|---|---|
+| `model_version` | непустая строка, идентификатор конкретного артефакта |
+| `method_version` | `"lgbm-hurdle-v1"` |
+| `feature_rules_version` | `"features-v1"` |
+| `feature_names` | массив строк в порядке столбцов, строго как ниже |
+| `horizon_seconds` | целое положительное число, совпадает с `PLANNER_HORIZON` |
+| `lightgbm_version`, `python_version`, `numpy_version` | строки версий экспортёра |
+| `hyperparameters` | объект параметров обучения (при разных параметрах — вложенные объекты `classifier` и `regressor`) |
+| `train_interval`, `validation_interval` | объекты `{"start": "RFC3339 UTC", "end": "RFC3339 UTC"}`, интервалы `[start,end)` |
+| `source` | строка с идентификатором источника и описанием входа, к которому относится `data_sha256` |
+| `data_sha256` | SHA-256 байтов входного файла срезов; для набора файлов — SHA-256 входного dataset manifest, перечисляющего их хеши |
+| `validation_metrics` | объект метрик validation; test сюда не входит |
+| `classifier_sha256`, `regressor_sha256` | SHA-256 исходных байтов соответствующего `.txt`, hex из 64 символов |
+
+Порядок `feature_names` (тот же в заголовках обоих `.txt`):
+
+```json
+["log_size", "age_seconds", "overwrites_24h", "last_read_seconds",
+ "previous_read_seconds", "reads_5m", "reads_1h", "reads_6h", "reads_24h",
+ "ewma_1h", "ewma_6h", "short_long_ratio", "reads_day_ago", "mean_read_fraction",
+ "bucket_reads_1h", "bucket_active_fraction", "observed_seconds"]
+```
+
+Go принимает стандартные деревья LightGBM text v3/v4, objective классификатора
+строго `binary sigmoid:1`, регрессора — `poisson`, один выход. Linear trees и
+random forest не поддерживаются. Преобразование заголовка `version=v4` → `v3`
+в памяти нужно для закреплённой версии `leaves`; SHA-256 проверяется до него.
+Модели загружаются с отключёнными преобразованиями `leaves`, а Go явно считает
+`p = sigmoid(classifier_raw)`, `m = 1 + exp(regressor_raw)`, `expected_reads = p*m`.
+
+`parity.json` — объект с непустым массивом `rows`. Каждая строка содержит:
+
+- `name`: строковое описание случая;
+- `features`: объект со всеми 17 именами, значения — числа или `null` (Go
+  переводит `null` в NaN, не в ноль);
+- `want`: обязательные числовые `classifier_raw`, `regressor_raw`,
+  `probability` (= p), `conditional_reads` (= m), `expected_reads` (= N̂).
+  Экспортёр может также писать `excess_reads` (= exp(regressor_raw));
+  дополнительные метаданные в `meta` разрешены.
+
+Допуск загрузчика для каждого обязательного выхода:
+`abs(go − python) <= 1e-9 * abs(python)`. Нулевой эталон требует точного нуля.
+Допуск закреплён тестами внутри/снаружи границы; NaN/Inf в выходах запрещены.
+Нужны контрольные строки с нулями, востребованными объектами, `null` и крайними
+значениями; они проверяют применение модели, а не оценивают качество обучения.
+
+[Фикстура Go](../services/sppr/internal/service/predictor/lgbm/testdata/manifest.json)
+— перенесённая модель spike, не результат обучения и приёмки этапа 8.
+Её исходные интервалы не записаны, поэтому только в этой исторической фикстуре
+`start/end` равны `null`, `validation_metrics={}`; версии, параметры и хеш данных
+перенесены из `parity.meta`. Новые экспорты части 2 записывают реальные интервалы
+и метрики validation. Содержимое provenance Go хранит как метаданные: загрузчик
+проверяет их наличие, а качество и корректность обучения оценивает offline-процесс.
+
 ## Часть 1. Go-предиктор и подключение (Codex)
 
 - Перенести `internal/service/predictor/lgbm` из спайка на текущий `main`,

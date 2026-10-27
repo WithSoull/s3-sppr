@@ -467,6 +467,7 @@ func (s *planState) forecast(c *candidate) model.ForecastExplanation {
 		f.Quality = "unavailable"
 		return f
 	}
+	f.Hurdle = it.Forecast.Hurdle
 	f.ExpectedReads = c.reads
 	f.ReadFraction = it.ReadFraction
 	f.ExpectedMiB = c.readMiB

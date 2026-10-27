@@ -3,13 +3,18 @@ package app
 import (
 	"context"
 	"fmt"
+	"time"
 
+	"github.com/alesplll/opens3-rebac/services/sppr/internal/config"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/model"
 	historyRepository "github.com/alesplll/opens3-rebac/services/sppr/internal/repository/history"
 	planRepository "github.com/alesplll/opens3-rebac/services/sppr/internal/repository/plan"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/service"
 	plannerService "github.com/alesplll/opens3-rebac/services/sppr/internal/service/planner"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/service/predictor/ewma"
+	"github.com/alesplll/opens3-rebac/services/sppr/internal/service/predictor/lgbm"
+	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/logger"
+	"go.uber.org/zap"
 )
 
 // PlannerService also stores the env defaults of the planner settings on the
@@ -49,8 +54,30 @@ func (s *serviceProvider) PlannerService(ctx context.Context) (service.PlannerSe
 	if err != nil {
 		return nil, err
 	}
+	settings, err := plans.GetSettings(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("read planner horizon: %w", err)
+	}
+	predictor, fallback := plannerPredictor(cfg, settings.Horizon)
+	if fallback != "" {
+		logger.Warn(ctx, "planner model load failed; using EWMA", zap.String("fallback_reason", fallback))
+	}
 	s.plannerService = plannerService.NewService(plannerService.Config{
-		Interval: cfg.Interval(), KeepPlans: cfg.KeepPlans(), MaxRejectedSaved: cfg.MaxRejectedSaved(),
-	}, plans, historyRepository.NewRepository(pgClient), actions, tx, placements, migrations, s.FeatureBuilder(), ewma.NewPredictor())
+		FallbackReason: fallback, Interval: cfg.Interval(), KeepPlans: cfg.KeepPlans(), MaxRejectedSaved: cfg.MaxRejectedSaved(),
+	}, plans, historyRepository.NewRepository(pgClient), actions, tx, placements, migrations, s.FeatureBuilder(), predictor)
 	return s.plannerService, nil
+}
+
+func plannerPredictor(cfg config.PlannerConfig, storedHorizon time.Duration) (service.Predictor, string) {
+	if cfg.Predictor() == "ewma" {
+		return ewma.NewPredictor(), ""
+	}
+	m, err := lgbm.Load(cfg.ModelDir(), cfg.Horizon())
+	if err == nil && storedHorizon != cfg.Horizon() {
+		err = fmt.Errorf("stored planner horizon %s differs from PLANNER_HORIZON %s", storedHorizon, cfg.Horizon())
+	}
+	if err != nil {
+		return ewma.NewPredictor(), err.Error()
+	}
+	return m, ""
 }

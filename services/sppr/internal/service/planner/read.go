@@ -70,7 +70,7 @@ func (s *plannerService) GetSettings(ctx context.Context) (model.PlannerSettings
 }
 
 func (s *plannerService) Status(ctx context.Context) (model.PlannerStatus, error) {
-	st := model.PlannerStatus{MethodVersion: s.predictor.MethodVersion()}
+	st := model.PlannerStatus{MethodVersion: s.predictor.MethodVersion(), ModelVersion: s.predictor.ModelVersion(), FallbackReason: s.cfg.FallbackReason}
 	usage, err := s.placements.ListStorageClasses(ctx)
 	if err != nil {
 		return st, fmt.Errorf("read storage classes: %w", err)

@@ -233,3 +233,31 @@ func TestConfirmIsAtomic(t *testing.T) {
 	_, err = s.actions.Get(ctx, recs[1].RecommendationID)
 	require.ErrorIs(t, err, model.ErrActionNotFound)
 }
+
+func TestPlanModelVersionRoundTrip(t *testing.T) {
+	s := database(t)
+	ctx := context.Background()
+	for _, tt := range []struct{ name, method, version string }{
+		{"EWMA", "ewma-1h-v1", ""}, {"ML", "lgbm-hurdle-v1", "spike-fixture-v1"},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			p, err := s.plans.CreatePlan(ctx, model.Plan{PlanID: uuid.NewString(), Trigger: model.TriggerManual, MethodVersion: tt.method, ModelVersion: tt.version, Params: model.PlannerParams{Horizon: time.Hour}})
+			require.NoError(t, err)
+			require.Equal(t, tt.method, p.MethodVersion)
+			require.Equal(t, tt.version, p.ModelVersion)
+			p.Status = model.PlanReady
+			require.NoError(t, s.tx.ReadCommitted(ctx, func(ctx context.Context) error { return s.plans.FinishPlan(ctx, p, nil) }))
+			got, err := s.plans.GetPlan(ctx, p.PlanID, false)
+			require.NoError(t, err)
+			require.Equal(t, tt.method, got.MethodVersion)
+			require.Equal(t, tt.version, got.ModelVersion)
+			latest, err := s.plans.LatestPlan(ctx)
+			require.NoError(t, err)
+			require.Equal(t, p.PlanID, latest.PlanID)
+			require.Equal(t, tt.version, latest.ModelVersion)
+			page, err := s.plans.ListPlans(ctx, model.PlanFilter{PageSize: 10})
+			require.NoError(t, err)
+			require.Equal(t, tt.version, page[0].ModelVersion)
+		})
+	}
+}

@@ -18,8 +18,12 @@
 <dl>
 <dt>Метод / горизонт</dt>
 <dd>{{text .Method}} / {{durationSeconds .HorizonSeconds}}</dd>
-<dt>Чтений / доля чтения / ожидаемый объём</dt>
+<dt>{{if .Hurdle}}N̂ = p·m{{else}}Чтений{{end}} / доля чтения / ожидаемый объём</dt>
 <dd>{{decimal .ExpectedReads}} / {{percent .ReadFraction}} / {{decimal .ExpectedMiB}} МиБ</dd>
+{{with .Hurdle}}<dt>p = P(N ≥ 1) / m = E[N | N ≥ 1]</dt>
+<dd>{{percent .Probability}} / {{decimal .ConditionalReads}}</dd>
+<dt>Оценка EWMA для сравнения</dt>
+<dd>{{decimal .EWMAExpectedReads}}</dd>{{end}}
 <dt>Качество / процентиль</dt>
 <dd>{{template "enum" .Quality}} / {{number .Percentile}}</dd>
 <dt>Чтения за 5 мин / 1 ч / 6 ч / 24 ч</dt>
