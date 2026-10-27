@@ -92,7 +92,7 @@ func (a *App) initMetrics() error {
 }
 
 func (a *App) initServiceProvider() {
-	a.serviceProvider = newServiceProvider(a.config)
+	a.serviceProvider = newServiceProvider(a.config, a.closer)
 	a.closer.AddNamed("gRPC clients", func(context.Context) error { return a.serviceProvider.Close() })
 }
 

@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/alesplll/opens3-rebac/services/gateway/internal/model"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/connectivity"
 )
@@ -17,6 +18,15 @@ import (
 // newTestApp builds the real App on a free loopback port. Metadata and Storage point at a closed
 // port unless env overrides them; env wins over every default.
 func newTestApp(t *testing.T, env map[string]string) *App {
+	t.Helper()
+	setTestEnv(t, env)
+	a, err := NewApp("")
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = a.serviceProvider.Close() })
+	return a
+}
+
+func setTestEnv(t *testing.T, env map[string]string) {
 	t.Helper()
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
@@ -35,10 +45,6 @@ func newTestApp(t *testing.T, env map[string]string) *App {
 	for key, value := range settings {
 		t.Setenv(key, value)
 	}
-	a, err := NewApp("")
-	require.NoError(t, err)
-	t.Cleanup(func() { _ = a.serviceProvider.Close() })
-	return a
 }
 
 func TestRunReturnsListenError(t *testing.T) {
@@ -62,6 +68,25 @@ func TestConfiguredClientsAreReused(t *testing.T) {
 	require.True(t, m1 == m2 && s1 == s2, "downstream clients are not reused")
 	require.Equal(t, a.config.Metadata.Address(), a.serviceProvider.metadataConn.Target())
 	require.Equal(t, a.config.Storage.Address(), a.serviceProvider.storageConn.Target())
+}
+
+func TestDisabledAccessEventsCreateNoKafkaClient(t *testing.T) {
+	a := newTestApp(t, map[string]string{"ACCESS_EVENTS_ENABLED": "false"})
+	access, err := a.serviceProvider.AccessProducerService()
+	require.NoError(t, err)
+	require.NotPanics(t, func() { access.ProduceObjectRead(context.Background(), model.ObjectReadEvent{}) })
+	require.Nil(t, a.serviceProvider.asyncProducer)
+}
+
+// The broker must be reachable at startup; a later outage only drops events.
+func TestEnabledAccessEventsRequireKafkaAtStartup(t *testing.T) {
+	setTestEnv(t, map[string]string{
+		"ACCESS_EVENTS_ENABLED": "true",
+		"GATEWAY_ID":            "gateway-test",
+		"KAFKA_BOOTSTRAP":       "127.0.0.1:1",
+	})
+	_, err := NewApp("")
+	require.ErrorContains(t, err, "create Kafka async producer")
 }
 
 func TestUnavailableMetadataDoesNotReturnHTTPSuccess(t *testing.T) {

@@ -8,14 +8,17 @@ import (
 type objectService struct {
 	metadata client.MetadataClient
 	storage  client.StorageClient
+	access   service.AccessProducerService
 }
 
 func NewService(
 	metadataClient client.MetadataClient,
 	storageClient client.StorageClient,
+	accessProducerService service.AccessProducerService,
 ) service.ObjectService {
 	return &objectService{
 		metadata: metadataClient,
 		storage:  storageClient,
+		access:   accessProducerService,
 	}
 }

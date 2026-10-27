@@ -20,7 +20,7 @@ generate-all: generate
 generate-all-go: generate-go
 generate-all-py: generate-py
 
-generate-go: generate-user-go generate-auth-go generate-storage-go generate-metadata-go generate-authz-go generate-quota-go
+generate-go: generate-user-go generate-auth-go generate-storage-go generate-metadata-go generate-authz-go generate-quota-go generate-events-go
 
 generate-py: generate-user-py generate-auth-py generate-storage-py generate-metadata-py generate-authz-py generate-quota-py
 
@@ -134,6 +134,14 @@ generate-quota-go:
 		--plugin=protoc-gen-go-grpc=$(LOCAL_BIN)/protoc-gen-go-grpc \
 		shared/api/quota/v1/quota.proto
 
+generate-events-go:
+	mkdir -p $(GO_PROTO_OUT)/events/v1
+	protoc \
+		--proto_path shared/api/events/v1 \
+		--go_out=$(GO_PROTO_OUT)/events/v1 --go_opt=paths=source_relative \
+		--plugin=protoc-gen-go=$(LOCAL_BIN)/protoc-gen-go \
+		shared/api/events/v1/access.proto
+
 generate-quota-py:
 	mkdir -p $(PY_PROTO_OUT)/quota/v1
 	PYTHONPATH="$(PY_PROTO_DEPS)" $(PYTHON) -m grpc_tools.protoc \
@@ -148,6 +156,28 @@ generate-quota-py:
 
 test-users:
 	go test ./services/users/... -count=1
+
+.PHONY: test-sppr test-sppr-integration up-sppr up-sppr-gateway smoke-sppr smoke-sppr-local require-gateway-access-producer
+test-sppr:
+	go test -race ./services/sppr/... -count=1
+
+test-sppr-integration:
+	go test -race -tags=integration ./services/sppr/... -count=1
+
+up-sppr:
+	docker compose --profile sppr up --build -d sppr
+
+require-gateway-access-producer:
+	@test -f services/gateway/internal/service/producer/access/service.go || { echo 'Gateway producer is supplied by PR #1; merge both PRs for the combined smoke.' >&2; exit 1; }
+
+up-sppr-gateway: require-gateway-access-producer
+	ACCESS_EVENTS_ENABLED=true docker compose --profile services --profile sppr up --build -d gateway sppr metadata storage
+
+smoke-sppr: require-gateway-access-producer
+	SPPR_SMOKE_PG_DSN="$${SPPR_SMOKE_PG_DSN:-postgres://sppr_user:sppr_password@localhost:$${SPPR_DB_PORT:-5436}/sppr_db?sslmode=disable}" go run ./services/sppr/cmd/smoke
+
+smoke-sppr-local: up-sppr-gateway
+	$(MAKE) smoke-sppr
 
 test-storage:
 	go test ./services/storage/... -count=1

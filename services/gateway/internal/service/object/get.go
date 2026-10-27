@@ -15,6 +15,14 @@ func (s *objectService) Get(ctx context.Context, bucket, key string) (model.GetR
 	if err != nil {
 		return model.GetResult{}, err
 	}
+	// The stream is open: a response interrupted later still counts as demand.
+	s.access.ProduceObjectRead(ctx, model.ObjectReadEvent{
+		Bucket:    bucket,
+		ObjectKey: key,
+		VersionID: meta.VersionID,
+		Bytes:     meta.Size,
+		Origin:    model.OriginClient,
+	})
 	return model.GetResult{
 		Body:        body,
 		Size:        meta.Size,

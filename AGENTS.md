@@ -6,6 +6,15 @@ This repository is a monorepo for several gRPC services and a small HTTP Gateway
 
 Go services follow the same layout: `cmd/server` for server entrypoints and `internal/` for app, config, handlers, services, and repositories. Additional maintenance binaries may live under `cmd/<name>`. AuthZ keeps runtime code in `entrypoints/` and `internal/`, with tests in `services/authz/tests/{unit,integration}`. Quota keeps Rust code in `services/quota/src`.
 
+`services/sppr` is the Go decision-support foundation (currently Kafka Ingestor).
+Use its service provider and shared go-kit clients. Preserve commit-before-ack,
+stream deduplication and atomic event/progress/gap/aggregate updates. Mark events
+that a retry cannot fix with `model.ErrRejected` so they are committed; return
+infrastructure errors so the go-kit `Retry` middleware holds the partition. Its SQL
+migrations use migrate up/down files. See `services/sppr/README.md` for the event
+contract and unfinished roadmap steps. Run `make test-sppr`; database/Kafka
+checks use `make test-sppr-integration` with documented test environment variables.
+
 ## Build, Test, and Development Commands
 
 - `make up-services`: start local infrastructure and enabled services with Docker Compose.
@@ -24,6 +33,12 @@ Go services follow the same layout: `cmd/server` for server entrypoints and `int
 - `cargo test -p quota-service` from the repository root: run Quota tests.
 
 ## Coding Style & Naming Conventions
+
+Gateway access events go through `service.AccessProducerService`
+(`internal/service/producer/access`) on one shared sarama `AsyncProducer`; see
+`docs/kafka-spec.md`. Never make HTTP wait for Kafka, publish only after a
+successful operation and keep numbering, marshal and `Send` under the stream
+mutex. Producer tests and startup must work without an Ingestor.
 
 Use standard Go formatting (`gofmt`) and keep package names lowercase. Prefer the existing service layering (`handler`, `service`, `repository`) and place binaries only under `cmd/`. In Python, use 4-space indentation, `snake_case` for functions/modules, and keep gRPC service classes descriptive, for example `PermissionServiceServicer`.
 

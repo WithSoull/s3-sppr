@@ -30,5 +30,12 @@ func (s *objectService) Put(ctx context.Context, bucket, key string, body io.Rea
 			zap.String("blob_id", stored.BlobID), zap.String("bucket", bucket), zap.String("key", key), zap.Error(err))
 		return model.PutResult{}, err
 	}
+	s.access.ProduceObjectWritten(ctx, model.ObjectWrittenEvent{
+		Bucket:    bucket,
+		ObjectKey: key,
+		VersionID: versionID,
+		Bytes:     stored.Size,
+		Origin:    model.OriginClient,
+	})
 	return model.PutResult{ETag: stored.ETag, VersionID: versionID}, nil
 }

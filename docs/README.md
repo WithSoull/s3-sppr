@@ -16,6 +16,7 @@
 | Storage | blob bytes и multipart | [README](../services/storage/README.md) |
 | Quota | резервирование и учёт квот | [README](../services/quota/README.md) |
 | Gateway | локальный HTTP PUT/GET | [README](../services/gateway/README.md) |
+| SPPR | Kafka Ingestor, история и агрегаты спроса | [README](../services/sppr/README.md), [онбординг](../services/sppr/ONBOARDING.md) |
 
 У всех сервисных README одинаковый порядок: назначение → архитектура → структура →
 API → данные/сценарии → конфигурация → запуск → примеры → диагностика → разработка/тесты →
@@ -25,6 +26,8 @@ API → данные/сценарии → конфигурация → запу�
 ## Текущее устройство и разработка
 
 - [Filesystem Storage](storage-fs-architecture.md): фактические пути и commit.
+- [События доступа через Kafka](kafka-spec.md): контракт Gateway → SPPR, доставка и
+  отказоустойчивость.
 - [Storage test inventory](../services/storage/tests.md): существующие проверки.
 - [E2E kit](../e2e/README.md): общий test harness и отдельная PostgreSQL.
 - [AGENTS.md](../AGENTS.md): правила изменений, тестов и документации.
