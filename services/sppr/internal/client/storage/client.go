@@ -125,3 +125,14 @@ func sendError(ctx context.Context, stream storagev1.DataStorageService_StoreObj
 	}
 	return client.FromGRPC(ctx, sendErr)
 }
+
+func (c *storageClient) Delete(ctx context.Context, blobID string) error {
+	resp, err := c.api.DeleteObject(ctx, &storagev1.DeleteObjectRequest{BlobId: blobID})
+	if err != nil {
+		return client.FromGRPC(ctx, err)
+	}
+	if !resp.GetSuccess() {
+		return fmt.Errorf("Storage did not confirm deletion of %s", blobID)
+	}
+	return nil
+}

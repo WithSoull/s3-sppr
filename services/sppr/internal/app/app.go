@@ -25,6 +25,7 @@ type App struct {
 	provider          *serviceProvider
 	consumer          service.AccessConsumerService
 	executor          service.MigrationExecutor
+	cleanup           service.MigrationCleanup
 	server            *http.Server
 	listener          net.Listener
 	loggerInitialized bool
@@ -74,6 +75,9 @@ func (a *App) initDeps(ctx context.Context) error {
 		if a.executor, err = a.provider.MigrationExecutor(ctx); err != nil {
 			return err
 		}
+		if a.cleanup, err = a.provider.MigrationCleanup(); err != nil {
+			return err
+		}
 	}
 	mux := http.NewServeMux()
 	mux.Handle("/", health.NewHandler(client.DB()))
@@ -107,12 +111,18 @@ func (a *App) Run(ctx context.Context) error {
 	served := make(chan error, 1)
 	consumed := make(chan error, 1)
 	executed := make(chan error, 1)
+	cleaned := make(chan error, 1)
 	go func() { served <- a.server.Serve(a.listener) }()
 	go func() { consumed <- a.consumer.RunConsumer(ctx) }()
 	if a.executor != nil {
 		go func() { executed <- a.executor.Run(ctx) }()
 	} else {
 		executed <- nil
+	}
+	if a.cleanup != nil {
+		go func() { cleaned <- a.cleanup.Run(ctx) }()
+	} else {
+		cleaned <- nil
 	}
 	logger.Info(ctx, "SPPR listening", zap.String("address", a.listener.Addr().String()),
 		zap.Bool("migration_enabled", a.executor != nil))
@@ -159,6 +169,12 @@ func (a *App) Run(ctx context.Context) error {
 		result = errors.Join(result, err)
 	case <-shutdown.Done():
 		result = errors.Join(result, fmt.Errorf("stop migration workers: %w", shutdown.Err()))
+	}
+	select {
+	case err := <-cleaned:
+		result = errors.Join(result, err)
+	case <-shutdown.Done():
+		result = errors.Join(result, fmt.Errorf("stop migration cleanup: %w", shutdown.Err()))
 	}
 	return result
 }

@@ -15,6 +15,7 @@ import (
 	pinRepository "github.com/alesplll/opens3-rebac/services/sppr/internal/repository/pin"
 	settingsRepository "github.com/alesplll/opens3-rebac/services/sppr/internal/repository/settings"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/service"
+	cleanupService "github.com/alesplll/opens3-rebac/services/sppr/internal/service/cleanup"
 	executorService "github.com/alesplll/opens3-rebac/services/sppr/internal/service/executor"
 	migrationService "github.com/alesplll/opens3-rebac/services/sppr/internal/service/migration"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/metric"
@@ -132,6 +133,7 @@ func (s *serviceProvider) StorageClients() (map[model.StorageClass]client.Storag
 				address,
 				grpc.WithTransportCredentials(insecure.NewCredentials()),
 				grpc.WithStreamInterceptor(tracing.StreamClientInterceptor("sppr.storage")),
+				grpc.WithUnaryInterceptor(tracing.UnaryClientInterceptor("sppr.storage")),
 			)
 			if err != nil {
 				return nil, fmt.Errorf("create %s Storage client: %w", class, err)
@@ -180,4 +182,19 @@ func (s *serviceProvider) MigrationExecutor(ctx context.Context) (service.Migrat
 		}, actions, settings, pins, tx, placements, storages, s.migrationMetrics)
 	}
 	return s.migrationExecutor, nil
+}
+
+func (s *serviceProvider) MigrationCleanup() (service.MigrationCleanup, error) {
+	if s.migrationCleanup == nil {
+		placements, err := s.PlacementClient()
+		if err != nil {
+			return nil, err
+		}
+		storages, err := s.StorageClients()
+		if err != nil {
+			return nil, err
+		}
+		s.migrationCleanup = cleanupService.NewService(s.cfg.Migration.CleanupInterval(), placements, storages, s.migrationMetrics)
+	}
+	return s.migrationCleanup, nil
 }

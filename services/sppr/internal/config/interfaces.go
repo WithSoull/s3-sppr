@@ -68,6 +68,7 @@ type MigrationConfig interface {
 	MaxAttempts() int
 	RetryBackoff() time.Duration
 	SourceCleanupDelay() time.Duration
+	CleanupInterval() time.Duration
 	BudgetBytes() int64
 	BudgetWindow() time.Duration
 	MinInterval() time.Duration

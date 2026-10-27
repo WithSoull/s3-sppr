@@ -100,3 +100,24 @@ func copyFromProto(c *metadatav1.PlacementCopyInfo) model.PlacementCopy {
 		State:              model.CopyState(c.GetState()),
 	}
 }
+
+func (c *placementClient) ListDueCleanups(ctx context.Context, limit int32) ([]model.PlacementCopy, error) {
+	callCtx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
+	resp, err := c.api.ListDueCleanups(callCtx, &metadatav1.ListDueCleanupsRequest{Limit: limit})
+	if err != nil {
+		return nil, client.FromGRPC(ctx, err)
+	}
+	copies := make([]model.PlacementCopy, 0, len(resp.GetCopies()))
+	for _, copy := range resp.GetCopies() {
+		copies = append(copies, copyFromProto(copy))
+	}
+	return copies, nil
+}
+
+func (c *placementClient) CompleteCleanup(ctx context.Context, copyID string, deleted bool, message string) error {
+	callCtx, cancel := context.WithTimeout(ctx, c.timeout)
+	defer cancel()
+	_, err := c.api.CompleteCleanup(callCtx, &metadatav1.CompleteCleanupRequest{CopyId: copyID, Deleted: deleted, ErrorMessage: message})
+	return client.FromGRPC(ctx, err)
+}

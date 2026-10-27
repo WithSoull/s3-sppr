@@ -44,6 +44,11 @@ type MigrationExecutor interface {
 	Step(ctx context.Context) (bool, error)
 }
 
+type MigrationCleanup interface {
+	Run(ctx context.Context) error
+	Step(ctx context.Context) error
+}
+
 type MigrationObserver interface {
 	Actions(ctx context.Context, outcome, reason string, count int64)
 	Copied(ctx context.Context, targetClass string, bytes int64)
