@@ -77,6 +77,11 @@ message StoreObjectHeader {
   string content_type = 2;
   // Первые байты файла, если клиент хочет начать загрузку уже в header.
   bytes data = 3;
+  // Необязательный UUID сохраняемого blob'а в канонической форме. Пусто — Storage
+  // генерирует новый. Задаёт исполнитель миграций: blob_id копии выдаёт
+  // Metadata PlacementService.ReserveCopy. Повтор записи с тем же blob_id
+  // заменяет файл, поэтому прерванное копирование можно повторить.
+  string blob_id = 4;
 }
 
 message StoreObjectChunk {

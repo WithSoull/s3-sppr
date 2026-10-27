@@ -14,16 +14,23 @@ import (
 
 const defaultContentType = "application/octet-stream"
 
-func (s *storageService) StoreObject(ctx context.Context, reader io.Reader, size *int64, contentType string) (*model.BlobMeta, error) {
+func (s *storageService) StoreObject(ctx context.Context, blobID string, reader io.Reader, size *int64, contentType string) (*model.BlobMeta, error) {
 	if size != nil && *size < 0 {
 		return nil, domainerrors.ErrInvalidBlobSize
+	}
+	// The ID becomes a file path, so only the canonical UUID form is accepted.
+	if blobID != "" {
+		if parsed, err := uuid.Parse(blobID); err != nil || parsed.String() != blobID {
+			return nil, domainerrors.ErrInvalidBlobID
+		}
+	} else {
+		blobID = uuid.New().String()
 	}
 
 	if contentType == "" {
 		contentType = defaultContentType
 	}
 
-	blobID := uuid.New().String()
 	meta, err := s.repo.StoreBlob(ctx, blobID, reader)
 	if err != nil {
 		logger.Error(

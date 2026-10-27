@@ -20,6 +20,7 @@ func TestStoreObject(t *testing.T) {
 
 	type args struct {
 		ctx         context.Context
+		blobID      string
 		reader      io.Reader
 		size        *int64
 		contentType string
@@ -29,6 +30,8 @@ func TestStoreObject(t *testing.T) {
 		ctx         = context.Background()
 		content     = []byte("storage content")
 		contentType = "application/json"
+
+		requestedBlobID = "6f1c1c2e-8a7b-4c39-9d1e-0b5f2a3c4d5e"
 	)
 
 	tests := []struct {
@@ -102,6 +105,45 @@ func TestStoreObject(t *testing.T) {
 					}, nil
 				})
 				return mock
+			},
+		},
+		{
+			name: "stores under the requested blob id",
+			args: args{
+				ctx:         ctx,
+				blobID:      requestedBlobID,
+				reader:      bytes.NewReader(content),
+				contentType: contentType,
+			},
+			want: &model.BlobMeta{
+				BlobID:      requestedBlobID,
+				ChecksumMD5: "checksum-1",
+				SizeBytes:   int64(len(content)),
+				ContentType: contentType,
+			},
+			repoMock: func(mc *minimock.Controller) repository.StorageRepository {
+				mock := mocks.NewStorageRepositoryMock(mc)
+				mock.StoreBlobMock.Set(func(_ context.Context, blobID string, _ io.Reader) (*model.BlobMeta, error) {
+					require.Equal(t, requestedBlobID, blobID)
+					return &model.BlobMeta{BlobID: blobID, ChecksumMD5: "checksum-1", SizeBytes: int64(len(content))}, nil
+				})
+				return mock
+			},
+		},
+		{
+			name: "rejects a blob id that is not a canonical uuid",
+			args: args{ctx: ctx, blobID: "../../etc/passwd", reader: bytes.NewReader(content), contentType: contentType},
+			err:  domainerrors.ErrInvalidBlobID,
+			repoMock: func(mc *minimock.Controller) repository.StorageRepository {
+				return mocks.NewStorageRepositoryMock(mc)
+			},
+		},
+		{
+			name: "rejects a non-canonical spelling of a uuid",
+			args: args{ctx: ctx, blobID: "{" + requestedBlobID + "}", reader: bytes.NewReader(content), contentType: contentType},
+			err:  domainerrors.ErrInvalidBlobID,
+			repoMock: func(mc *minimock.Controller) repository.StorageRepository {
+				return mocks.NewStorageRepositoryMock(mc)
 			},
 		},
 		{
@@ -192,7 +234,7 @@ func TestStoreObject(t *testing.T) {
 			repoMock := tt.repoMock(mc)
 			svc := storageService.NewService(repoMock)
 
-			res, err := svc.StoreObject(tt.args.ctx, tt.args.reader, tt.args.size, tt.args.contentType)
+			res, err := svc.StoreObject(tt.args.ctx, tt.args.blobID, tt.args.reader, tt.args.size, tt.args.contentType)
 			require.Equal(t, tt.err, err)
 			if tt.want == nil {
 				require.Nil(t, res)

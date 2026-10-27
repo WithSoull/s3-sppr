@@ -12,6 +12,7 @@ func (h *handler) StoreObject(stream desc.DataStorageService_StoreObjectServer) 
 
 	meta, err := h.service.StoreObject(
 		stream.Context(),
+		payload.blobID,
 		payload.reader,
 		payload.size,
 		payload.contentType,
