@@ -6,6 +6,15 @@ This repository is a monorepo for several gRPC services and a small HTTP Gateway
 
 Go services follow the same layout: `cmd/server` for server entrypoints and `internal/` for app, config, handlers, services, and repositories. Additional maintenance binaries may live under `cmd/<name>`. AuthZ keeps runtime code in `entrypoints/` and `internal/`, with tests in `services/authz/tests/{unit,integration}`. Quota keeps Rust code in `services/quota/src`.
 
+`services/sppr` is the Go decision-support foundation (currently Kafka Ingestor).
+Use its service provider and shared go-kit clients. Preserve commit-before-ack,
+stream deduplication and atomic event/progress/gap/aggregate updates. Mark events
+that a retry cannot fix with `model.ErrRejected` so they are committed; return
+infrastructure errors so the go-kit `Retry` middleware holds the partition. Its SQL
+migrations use migrate up/down files. See `services/sppr/README.md` for the event
+contract and unfinished roadmap steps. Run `make test-sppr`; database/Kafka
+checks use `make test-sppr-integration` with documented test environment variables.
+
 ## Build, Test, and Development Commands
 
 - `make up-services`: start local infrastructure and enabled services with Docker Compose.

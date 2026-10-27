@@ -5,6 +5,7 @@ use (
 	./services/auth
 	./services/gateway
 	./services/metadata
+	./services/sppr
 	./services/storage
 	./services/users
 	./shared

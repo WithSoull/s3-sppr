@@ -40,6 +40,19 @@ Kafka ожидает успешной проверки готовности ZooK
 Миграторы в норме завершаются с кодом 0. Долгоживущие контейнеры должны быть в
 состоянии Up/healthy согласно их Compose healthcheck.
 
+Основа СППР запускается отдельно: `make up-sppr`. Команда поднимает SPPR, его
+PostgreSQL и мигратор, Kafka и ZooKeeper без остальных прикладных сервисов.
+Проверка: `curl -f http://localhost:8086/readyz`. Детали — в
+[README SPPR](services/sppr/README.md). Порт БД — 5436; профиль `services`
+не включает SPPR.
+
+Gateway producer поставляется отдельным [PR #1](https://github.com/WithSoull/s3-sppr/pull/1).
+Для автономной проверки Ingestor используйте integration tests из README; порядок чтения
+кода — в [онбординге SPPR](services/sppr/ONBOARDING.md).
+
+После мержа обоих PR доступен `make smoke-sppr-local`: дополнительная проверка
+HTTP → Kafka → PostgreSQL. Она не нужна для автономных тестов Ingestor.
+
 ## Порты на хосте
 
 Gateway в Compose публикует события обращений в Kafka (`object-read`,
@@ -58,6 +71,8 @@ Kafka должна быть доступна на старте Gateway. Consumer
 | Quota | `localhost:50055` |
 | Gateway HTTP | `127.0.0.1:8080` |
 | Gateway Swagger UI | `http://127.0.0.1:8080/swagger/index.html` |
+| SPPR health HTTP (профиль `sppr`) | `localhost:8086` |
+| PostgreSQL SPPR (профиль `sppr`) | `localhost:5436` |
 | PostgreSQL Users | `localhost:5432` |
 | PostgreSQL Metadata | `localhost:5433` |
 | Redis | `localhost:6379` |

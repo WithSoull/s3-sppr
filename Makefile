@@ -157,6 +157,28 @@ generate-quota-py:
 test-users:
 	go test ./services/users/... -count=1
 
+.PHONY: test-sppr test-sppr-integration up-sppr up-sppr-gateway smoke-sppr smoke-sppr-local require-gateway-access-producer
+test-sppr:
+	go test -race ./services/sppr/... -count=1
+
+test-sppr-integration:
+	go test -race -tags=integration ./services/sppr/... -count=1
+
+up-sppr:
+	docker compose --profile sppr up --build -d sppr
+
+require-gateway-access-producer:
+	@test -f services/gateway/internal/service/producer/access/service.go || { echo 'Gateway producer is supplied by PR #1; merge both PRs for the combined smoke.' >&2; exit 1; }
+
+up-sppr-gateway: require-gateway-access-producer
+	ACCESS_EVENTS_ENABLED=true docker compose --profile services --profile sppr up --build -d gateway sppr metadata storage
+
+smoke-sppr: require-gateway-access-producer
+	SPPR_SMOKE_PG_DSN="$${SPPR_SMOKE_PG_DSN:-postgres://sppr_user:sppr_password@localhost:$${SPPR_DB_PORT:-5436}/sppr_db?sslmode=disable}" go run ./services/sppr/cmd/smoke
+
+smoke-sppr-local: up-sppr-gateway
+	$(MAKE) smoke-sppr
+
 test-storage:
 	go test ./services/storage/... -count=1
 
