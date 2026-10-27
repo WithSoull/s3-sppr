@@ -2,8 +2,7 @@
 
 Основа сервиса поддержки принятия решений OpenS3 на Go. Текущий срез — Ingestor
 из шага 3.1 (история обращений, дедупликация, контроль пропусков и агрегаты) и
-исполнитель переносов HOT/COLD из этапа 4.3, часть 2: действия, воркеры,
-бюджет и восстановление после рестарта.
+исполнитель переносов HOT/COLD из этапа 4.3: действия, воркеры, бюджет, восстановление после рестарта и очистка blobs.
 
 Для первого чтения кода: [онбординг](ONBOARDING.md). Контракт событий и правила
 доставки — [спека Kafka](../../docs/kafka-spec.md).
@@ -22,11 +21,13 @@
 - при `MIGRATION_ENABLED=true` выполняет действия пулом воркеров по протоколу
   Metadata `PlacementService`: резервирование, потоковое копирование между
   Storage, сверка размера и MD5, переключение по CAS; после рестарта продолжает
-  начатые действия.
+  начатые действия;
+- очищает источники переносов, отменённые цели и копии `orphan` удалённых объектов
+  после установленной Metadata задержки, включая повтор после ошибки удаления.
 
 Feature Builder, Predictor и Planner относятся к следующим шагам. Цикл очистки
-старых blobs (`ListDueCleanups` → Storage `DeleteObject` → `CompleteCleanup`),
-проверки сбоев на стенде, smoke и метрики переносов — часть 3 этапа 4.3.
+старых blobs работает в том же процессе; проверки сбоев и `make smoke-migration`
+описаны ниже. Planner, прогноз и HTML-панель пока отсутствуют.
 
 ## Архитектура и зависимости
 
@@ -51,7 +52,7 @@ MIGRATION_ENABLED → service.MigrationExecutor (MIGRATION_WORKERS) ────
                     │  ListMigrationCopies, GetPlacement, ReserveCopy,
                     │  SwitchPlacement, AbortCopy
                     ├→ client/metadata → Metadata PlacementService :50052
-                    └→ client/storage  → Storage HOT / COLD (RetrieveObject → StoreObject)
+                    └→ client/storage  → Storage HOT / COLD (RetrieveObject → StoreObject, DeleteObject)
 ```
 
 Исполнитель читает и пишет Storage напрямую, не через Gateway, поэтому
@@ -74,7 +75,10 @@ handler, поэтому `Retry` повторяет то же сообщение 
 Следующий offset не может подтвердиться поверх несохранённого события.
 Отклонённое событие handler сам завершает успехом, см. классификацию ниже.
 
-SIGINT/SIGTERM отменяет consumers, воркеры переносов и завершает HTTP-запросы.
+Цикл `MigrationCleanup` независимо от воркеров вызывает Metadata `ListDueCleanups`,
+Storage `DeleteObject` и Metadata `CompleteCleanup`. Пауза действий его не останавливает.
+
+SIGINT/SIGTERM отменяет consumers, цикл очистки, воркеры переносов и завершает HTTP-запросы.
 Прерванное действие остаётся `running` и продолжается при следующем старте. Затем shared closer
 закрывает consumer groups, PostgreSQL, listener и telemetry. Closer закрывает их
 параллельно; это безопасно, потому что `Run` уже дождался остановки consumers.
@@ -87,6 +91,7 @@ startup тоже освобождает их. Последним закрыва�
 ```text
 cmd/server/                       entrypoint, flags, signals
 cmd/smoke/                        сквозная проверка Gateway → Kafka → SPPR
+cmd/smoke-migration/              Gateway → API переносов → Storage → очистка
 internal/app/                     lifecycle и DI service provider
 internal/config/env/              загрузка и проверка env
 internal/converter/kafka/         интерфейсы decoders; decoder/ — protobuf → domain event
@@ -96,6 +101,7 @@ internal/handler/migration/       HTTP API переносов: JSON ↔ model, �
 internal/service/ingestor/        validation и транзакция
 internal/service/migration/       MigrationService: Submit, отмена, бюджет, настройки, закрепления
 internal/service/executor/        воркеры, шаги действия, копирование, восстановление
+internal/service/cleanup/         независимый цикл очистки копий из Metadata
 internal/client/                  PlacementClient и StorageClient; metadata/, storage/ — gRPC
 internal/repository/event/        PostgreSQL queries
 internal/repository/action/       действия, зависимости, журнал, списания бюджета, взятие SKIP LOCKED
@@ -103,7 +109,7 @@ internal/repository/settings/     бюджет, Δmin, пауза; сумма с
 internal/repository/pin/          закрепления bucket/key
 internal/model/                   события, ErrRejected, действия переноса и ошибки
 internal/validator/               проверка контракта
-internal/observability/           ingestion metrics
+internal/observability/           ingestion и migration metrics
 pkg/mocks/                        generated minimock mocks
 migrations/                       migrate up/down SQL
 ```
@@ -133,7 +139,7 @@ Compose публикует порт только на `127.0.0.1`. Planner эт�
 | GET | `/actions?plan_id=&status=&page_size=&page_token=` | страница по `action_id`; `page_size` 1..1000, по умолчанию 100; `next_page_token` — последний `action_id` |
 | GET | `/actions/{id}` | действие, `depends_on`, `blocked_by` и журнал `events` |
 | POST | `/actions/cancel` | `{plan_id}` или `{action_ids}`; отменяет только `pending` и их зависимые → `{cancelled, dependents_cancelled}` |
-| POST | `/pause`, `/resume` | новые действия не берутся; начатые доделываются |
+| POST | `/pause`, `/resume` | новые действия не берутся; начатые доделываются; очистка продолжается |
 | GET / PUT | `/budget` | `{bytes, window_seconds}`; GET также `spent`, `remaining` за скользящее окно |
 | GET / PUT | `/settings` | `{min_interval_seconds}`; GET также `paused` (только чтение) |
 | GET / POST / DELETE | `/pins` | `{bucket, key, reason, author}`; DELETE по `?bucket=&key=`, ключ может содержать `/` |
@@ -294,6 +300,26 @@ blob. Поэтому `MIGRATION_SOURCE_CLEANUP_DELAY` должна превыш�
 Ошибка записи в БД SPPR оставляет действие `running`; его возьмёт следующий
 свободный воркер. Протокол Metadata идемпотентен, поэтому повтор шага безопасен.
 
+### Очистка blobs
+
+При `MIGRATION_ENABLED=true` цикл выполняет проход сразу при старте, затем каждые
+`MIGRATION_CLEANUP_INTERVAL` (30s). Проход получает до 100 копий из Metadata;
+обрабатываются все роли: `source`, `target` и `orphan`, без требования `migration_id`.
+Для `orphan` он пуст. Metadata выбирает только `cleanup_pending` и `cleanup_failed`
+с наступившим `cleanup_after`.
+
+Удаление идёт напрямую в Storage класса копии, с таймаутом 5s на RPC. Отсутствующий
+blob считается успешно удалённым. После успеха `CompleteCleanup(deleted=true)`
+освобождает учтённое место; при ошибке удаления `deleted=false` с текстом ошибки
+оставляет место занятым и переводит копию в `cleanup_failed`. Ошибка одной копии
+не мешает остальному пакету. Если ответ `CompleteCleanup` потерян, следующий проход
+безопасно повторяет идемпотентное удаление. Отмена процесса оставляет работу следующему
+старту. Пауза переносов не участвует в этом алгоритме.
+
+Источники ждут `MIGRATION_SOURCE_CLEANUP_DELAY`; копии удалённых объектов —
+`METADATA_DELETE_CLEANUP_DELAY` в Metadata. Обе задержки должны превышать общий
+`GATEWAY_MAX_READ_DURATION`. Отменённые цели могут очищаться сразу после `AbortCopy`.
+
 ## Конфигурация
 
 Окружение имеет приоритет над необязательным `.env`. Флаг `-config-path` задаёт
@@ -313,7 +339,8 @@ blob. Поэтому `MIGRATION_SOURCE_CLEANUP_DELAY` должна превыш�
 | `OTEL_SERVICE_NAME`, `OTEL_SERVICE_VERSION`, `OTEL_ENVIRONMENT` | задать явно |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | задать явно, gRPC collector `host:port` |
 | `OTEL_METRICS_PUSH_TIMEOUT` | задать явно; интервал экспорта, пример `10s` |
-| `MIGRATION_ENABLED` | `false`; запускать воркеры переносов. API отвечает и при `false` |
+| `MIGRATION_ENABLED` | `false`; запускать воркеры и цикл очистки. API отвечает и при `false` |
+| `MIGRATION_CLEANUP_INTERVAL` | `30s`; положительный интервал проходов очистки |
 | `MIGRATION_WORKERS` | `2`; параллельные действия |
 | `MIGRATION_MAX_ATTEMPTS`, `MIGRATION_RETRY_BACKOFF` | `5`, `1s`; попытки при `UNAVAILABLE`/`DEADLINE_EXCEEDED`, пауза удваивается |
 | `MIGRATION_SOURCE_CLEANUP_DELAY` | `10m`; `cleanup_after` источника, строго больше `GATEWAY_MAX_READ_DURATION` |
@@ -391,6 +418,7 @@ go run ./cmd/server -config-path .env
 ```bash
 make up-sppr-migration
 curl -s http://localhost:8086/api/migration/budget
+make smoke-migration SMOKE_MIGRATION_ARGS="-timeout 12m"
 ```
 
 Миграции выполняет `migrate/migrate:v4.19.1` отдельно от приложения. Приложение
@@ -429,6 +457,87 @@ curl -s -X PUT localhost:8086/api/migration/budget -d '{"bytes":5368709120,"wind
 curl -s -X POST localhost:8086/api/migration/pins -d '{"bucket":"docs-demo","key":"example.txt","reason":"demo","author":"ops"}'
 ```
 
+### Ручная демонстрация COLD → HOT → COLD
+
+Нужны `curl`, `grpcurl`, `jq`, `uuidgen` и включённый исполнитель. Пример запускается
+в subshell, сохраняет Δmin и восстанавливает его при выходе. Уменьшение Δmin —
+настройка демонстрационного стенда; задержки безопасной очистки остаются прежними.
+
+```bash
+(
+set -eu
+api=http://localhost:8086/api/migration
+bucket="migration-demo-$(date +%s)"
+owner=$(uuidgen)
+plan=$(uuidgen)
+grpcurl -plaintext -d "$(jq -nc --arg name "$bucket" --arg owner "$owner" '{name:$name,owner_id:$owner}')" \
+  localhost:50052 opens3.metadata.v1.MetadataService/CreateBucket
+curl -fsS -X PUT --data-binary 'migration demo' "http://localhost:8080/objects/$bucket/demo.txt"
+old_min=$(curl -fsS "$api/settings" | jq -r .min_interval_seconds)
+trap 'curl -fsS -X PUT "$api/settings" -d "{\"min_interval_seconds\":$old_min}" >/dev/null' EXIT
+curl -fsS -X PUT "$api/settings" -d '{"min_interval_seconds":0}'
+for target in HOT COLD; do
+  placement=$(grpcurl -plaintext -d "$(jq -nc --arg b "$bucket" '{bucket_name:$b,key:"demo.txt"}')" \
+    localhost:50052 opens3.metadata.v1.MetadataService/GetObjectMeta)
+  action=$(uuidgen)
+  jq -nc --arg plan "$plan" --arg action "$action" --arg target "$target" --argjson p "$placement" \
+    '{plan_id:$plan,actions:[{action_id:$action,version_id:$p.versionId,expected_generation:($p.placementGeneration|tonumber),source_class:$p.storageClass,target_class:$target,size_bytes:($p.sizeBytes|tonumber),depends_on:[]}]}' \
+    | curl -fsS -X POST "$api/actions" -H 'Content-Type: application/json' --data-binary @-
+  done_action=false
+  for attempt in $(seq 1 120); do
+    state=$(curl -fsS "$api/actions/$action")
+    case $(printf '%s' "$state" | jq -r .status) in
+      succeeded) done_action=true; break ;;
+      failed|cancelled) printf '%s' "$state" | jq .; exit 1 ;;
+    esac
+    sleep 1
+  done
+  "$done_action" || { printf '%s' "$state" | jq .; exit 1; }
+  curl -fsS "$api/actions/$action" | jq '{action_id,status,reason,bytes_charged,events}'
+  curl -fsS "http://localhost:8080/objects/$bucket/demo.txt"
+done
+grpcurl -plaintext localhost:50052 opens3.metadata.v1.PlacementService/ListStorageClasses
+)
+```
+
+После второго переноса HOT ещё занят источником до `cleanup_after`; после очистки
+занятость уменьшится. Отслеживать её можно повторным `ListStorageClasses`, копии
+конкретного действия — `ListMigrationCopies` с его `migration_id=action_id`.
+
+### Smoke переносов
+
+`make smoke-migration` требует уже запущенных Gateway, Metadata, обеих Storage и
+SPPR с `MIGRATION_ENABLED=true`. Команда создаёт уникальный bucket, делает PUT,
+переносит одну версию COLD → HOT → COLD через HTTP API и проверяет GET, идентичность
+версии, рост generation ровно на один на каждый перенос, очистку обоих источников,
+`NOT_FOUND` при прямом чтении удалённых blobs и возврат суммарной занятости HOT
+(`placed_bytes + copy_bytes`) к исходной.
+
+Команда временно ставит Δmin=0 через API и восстанавливает прежнее значение при
+выходе. Пауза должна быть снята заранее; нужен бюджет для обоих переносов. Настройки
+бюджета команда не меняет. Объект в COLD остаётся для диагностики. Используйте
+отдельный стенд без параллельных записей и очистки старых тестовых данных:
+изменения чужих объектов нарушают сравнение глобальной занятости.
+
+С defaults очистка источника занимает 10 минут; таймаут smoke по умолчанию — 12 минут. Для
+быстрой демонстрации на своём Compose-стенде:
+
+```bash
+make smoke-migration-local
+# Эквивалент настройки перед запуском:
+GATEWAY_MAX_READ_DURATION=2s MIGRATION_SOURCE_CLEANUP_DELAY=5s \
+METADATA_DELETE_CLEANUP_DELAY=5s MIGRATION_CLEANUP_INTERVAL=250ms make up-sppr-migration
+make smoke-migration
+# Другие адреса и таймаут:
+make smoke-migration SMOKE_MIGRATION_ARGS='-sppr http://localhost:8086 -gateway http://localhost:8080 -metadata localhost:50052 -storage-hot localhost:50056 -storage-cold localhost:50053 -timeout 12m'
+```
+
+Сокращать только задержку очистки нельзя: SPPR и Metadata откажутся стартовать,
+если она не превышает лимит чтения Gateway. `MIGRATION_MIN_INTERVAL` из env
+применяется только при первом создании настроек; smoke поэтому использует API.
+`make smoke-sppr` отдельно проверяет ingestion; `make smoke-gateway` отдельно
+проверяет протокол Metadata и маршрутизацию без зависимости от SPPR.
+
 ## Наблюдаемость и диагностика
 
 | Инструмент | Содержимое |
@@ -438,7 +547,20 @@ curl -s -X POST localhost:8086/api/migration/pins -d '{"bucket":"docs-demo","key
 | `sppr_ingestion_duration_seconds` | длительность попытки |
 | structured logs | `Access event rejected`, ошибки ingestion перед retry, ошибки consumer group; topic, partition, offset; `Kafka msg received` на каждое сообщение |
 | structured logs переносов | `migration action claimed`, `migration action transition` (`action_id`, `version_id`, из/в статус/шаг, причина, ошибка, отменённые зависимые), `migration step failed` |
+| `sppr_migration_actions_total{outcome,reason}` | зафиксированные терминальные переходы, включая ручную и каскадную отмену; success имеет пустой reason |
+| `sppr_migration_bytes_copied_total{target_class}` | прочитанные для передачи байты каждой попытки, включая неуспешные; не резерв бюджета |
+| `sppr_migration_budget_remaining_bytes` | текущий остаток по настройкам и ledger за скользящее окно, обновляется при сборе метрик и на паузе |
+| `sppr_migration_cleanups_total{outcome}` | попытки: `deleted`, `delete_failed`, `completion_failed` |
+| `sppr_migration_duration_seconds` | время от сохранённого `started_at` до терминального перехода начатого действия, включая простой при рестарте; отменённые до claim не входят |
+| cleanup logs | copy_id, blob_id, storage_class, role, outcome, ошибки удаления и подтверждения |
 | журнал действия | `GET /api/migration/actions/{id}` → `events` |
+
+Метрики — telemetry процесса, а не долговечный аудит: авария между commit и
+записью счётчика может потерять наблюдение. При оборванной передаче счётчик содержит
+только байты, увиденные этим процессом; ledger сохраняет принятую в части 2
+консервативную оценку прерванной попытки. Ошибка `CompleteCleanup` не освобождает
+место до подтверждения Metadata. Детали проверяйте в журнале и `ListStorageClasses`.
+В labels нет bucket/key, action_id или version_id; идентификаторы остаются в логах.
 
 Действие, долго стоящее в `running/aborting`, ждёт Metadata: `AbortCopy` повторяется
 после каждой паузы. `pending` с `blocked_by=budget` стартует, когда старые
@@ -461,6 +583,9 @@ cd services/sppr
 go generate ./pkg/mocks
 go vet ./...
 ```
+
+Для `go generate ./pkg/mocks` нужен `minimock` v3.4.7 в `PATH`; исходные
+директивы также закрепляют версию зависимостью сервиса.
 
 Integration tests создают и удаляют уникальные PostgreSQL schemas; нужны права
 `CREATE SCHEMA`. Полный тест также создаёт/удаляет уникальные Kafka topics и
@@ -490,6 +615,62 @@ decoders и классификация ошибок в handlers. Kafka-тест 
 восстановление, подтверждение недекодируемого события без блокировки
 следующего, OTEL metrics/logs и shutdown.
 
+### Проверки сбоев на стенде
+
+Обычные `make test-sppr` и `make test-sppr-integration` не обращаются к стенду без
+`SPPR_TEST_MIGRATION_STAND=1`. Для полного набора нужны Gateway, Metadata, обе
+Storage (`make up-gateway`) и тестовая PostgreSQL с правом `CREATE SCHEMA`.
+Metadata должен быть собран из текущего кода с применёнными миграциями части 1
+`20261027000000` и `20261027000100`: старый контейнер теряет учёт orphan при DELETE,
+что проверяет stand-тест.
+SPPR-контейнер с исполнителем/очисткой должен быть остановлен: исполнитель живёт
+в самом тесте. Kafka env для этого набора не требуется.
+
+```bash
+SPPR_TEST_PG_DSN='postgres://user:password@localhost:5434/test_db?sslmode=disable' \
+SPPR_TEST_MIGRATION_STAND=1 make test-sppr-integration
+# Только сценарии стенда, с подробным выводом:
+SPPR_TEST_PG_DSN='postgres://user:password@localhost:5434/test_db?sslmode=disable' \
+SPPR_TEST_MIGRATION_STAND=1 go test -race -tags=integration ./services/sppr/internal/service/executor -run TestStand -v -count=1
+```
+
+| Env | Default |
+|---|---|
+| `SPPR_TEST_MIGRATION_STAND` | выключен; только `1` включает стенд |
+| `SPPR_TEST_PG_DSN` | обязателен при включённом стенде; ошибка конфигурации или подключения проваливает тест |
+| `SPPR_TEST_GATEWAY_URL` | `http://localhost:8080` |
+| `SPPR_TEST_METADATA_GRPC_ADDR` | `localhost:50052` |
+| `SPPR_TEST_STORAGE_HOT_GRPC_ADDR` | `localhost:50056` |
+| `SPPR_TEST_STORAGE_COLD_GRPC_ADDR` | `localhost:50053` |
+
+Каждый сценарий создаёт свою SPPR schema и уникальный bucket. Schema удаляется;
+объекты и blobs стенда остаются для диагностики. Не запускайте набор параллельно
+с другими изменениями занятости классов или активной очисткой SPPR.
+
+Проверяются все сценарии части 3: повреждение после хеширования источника,
+недоступная цель (ноль и частично переданные байты), отказ `ReserveCopy` из-за
+ёмкости с возвратом бюджета и каскадом отмены, overwrite/DELETE во время копирования,
+GET во время switch, pin после Submit до claim, Δmin, истечение окна бюджета,
+ошибка удаления источника с последующим успехом на паузе. Отказ Storage после
+передачи сохраняет списание; это отличается от отказа резервирования Metadata.
+
+Рестарт — отмена и полная остановка одного `Run`, затем **новый** экземпляр на той
+же schema и реальных Metadata/Storage. Барьеры стоят до резервирования, после
+резервирования до записи шага, внутри copying, до switch и после commit switch
+до возврата ответа. Проверяются один target/blob_id, одно увеличение generation,
+один терминальный успех и корректный GET.
+
+Metadata стенда может иметь стандартный `METADATA_DELETE_CLEANUP_DELAY=10m`.
+DELETE-тест не ждёт физического удаления orphan: проверяет сохранение занятости,
+перенос размера из placements в copies, доступность старого blob и отсутствие его
+в due-списке до задержки. У теста ошибки удаления источника свой изолированный
+объект без конкурентных читателей и тестовый `SourceCleanupDelay=50ms` в конфигурации
+экземпляра исполнителя; только там проверяются реальный due, `cleanup_failed`,
+повтор, физическое удаление и освобождение места. Настройки работающих контейнеров
+не меняются. Тестовая обёртка списка очистки выбирает только собственный copy_id;
+чужие blobs не удаляются. Unit-тесты отдельно проверяют роли source/target/orphan,
+ошибку подтверждения после успешного удаления, отмену и повтор отсутствующего blob.
+
 ## Ограничения и дальнейшая работа
 
 Gateway producer поставляется отдельным PR. Полнота истории ещё не определяется: нет
@@ -506,9 +687,8 @@ Gateway producer поставляется отдельным PR. Полнота 
 поддерживаются, кроме защиты `SKIP LOCKED` при взятии. Прогноз ещё не выполняется;
 производительность и квота 2 ядра / 2 ГиБ пока не подтверждены измерениями.
 
-Переносы (часть 2 этапа 4.3): старые blobs после переключения и отменённые копии
-пока не удаляются из Storage и занимают место класса — это цикл очистки части 3.
-Нет метрик переносов, smoke-команды и проверок сбоев на стенде (часть 3). Нет
+Очистка работает только при `MIGRATION_ENABLED=true`: выключенный процесс или
+недоступный Storage оставляет копии занимающими место. Нет
 Planner, прогноза, HTML-панели и авторизации API (этапы 6–7). Длительность
 одного потока копирования не ограничена отдельным таймаутом.
 

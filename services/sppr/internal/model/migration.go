@@ -231,6 +231,7 @@ type Placement struct {
 type CopyRole string
 
 const (
+	CopyRoleOrphan CopyRole = "orphan"
 	CopyRoleTarget CopyRole = "target"
 	CopyRoleSource CopyRole = "source"
 )

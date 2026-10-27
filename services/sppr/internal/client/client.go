@@ -15,10 +15,13 @@ type PlacementClient interface {
 	SwitchPlacement(ctx context.Context, req model.SwitchRequest) error
 	AbortCopy(ctx context.Context, migrationID, reason string) error
 	ListMigrationCopies(ctx context.Context, migrationID string) ([]model.PlacementCopy, error)
+	ListDueCleanups(ctx context.Context, limit int32) ([]model.PlacementCopy, error)
+	CompleteCleanup(ctx context.Context, copyID string, deleted bool, message string) error
 }
 
 // StorageClient talks to the Storage instance of one class.
 type StorageClient interface {
+	Delete(ctx context.Context, blobID string) error
 	// Open starts reading the whole blob; a missing blob fails here with
 	// model.ErrUpstreamNotFound.
 	Open(ctx context.Context, blobID string) (io.ReadCloser, error)

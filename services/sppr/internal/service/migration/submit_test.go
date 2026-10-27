@@ -177,7 +177,7 @@ func TestSubmitActions(t *testing.T) {
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			mc := minimock.NewController(t)
-			s := migration.NewService(tt.build(mc), mocks.NewSettingsRepositoryMock(mc), mocks.NewPinRepositoryMock(mc), executingTx(mc))
+			s := migration.NewService(tt.build(mc), mocks.NewSettingsRepositoryMock(mc), mocks.NewPinRepositoryMock(mc), executingTx(mc), nil)
 			got, err := s.SubmitActions(ctx, tt.planID, tt.specs)
 			if tt.wantErr != nil {
 				require.ErrorIs(t, err, tt.wantErr)
@@ -222,7 +222,7 @@ func TestSubmitActionsValidation(t *testing.T) {
 			mc := minimock.NewController(t)
 			repo := mocks.NewActionRepositoryMock(mc)
 			tx := mocks.NewTxManagerMock(mc)
-			s := migration.NewService(repo, mocks.NewSettingsRepositoryMock(mc), mocks.NewPinRepositoryMock(mc), tx)
+			s := migration.NewService(repo, mocks.NewSettingsRepositoryMock(mc), mocks.NewPinRepositoryMock(mc), tx, nil)
 			_, err := s.SubmitActions(context.Background(), tt.planID, tt.specs)
 			require.ErrorIs(t, err, model.ErrInvalidArgument)
 			require.Equal(t, uint64(0), tx.ReadCommittedAfterCounter())
@@ -287,7 +287,7 @@ func TestCancelActions(t *testing.T) {
 			mc := minimock.NewController(t)
 			tx := mocks.NewTxManagerMock(mc)
 			tx.ReadCommittedMock.Optional().Set(func(ctx context.Context, f db.Handler) error { return f(ctx) })
-			s := migration.NewService(tt.build(mc), mocks.NewSettingsRepositoryMock(mc), mocks.NewPinRepositoryMock(mc), tx)
+			s := migration.NewService(tt.build(mc), mocks.NewSettingsRepositoryMock(mc), mocks.NewPinRepositoryMock(mc), tx, nil)
 			got, err := s.CancelActions(context.Background(), tt.req)
 			if tt.wantErr != nil {
 				require.ErrorIs(t, err, tt.wantErr)

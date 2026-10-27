@@ -35,6 +35,7 @@ func (b *byteSize) UnmarshalText(text []byte) error {
 }
 
 type migrationEnvConfig struct {
+	CleanupInterval    time.Duration `env:"MIGRATION_CLEANUP_INTERVAL" envDefault:"30s"`
 	Enabled            bool          `env:"MIGRATION_ENABLED" envDefault:"false"`
 	Workers            int           `env:"MIGRATION_WORKERS" envDefault:"2"`
 	MaxAttempts        int           `env:"MIGRATION_MAX_ATTEMPTS" envDefault:"5"`
@@ -58,6 +59,8 @@ func NewMigrationConfig() (*migrationConfig, error) {
 		return nil, err
 	}
 	switch {
+	case raw.CleanupInterval <= 0:
+		return nil, fmt.Errorf("MIGRATION_CLEANUP_INTERVAL must be positive")
 	case raw.Workers < 1:
 		return nil, fmt.Errorf("MIGRATION_WORKERS must be at least 1")
 	case raw.MaxAttempts < 1:
@@ -89,3 +92,5 @@ func (c *migrationConfig) BudgetWindow() time.Duration {
 	return c.raw.BudgetWindow.Truncate(time.Second)
 }
 func (c *migrationConfig) MinInterval() time.Duration { return c.raw.MinInterval.Truncate(time.Second) }
+
+func (c *migrationConfig) CleanupInterval() time.Duration { return c.raw.CleanupInterval }

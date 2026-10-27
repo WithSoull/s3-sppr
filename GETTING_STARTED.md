@@ -55,7 +55,11 @@ HTTP → Kafka → PostgreSQL. Она не нужна для автономны�
 
 `make up-sppr-migration` поднимает SPPR с включённым исполнителем переносов
 (`MIGRATION_ENABLED=true`) вместе с Gateway, Metadata и обеими Storage. API
-переносов — `http://localhost:8086/api/migration`, примеры curl — в
+переносов — `http://localhost:8086/api/migration`. Очистка источников, отменённых
+целей и blobs удалённых объектов работает независимо от паузы переносов. Проверка
+полного цикла — `make smoke-migration SMOKE_MIGRATION_ARGS="-timeout 12m"`;
+быстрый отдельный Compose-стенд — `make smoke-migration-local` (сокращает лимит
+чтения и обе задержки очистки согласованно). Примеры curl и условия stand-тестов — в
 [README SPPR](services/sppr/README.md#примеры-использования).
 
 ## Порты на хосте

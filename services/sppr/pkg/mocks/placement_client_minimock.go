@@ -26,12 +26,26 @@ type PlacementClientMock struct {
 	beforeAbortCopyCounter uint64
 	AbortCopyMock          mPlacementClientMockAbortCopy
 
+	funcCompleteCleanup          func(ctx context.Context, copyID string, deleted bool, message string) (err error)
+	funcCompleteCleanupOrigin    string
+	inspectFuncCompleteCleanup   func(ctx context.Context, copyID string, deleted bool, message string)
+	afterCompleteCleanupCounter  uint64
+	beforeCompleteCleanupCounter uint64
+	CompleteCleanupMock          mPlacementClientMockCompleteCleanup
+
 	funcGetPlacement          func(ctx context.Context, versionID string) (p1 model.Placement, err error)
 	funcGetPlacementOrigin    string
 	inspectFuncGetPlacement   func(ctx context.Context, versionID string)
 	afterGetPlacementCounter  uint64
 	beforeGetPlacementCounter uint64
 	GetPlacementMock          mPlacementClientMockGetPlacement
+
+	funcListDueCleanups          func(ctx context.Context, limit int32) (pa1 []model.PlacementCopy, err error)
+	funcListDueCleanupsOrigin    string
+	inspectFuncListDueCleanups   func(ctx context.Context, limit int32)
+	afterListDueCleanupsCounter  uint64
+	beforeListDueCleanupsCounter uint64
+	ListDueCleanupsMock          mPlacementClientMockListDueCleanups
 
 	funcListMigrationCopies          func(ctx context.Context, migrationID string) (pa1 []model.PlacementCopy, err error)
 	funcListMigrationCopiesOrigin    string
@@ -66,8 +80,14 @@ func NewPlacementClientMock(t minimock.Tester) *PlacementClientMock {
 	m.AbortCopyMock = mPlacementClientMockAbortCopy{mock: m}
 	m.AbortCopyMock.callArgs = []*PlacementClientMockAbortCopyParams{}
 
+	m.CompleteCleanupMock = mPlacementClientMockCompleteCleanup{mock: m}
+	m.CompleteCleanupMock.callArgs = []*PlacementClientMockCompleteCleanupParams{}
+
 	m.GetPlacementMock = mPlacementClientMockGetPlacement{mock: m}
 	m.GetPlacementMock.callArgs = []*PlacementClientMockGetPlacementParams{}
+
+	m.ListDueCleanupsMock = mPlacementClientMockListDueCleanups{mock: m}
+	m.ListDueCleanupsMock.callArgs = []*PlacementClientMockListDueCleanupsParams{}
 
 	m.ListMigrationCopiesMock = mPlacementClientMockListMigrationCopies{mock: m}
 	m.ListMigrationCopiesMock.callArgs = []*PlacementClientMockListMigrationCopiesParams{}
@@ -456,6 +476,410 @@ func (m *PlacementClientMock) MinimockAbortCopyInspect() {
 	}
 }
 
+type mPlacementClientMockCompleteCleanup struct {
+	optional           bool
+	mock               *PlacementClientMock
+	defaultExpectation *PlacementClientMockCompleteCleanupExpectation
+	expectations       []*PlacementClientMockCompleteCleanupExpectation
+
+	callArgs []*PlacementClientMockCompleteCleanupParams
+	mutex    sync.RWMutex
+
+	expectedInvocations       uint64
+	expectedInvocationsOrigin string
+}
+
+// PlacementClientMockCompleteCleanupExpectation specifies expectation struct of the PlacementClient.CompleteCleanup
+type PlacementClientMockCompleteCleanupExpectation struct {
+	mock               *PlacementClientMock
+	params             *PlacementClientMockCompleteCleanupParams
+	paramPtrs          *PlacementClientMockCompleteCleanupParamPtrs
+	expectationOrigins PlacementClientMockCompleteCleanupExpectationOrigins
+	results            *PlacementClientMockCompleteCleanupResults
+	returnOrigin       string
+	Counter            uint64
+}
+
+// PlacementClientMockCompleteCleanupParams contains parameters of the PlacementClient.CompleteCleanup
+type PlacementClientMockCompleteCleanupParams struct {
+	ctx     context.Context
+	copyID  string
+	deleted bool
+	message string
+}
+
+// PlacementClientMockCompleteCleanupParamPtrs contains pointers to parameters of the PlacementClient.CompleteCleanup
+type PlacementClientMockCompleteCleanupParamPtrs struct {
+	ctx     *context.Context
+	copyID  *string
+	deleted *bool
+	message *string
+}
+
+// PlacementClientMockCompleteCleanupResults contains results of the PlacementClient.CompleteCleanup
+type PlacementClientMockCompleteCleanupResults struct {
+	err error
+}
+
+// PlacementClientMockCompleteCleanupOrigins contains origins of expectations of the PlacementClient.CompleteCleanup
+type PlacementClientMockCompleteCleanupExpectationOrigins struct {
+	origin        string
+	originCtx     string
+	originCopyID  string
+	originDeleted string
+	originMessage string
+}
+
+// Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
+// the test will fail minimock's automatic final call check if the mocked method was not called at least once.
+// Optional() makes method check to work in '0 or more' mode.
+// It is NOT RECOMMENDED to use this option unless you really need it, as default behaviour helps to
+// catch the problems when the expected method call is totally skipped during test run.
+func (mmCompleteCleanup *mPlacementClientMockCompleteCleanup) Optional() *mPlacementClientMockCompleteCleanup {
+	mmCompleteCleanup.optional = true
+	return mmCompleteCleanup
+}
+
+// Expect sets up expected params for PlacementClient.CompleteCleanup
+func (mmCompleteCleanup *mPlacementClientMockCompleteCleanup) Expect(ctx context.Context, copyID string, deleted bool, message string) *mPlacementClientMockCompleteCleanup {
+	if mmCompleteCleanup.mock.funcCompleteCleanup != nil {
+		mmCompleteCleanup.mock.t.Fatalf("PlacementClientMock.CompleteCleanup mock is already set by Set")
+	}
+
+	if mmCompleteCleanup.defaultExpectation == nil {
+		mmCompleteCleanup.defaultExpectation = &PlacementClientMockCompleteCleanupExpectation{}
+	}
+
+	if mmCompleteCleanup.defaultExpectation.paramPtrs != nil {
+		mmCompleteCleanup.mock.t.Fatalf("PlacementClientMock.CompleteCleanup mock is already set by ExpectParams functions")
+	}
+
+	mmCompleteCleanup.defaultExpectation.params = &PlacementClientMockCompleteCleanupParams{ctx, copyID, deleted, message}
+	mmCompleteCleanup.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
+	for _, e := range mmCompleteCleanup.expectations {
+		if minimock.Equal(e.params, mmCompleteCleanup.defaultExpectation.params) {
+			mmCompleteCleanup.mock.t.Fatalf("Expectation set by When has same params: %#v", *mmCompleteCleanup.defaultExpectation.params)
+		}
+	}
+
+	return mmCompleteCleanup
+}
+
+// ExpectCtxParam1 sets up expected param ctx for PlacementClient.CompleteCleanup
+func (mmCompleteCleanup *mPlacementClientMockCompleteCleanup) ExpectCtxParam1(ctx context.Context) *mPlacementClientMockCompleteCleanup {
+	if mmCompleteCleanup.mock.funcCompleteCleanup != nil {
+		mmCompleteCleanup.mock.t.Fatalf("PlacementClientMock.CompleteCleanup mock is already set by Set")
+	}
+
+	if mmCompleteCleanup.defaultExpectation == nil {
+		mmCompleteCleanup.defaultExpectation = &PlacementClientMockCompleteCleanupExpectation{}
+	}
+
+	if mmCompleteCleanup.defaultExpectation.params != nil {
+		mmCompleteCleanup.mock.t.Fatalf("PlacementClientMock.CompleteCleanup mock is already set by Expect")
+	}
+
+	if mmCompleteCleanup.defaultExpectation.paramPtrs == nil {
+		mmCompleteCleanup.defaultExpectation.paramPtrs = &PlacementClientMockCompleteCleanupParamPtrs{}
+	}
+	mmCompleteCleanup.defaultExpectation.paramPtrs.ctx = &ctx
+	mmCompleteCleanup.defaultExpectation.expectationOrigins.originCtx = minimock.CallerInfo(1)
+
+	return mmCompleteCleanup
+}
+
+// ExpectCopyIDParam2 sets up expected param copyID for PlacementClient.CompleteCleanup
+func (mmCompleteCleanup *mPlacementClientMockCompleteCleanup) ExpectCopyIDParam2(copyID string) *mPlacementClientMockCompleteCleanup {
+	if mmCompleteCleanup.mock.funcCompleteCleanup != nil {
+		mmCompleteCleanup.mock.t.Fatalf("PlacementClientMock.CompleteCleanup mock is already set by Set")
+	}
+
+	if mmCompleteCleanup.defaultExpectation == nil {
+		mmCompleteCleanup.defaultExpectation = &PlacementClientMockCompleteCleanupExpectation{}
+	}
+
+	if mmCompleteCleanup.defaultExpectation.params != nil {
+		mmCompleteCleanup.mock.t.Fatalf("PlacementClientMock.CompleteCleanup mock is already set by Expect")
+	}
+
+	if mmCompleteCleanup.defaultExpectation.paramPtrs == nil {
+		mmCompleteCleanup.defaultExpectation.paramPtrs = &PlacementClientMockCompleteCleanupParamPtrs{}
+	}
+	mmCompleteCleanup.defaultExpectation.paramPtrs.copyID = &copyID
+	mmCompleteCleanup.defaultExpectation.expectationOrigins.originCopyID = minimock.CallerInfo(1)
+
+	return mmCompleteCleanup
+}
+
+// ExpectDeletedParam3 sets up expected param deleted for PlacementClient.CompleteCleanup
+func (mmCompleteCleanup *mPlacementClientMockCompleteCleanup) ExpectDeletedParam3(deleted bool) *mPlacementClientMockCompleteCleanup {
+	if mmCompleteCleanup.mock.funcCompleteCleanup != nil {
+		mmCompleteCleanup.mock.t.Fatalf("PlacementClientMock.CompleteCleanup mock is already set by Set")
+	}
+
+	if mmCompleteCleanup.defaultExpectation == nil {
+		mmCompleteCleanup.defaultExpectation = &PlacementClientMockCompleteCleanupExpectation{}
+	}
+
+	if mmCompleteCleanup.defaultExpectation.params != nil {
+		mmCompleteCleanup.mock.t.Fatalf("PlacementClientMock.CompleteCleanup mock is already set by Expect")
+	}
+
+	if mmCompleteCleanup.defaultExpectation.paramPtrs == nil {
+		mmCompleteCleanup.defaultExpectation.paramPtrs = &PlacementClientMockCompleteCleanupParamPtrs{}
+	}
+	mmCompleteCleanup.defaultExpectation.paramPtrs.deleted = &deleted
+	mmCompleteCleanup.defaultExpectation.expectationOrigins.originDeleted = minimock.CallerInfo(1)
+
+	return mmCompleteCleanup
+}
+
+// ExpectMessageParam4 sets up expected param message for PlacementClient.CompleteCleanup
+func (mmCompleteCleanup *mPlacementClientMockCompleteCleanup) ExpectMessageParam4(message string) *mPlacementClientMockCompleteCleanup {
+	if mmCompleteCleanup.mock.funcCompleteCleanup != nil {
+		mmCompleteCleanup.mock.t.Fatalf("PlacementClientMock.CompleteCleanup mock is already set by Set")
+	}
+
+	if mmCompleteCleanup.defaultExpectation == nil {
+		mmCompleteCleanup.defaultExpectation = &PlacementClientMockCompleteCleanupExpectation{}
+	}
+
+	if mmCompleteCleanup.defaultExpectation.params != nil {
+		mmCompleteCleanup.mock.t.Fatalf("PlacementClientMock.CompleteCleanup mock is already set by Expect")
+	}
+
+	if mmCompleteCleanup.defaultExpectation.paramPtrs == nil {
+		mmCompleteCleanup.defaultExpectation.paramPtrs = &PlacementClientMockCompleteCleanupParamPtrs{}
+	}
+	mmCompleteCleanup.defaultExpectation.paramPtrs.message = &message
+	mmCompleteCleanup.defaultExpectation.expectationOrigins.originMessage = minimock.CallerInfo(1)
+
+	return mmCompleteCleanup
+}
+
+// Inspect accepts an inspector function that has same arguments as the PlacementClient.CompleteCleanup
+func (mmCompleteCleanup *mPlacementClientMockCompleteCleanup) Inspect(f func(ctx context.Context, copyID string, deleted bool, message string)) *mPlacementClientMockCompleteCleanup {
+	if mmCompleteCleanup.mock.inspectFuncCompleteCleanup != nil {
+		mmCompleteCleanup.mock.t.Fatalf("Inspect function is already set for PlacementClientMock.CompleteCleanup")
+	}
+
+	mmCompleteCleanup.mock.inspectFuncCompleteCleanup = f
+
+	return mmCompleteCleanup
+}
+
+// Return sets up results that will be returned by PlacementClient.CompleteCleanup
+func (mmCompleteCleanup *mPlacementClientMockCompleteCleanup) Return(err error) *PlacementClientMock {
+	if mmCompleteCleanup.mock.funcCompleteCleanup != nil {
+		mmCompleteCleanup.mock.t.Fatalf("PlacementClientMock.CompleteCleanup mock is already set by Set")
+	}
+
+	if mmCompleteCleanup.defaultExpectation == nil {
+		mmCompleteCleanup.defaultExpectation = &PlacementClientMockCompleteCleanupExpectation{mock: mmCompleteCleanup.mock}
+	}
+	mmCompleteCleanup.defaultExpectation.results = &PlacementClientMockCompleteCleanupResults{err}
+	mmCompleteCleanup.defaultExpectation.returnOrigin = minimock.CallerInfo(1)
+	return mmCompleteCleanup.mock
+}
+
+// Set uses given function f to mock the PlacementClient.CompleteCleanup method
+func (mmCompleteCleanup *mPlacementClientMockCompleteCleanup) Set(f func(ctx context.Context, copyID string, deleted bool, message string) (err error)) *PlacementClientMock {
+	if mmCompleteCleanup.defaultExpectation != nil {
+		mmCompleteCleanup.mock.t.Fatalf("Default expectation is already set for the PlacementClient.CompleteCleanup method")
+	}
+
+	if len(mmCompleteCleanup.expectations) > 0 {
+		mmCompleteCleanup.mock.t.Fatalf("Some expectations are already set for the PlacementClient.CompleteCleanup method")
+	}
+
+	mmCompleteCleanup.mock.funcCompleteCleanup = f
+	mmCompleteCleanup.mock.funcCompleteCleanupOrigin = minimock.CallerInfo(1)
+	return mmCompleteCleanup.mock
+}
+
+// When sets expectation for the PlacementClient.CompleteCleanup which will trigger the result defined by the following
+// Then helper
+func (mmCompleteCleanup *mPlacementClientMockCompleteCleanup) When(ctx context.Context, copyID string, deleted bool, message string) *PlacementClientMockCompleteCleanupExpectation {
+	if mmCompleteCleanup.mock.funcCompleteCleanup != nil {
+		mmCompleteCleanup.mock.t.Fatalf("PlacementClientMock.CompleteCleanup mock is already set by Set")
+	}
+
+	expectation := &PlacementClientMockCompleteCleanupExpectation{
+		mock:               mmCompleteCleanup.mock,
+		params:             &PlacementClientMockCompleteCleanupParams{ctx, copyID, deleted, message},
+		expectationOrigins: PlacementClientMockCompleteCleanupExpectationOrigins{origin: minimock.CallerInfo(1)},
+	}
+	mmCompleteCleanup.expectations = append(mmCompleteCleanup.expectations, expectation)
+	return expectation
+}
+
+// Then sets up PlacementClient.CompleteCleanup return parameters for the expectation previously defined by the When method
+func (e *PlacementClientMockCompleteCleanupExpectation) Then(err error) *PlacementClientMock {
+	e.results = &PlacementClientMockCompleteCleanupResults{err}
+	return e.mock
+}
+
+// Times sets number of times PlacementClient.CompleteCleanup should be invoked
+func (mmCompleteCleanup *mPlacementClientMockCompleteCleanup) Times(n uint64) *mPlacementClientMockCompleteCleanup {
+	if n == 0 {
+		mmCompleteCleanup.mock.t.Fatalf("Times of PlacementClientMock.CompleteCleanup mock can not be zero")
+	}
+	mm_atomic.StoreUint64(&mmCompleteCleanup.expectedInvocations, n)
+	mmCompleteCleanup.expectedInvocationsOrigin = minimock.CallerInfo(1)
+	return mmCompleteCleanup
+}
+
+func (mmCompleteCleanup *mPlacementClientMockCompleteCleanup) invocationsDone() bool {
+	if len(mmCompleteCleanup.expectations) == 0 && mmCompleteCleanup.defaultExpectation == nil && mmCompleteCleanup.mock.funcCompleteCleanup == nil {
+		return true
+	}
+
+	totalInvocations := mm_atomic.LoadUint64(&mmCompleteCleanup.mock.afterCompleteCleanupCounter)
+	expectedInvocations := mm_atomic.LoadUint64(&mmCompleteCleanup.expectedInvocations)
+
+	return totalInvocations > 0 && (expectedInvocations == 0 || expectedInvocations == totalInvocations)
+}
+
+// CompleteCleanup implements mm_client.PlacementClient
+func (mmCompleteCleanup *PlacementClientMock) CompleteCleanup(ctx context.Context, copyID string, deleted bool, message string) (err error) {
+	mm_atomic.AddUint64(&mmCompleteCleanup.beforeCompleteCleanupCounter, 1)
+	defer mm_atomic.AddUint64(&mmCompleteCleanup.afterCompleteCleanupCounter, 1)
+
+	mmCompleteCleanup.t.Helper()
+
+	if mmCompleteCleanup.inspectFuncCompleteCleanup != nil {
+		mmCompleteCleanup.inspectFuncCompleteCleanup(ctx, copyID, deleted, message)
+	}
+
+	mm_params := PlacementClientMockCompleteCleanupParams{ctx, copyID, deleted, message}
+
+	// Record call args
+	mmCompleteCleanup.CompleteCleanupMock.mutex.Lock()
+	mmCompleteCleanup.CompleteCleanupMock.callArgs = append(mmCompleteCleanup.CompleteCleanupMock.callArgs, &mm_params)
+	mmCompleteCleanup.CompleteCleanupMock.mutex.Unlock()
+
+	for _, e := range mmCompleteCleanup.CompleteCleanupMock.expectations {
+		if minimock.Equal(*e.params, mm_params) {
+			mm_atomic.AddUint64(&e.Counter, 1)
+			return e.results.err
+		}
+	}
+
+	if mmCompleteCleanup.CompleteCleanupMock.defaultExpectation != nil {
+		mm_atomic.AddUint64(&mmCompleteCleanup.CompleteCleanupMock.defaultExpectation.Counter, 1)
+		mm_want := mmCompleteCleanup.CompleteCleanupMock.defaultExpectation.params
+		mm_want_ptrs := mmCompleteCleanup.CompleteCleanupMock.defaultExpectation.paramPtrs
+
+		mm_got := PlacementClientMockCompleteCleanupParams{ctx, copyID, deleted, message}
+
+		if mm_want_ptrs != nil {
+
+			if mm_want_ptrs.ctx != nil && !minimock.Equal(*mm_want_ptrs.ctx, mm_got.ctx) {
+				mmCompleteCleanup.t.Errorf("PlacementClientMock.CompleteCleanup got unexpected parameter ctx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmCompleteCleanup.CompleteCleanupMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
+			}
+
+			if mm_want_ptrs.copyID != nil && !minimock.Equal(*mm_want_ptrs.copyID, mm_got.copyID) {
+				mmCompleteCleanup.t.Errorf("PlacementClientMock.CompleteCleanup got unexpected parameter copyID, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmCompleteCleanup.CompleteCleanupMock.defaultExpectation.expectationOrigins.originCopyID, *mm_want_ptrs.copyID, mm_got.copyID, minimock.Diff(*mm_want_ptrs.copyID, mm_got.copyID))
+			}
+
+			if mm_want_ptrs.deleted != nil && !minimock.Equal(*mm_want_ptrs.deleted, mm_got.deleted) {
+				mmCompleteCleanup.t.Errorf("PlacementClientMock.CompleteCleanup got unexpected parameter deleted, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmCompleteCleanup.CompleteCleanupMock.defaultExpectation.expectationOrigins.originDeleted, *mm_want_ptrs.deleted, mm_got.deleted, minimock.Diff(*mm_want_ptrs.deleted, mm_got.deleted))
+			}
+
+			if mm_want_ptrs.message != nil && !minimock.Equal(*mm_want_ptrs.message, mm_got.message) {
+				mmCompleteCleanup.t.Errorf("PlacementClientMock.CompleteCleanup got unexpected parameter message, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmCompleteCleanup.CompleteCleanupMock.defaultExpectation.expectationOrigins.originMessage, *mm_want_ptrs.message, mm_got.message, minimock.Diff(*mm_want_ptrs.message, mm_got.message))
+			}
+
+		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
+			mmCompleteCleanup.t.Errorf("PlacementClientMock.CompleteCleanup got unexpected parameters, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+				mmCompleteCleanup.CompleteCleanupMock.defaultExpectation.expectationOrigins.origin, *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
+		}
+
+		mm_results := mmCompleteCleanup.CompleteCleanupMock.defaultExpectation.results
+		if mm_results == nil {
+			mmCompleteCleanup.t.Fatal("No results are set for the PlacementClientMock.CompleteCleanup")
+		}
+		return (*mm_results).err
+	}
+	if mmCompleteCleanup.funcCompleteCleanup != nil {
+		return mmCompleteCleanup.funcCompleteCleanup(ctx, copyID, deleted, message)
+	}
+	mmCompleteCleanup.t.Fatalf("Unexpected call to PlacementClientMock.CompleteCleanup. %v %v %v %v", ctx, copyID, deleted, message)
+	return
+}
+
+// CompleteCleanupAfterCounter returns a count of finished PlacementClientMock.CompleteCleanup invocations
+func (mmCompleteCleanup *PlacementClientMock) CompleteCleanupAfterCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmCompleteCleanup.afterCompleteCleanupCounter)
+}
+
+// CompleteCleanupBeforeCounter returns a count of PlacementClientMock.CompleteCleanup invocations
+func (mmCompleteCleanup *PlacementClientMock) CompleteCleanupBeforeCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmCompleteCleanup.beforeCompleteCleanupCounter)
+}
+
+// Calls returns a list of arguments used in each call to PlacementClientMock.CompleteCleanup.
+// The list is in the same order as the calls were made (i.e. recent calls have a higher index)
+func (mmCompleteCleanup *mPlacementClientMockCompleteCleanup) Calls() []*PlacementClientMockCompleteCleanupParams {
+	mmCompleteCleanup.mutex.RLock()
+
+	argCopy := make([]*PlacementClientMockCompleteCleanupParams, len(mmCompleteCleanup.callArgs))
+	copy(argCopy, mmCompleteCleanup.callArgs)
+
+	mmCompleteCleanup.mutex.RUnlock()
+
+	return argCopy
+}
+
+// MinimockCompleteCleanupDone returns true if the count of the CompleteCleanup invocations corresponds
+// the number of defined expectations
+func (m *PlacementClientMock) MinimockCompleteCleanupDone() bool {
+	if m.CompleteCleanupMock.optional {
+		// Optional methods provide '0 or more' call count restriction.
+		return true
+	}
+
+	for _, e := range m.CompleteCleanupMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			return false
+		}
+	}
+
+	return m.CompleteCleanupMock.invocationsDone()
+}
+
+// MinimockCompleteCleanupInspect logs each unmet expectation
+func (m *PlacementClientMock) MinimockCompleteCleanupInspect() {
+	for _, e := range m.CompleteCleanupMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			m.t.Errorf("Expected call to PlacementClientMock.CompleteCleanup at\n%s with params: %#v", e.expectationOrigins.origin, *e.params)
+		}
+	}
+
+	afterCompleteCleanupCounter := mm_atomic.LoadUint64(&m.afterCompleteCleanupCounter)
+	// if default expectation was set then invocations count should be greater than zero
+	if m.CompleteCleanupMock.defaultExpectation != nil && afterCompleteCleanupCounter < 1 {
+		if m.CompleteCleanupMock.defaultExpectation.params == nil {
+			m.t.Errorf("Expected call to PlacementClientMock.CompleteCleanup at\n%s", m.CompleteCleanupMock.defaultExpectation.returnOrigin)
+		} else {
+			m.t.Errorf("Expected call to PlacementClientMock.CompleteCleanup at\n%s with params: %#v", m.CompleteCleanupMock.defaultExpectation.expectationOrigins.origin, *m.CompleteCleanupMock.defaultExpectation.params)
+		}
+	}
+	// if func was set then invocations count should be greater than zero
+	if m.funcCompleteCleanup != nil && afterCompleteCleanupCounter < 1 {
+		m.t.Errorf("Expected call to PlacementClientMock.CompleteCleanup at\n%s", m.funcCompleteCleanupOrigin)
+	}
+
+	if !m.CompleteCleanupMock.invocationsDone() && afterCompleteCleanupCounter > 0 {
+		m.t.Errorf("Expected %d calls to PlacementClientMock.CompleteCleanup at\n%s but found %d calls",
+			mm_atomic.LoadUint64(&m.CompleteCleanupMock.expectedInvocations), m.CompleteCleanupMock.expectedInvocationsOrigin, afterCompleteCleanupCounter)
+	}
+}
+
 type mPlacementClientMockGetPlacement struct {
 	optional           bool
 	mock               *PlacementClientMock
@@ -796,6 +1220,349 @@ func (m *PlacementClientMock) MinimockGetPlacementInspect() {
 	if !m.GetPlacementMock.invocationsDone() && afterGetPlacementCounter > 0 {
 		m.t.Errorf("Expected %d calls to PlacementClientMock.GetPlacement at\n%s but found %d calls",
 			mm_atomic.LoadUint64(&m.GetPlacementMock.expectedInvocations), m.GetPlacementMock.expectedInvocationsOrigin, afterGetPlacementCounter)
+	}
+}
+
+type mPlacementClientMockListDueCleanups struct {
+	optional           bool
+	mock               *PlacementClientMock
+	defaultExpectation *PlacementClientMockListDueCleanupsExpectation
+	expectations       []*PlacementClientMockListDueCleanupsExpectation
+
+	callArgs []*PlacementClientMockListDueCleanupsParams
+	mutex    sync.RWMutex
+
+	expectedInvocations       uint64
+	expectedInvocationsOrigin string
+}
+
+// PlacementClientMockListDueCleanupsExpectation specifies expectation struct of the PlacementClient.ListDueCleanups
+type PlacementClientMockListDueCleanupsExpectation struct {
+	mock               *PlacementClientMock
+	params             *PlacementClientMockListDueCleanupsParams
+	paramPtrs          *PlacementClientMockListDueCleanupsParamPtrs
+	expectationOrigins PlacementClientMockListDueCleanupsExpectationOrigins
+	results            *PlacementClientMockListDueCleanupsResults
+	returnOrigin       string
+	Counter            uint64
+}
+
+// PlacementClientMockListDueCleanupsParams contains parameters of the PlacementClient.ListDueCleanups
+type PlacementClientMockListDueCleanupsParams struct {
+	ctx   context.Context
+	limit int32
+}
+
+// PlacementClientMockListDueCleanupsParamPtrs contains pointers to parameters of the PlacementClient.ListDueCleanups
+type PlacementClientMockListDueCleanupsParamPtrs struct {
+	ctx   *context.Context
+	limit *int32
+}
+
+// PlacementClientMockListDueCleanupsResults contains results of the PlacementClient.ListDueCleanups
+type PlacementClientMockListDueCleanupsResults struct {
+	pa1 []model.PlacementCopy
+	err error
+}
+
+// PlacementClientMockListDueCleanupsOrigins contains origins of expectations of the PlacementClient.ListDueCleanups
+type PlacementClientMockListDueCleanupsExpectationOrigins struct {
+	origin      string
+	originCtx   string
+	originLimit string
+}
+
+// Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
+// the test will fail minimock's automatic final call check if the mocked method was not called at least once.
+// Optional() makes method check to work in '0 or more' mode.
+// It is NOT RECOMMENDED to use this option unless you really need it, as default behaviour helps to
+// catch the problems when the expected method call is totally skipped during test run.
+func (mmListDueCleanups *mPlacementClientMockListDueCleanups) Optional() *mPlacementClientMockListDueCleanups {
+	mmListDueCleanups.optional = true
+	return mmListDueCleanups
+}
+
+// Expect sets up expected params for PlacementClient.ListDueCleanups
+func (mmListDueCleanups *mPlacementClientMockListDueCleanups) Expect(ctx context.Context, limit int32) *mPlacementClientMockListDueCleanups {
+	if mmListDueCleanups.mock.funcListDueCleanups != nil {
+		mmListDueCleanups.mock.t.Fatalf("PlacementClientMock.ListDueCleanups mock is already set by Set")
+	}
+
+	if mmListDueCleanups.defaultExpectation == nil {
+		mmListDueCleanups.defaultExpectation = &PlacementClientMockListDueCleanupsExpectation{}
+	}
+
+	if mmListDueCleanups.defaultExpectation.paramPtrs != nil {
+		mmListDueCleanups.mock.t.Fatalf("PlacementClientMock.ListDueCleanups mock is already set by ExpectParams functions")
+	}
+
+	mmListDueCleanups.defaultExpectation.params = &PlacementClientMockListDueCleanupsParams{ctx, limit}
+	mmListDueCleanups.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
+	for _, e := range mmListDueCleanups.expectations {
+		if minimock.Equal(e.params, mmListDueCleanups.defaultExpectation.params) {
+			mmListDueCleanups.mock.t.Fatalf("Expectation set by When has same params: %#v", *mmListDueCleanups.defaultExpectation.params)
+		}
+	}
+
+	return mmListDueCleanups
+}
+
+// ExpectCtxParam1 sets up expected param ctx for PlacementClient.ListDueCleanups
+func (mmListDueCleanups *mPlacementClientMockListDueCleanups) ExpectCtxParam1(ctx context.Context) *mPlacementClientMockListDueCleanups {
+	if mmListDueCleanups.mock.funcListDueCleanups != nil {
+		mmListDueCleanups.mock.t.Fatalf("PlacementClientMock.ListDueCleanups mock is already set by Set")
+	}
+
+	if mmListDueCleanups.defaultExpectation == nil {
+		mmListDueCleanups.defaultExpectation = &PlacementClientMockListDueCleanupsExpectation{}
+	}
+
+	if mmListDueCleanups.defaultExpectation.params != nil {
+		mmListDueCleanups.mock.t.Fatalf("PlacementClientMock.ListDueCleanups mock is already set by Expect")
+	}
+
+	if mmListDueCleanups.defaultExpectation.paramPtrs == nil {
+		mmListDueCleanups.defaultExpectation.paramPtrs = &PlacementClientMockListDueCleanupsParamPtrs{}
+	}
+	mmListDueCleanups.defaultExpectation.paramPtrs.ctx = &ctx
+	mmListDueCleanups.defaultExpectation.expectationOrigins.originCtx = minimock.CallerInfo(1)
+
+	return mmListDueCleanups
+}
+
+// ExpectLimitParam2 sets up expected param limit for PlacementClient.ListDueCleanups
+func (mmListDueCleanups *mPlacementClientMockListDueCleanups) ExpectLimitParam2(limit int32) *mPlacementClientMockListDueCleanups {
+	if mmListDueCleanups.mock.funcListDueCleanups != nil {
+		mmListDueCleanups.mock.t.Fatalf("PlacementClientMock.ListDueCleanups mock is already set by Set")
+	}
+
+	if mmListDueCleanups.defaultExpectation == nil {
+		mmListDueCleanups.defaultExpectation = &PlacementClientMockListDueCleanupsExpectation{}
+	}
+
+	if mmListDueCleanups.defaultExpectation.params != nil {
+		mmListDueCleanups.mock.t.Fatalf("PlacementClientMock.ListDueCleanups mock is already set by Expect")
+	}
+
+	if mmListDueCleanups.defaultExpectation.paramPtrs == nil {
+		mmListDueCleanups.defaultExpectation.paramPtrs = &PlacementClientMockListDueCleanupsParamPtrs{}
+	}
+	mmListDueCleanups.defaultExpectation.paramPtrs.limit = &limit
+	mmListDueCleanups.defaultExpectation.expectationOrigins.originLimit = minimock.CallerInfo(1)
+
+	return mmListDueCleanups
+}
+
+// Inspect accepts an inspector function that has same arguments as the PlacementClient.ListDueCleanups
+func (mmListDueCleanups *mPlacementClientMockListDueCleanups) Inspect(f func(ctx context.Context, limit int32)) *mPlacementClientMockListDueCleanups {
+	if mmListDueCleanups.mock.inspectFuncListDueCleanups != nil {
+		mmListDueCleanups.mock.t.Fatalf("Inspect function is already set for PlacementClientMock.ListDueCleanups")
+	}
+
+	mmListDueCleanups.mock.inspectFuncListDueCleanups = f
+
+	return mmListDueCleanups
+}
+
+// Return sets up results that will be returned by PlacementClient.ListDueCleanups
+func (mmListDueCleanups *mPlacementClientMockListDueCleanups) Return(pa1 []model.PlacementCopy, err error) *PlacementClientMock {
+	if mmListDueCleanups.mock.funcListDueCleanups != nil {
+		mmListDueCleanups.mock.t.Fatalf("PlacementClientMock.ListDueCleanups mock is already set by Set")
+	}
+
+	if mmListDueCleanups.defaultExpectation == nil {
+		mmListDueCleanups.defaultExpectation = &PlacementClientMockListDueCleanupsExpectation{mock: mmListDueCleanups.mock}
+	}
+	mmListDueCleanups.defaultExpectation.results = &PlacementClientMockListDueCleanupsResults{pa1, err}
+	mmListDueCleanups.defaultExpectation.returnOrigin = minimock.CallerInfo(1)
+	return mmListDueCleanups.mock
+}
+
+// Set uses given function f to mock the PlacementClient.ListDueCleanups method
+func (mmListDueCleanups *mPlacementClientMockListDueCleanups) Set(f func(ctx context.Context, limit int32) (pa1 []model.PlacementCopy, err error)) *PlacementClientMock {
+	if mmListDueCleanups.defaultExpectation != nil {
+		mmListDueCleanups.mock.t.Fatalf("Default expectation is already set for the PlacementClient.ListDueCleanups method")
+	}
+
+	if len(mmListDueCleanups.expectations) > 0 {
+		mmListDueCleanups.mock.t.Fatalf("Some expectations are already set for the PlacementClient.ListDueCleanups method")
+	}
+
+	mmListDueCleanups.mock.funcListDueCleanups = f
+	mmListDueCleanups.mock.funcListDueCleanupsOrigin = minimock.CallerInfo(1)
+	return mmListDueCleanups.mock
+}
+
+// When sets expectation for the PlacementClient.ListDueCleanups which will trigger the result defined by the following
+// Then helper
+func (mmListDueCleanups *mPlacementClientMockListDueCleanups) When(ctx context.Context, limit int32) *PlacementClientMockListDueCleanupsExpectation {
+	if mmListDueCleanups.mock.funcListDueCleanups != nil {
+		mmListDueCleanups.mock.t.Fatalf("PlacementClientMock.ListDueCleanups mock is already set by Set")
+	}
+
+	expectation := &PlacementClientMockListDueCleanupsExpectation{
+		mock:               mmListDueCleanups.mock,
+		params:             &PlacementClientMockListDueCleanupsParams{ctx, limit},
+		expectationOrigins: PlacementClientMockListDueCleanupsExpectationOrigins{origin: minimock.CallerInfo(1)},
+	}
+	mmListDueCleanups.expectations = append(mmListDueCleanups.expectations, expectation)
+	return expectation
+}
+
+// Then sets up PlacementClient.ListDueCleanups return parameters for the expectation previously defined by the When method
+func (e *PlacementClientMockListDueCleanupsExpectation) Then(pa1 []model.PlacementCopy, err error) *PlacementClientMock {
+	e.results = &PlacementClientMockListDueCleanupsResults{pa1, err}
+	return e.mock
+}
+
+// Times sets number of times PlacementClient.ListDueCleanups should be invoked
+func (mmListDueCleanups *mPlacementClientMockListDueCleanups) Times(n uint64) *mPlacementClientMockListDueCleanups {
+	if n == 0 {
+		mmListDueCleanups.mock.t.Fatalf("Times of PlacementClientMock.ListDueCleanups mock can not be zero")
+	}
+	mm_atomic.StoreUint64(&mmListDueCleanups.expectedInvocations, n)
+	mmListDueCleanups.expectedInvocationsOrigin = minimock.CallerInfo(1)
+	return mmListDueCleanups
+}
+
+func (mmListDueCleanups *mPlacementClientMockListDueCleanups) invocationsDone() bool {
+	if len(mmListDueCleanups.expectations) == 0 && mmListDueCleanups.defaultExpectation == nil && mmListDueCleanups.mock.funcListDueCleanups == nil {
+		return true
+	}
+
+	totalInvocations := mm_atomic.LoadUint64(&mmListDueCleanups.mock.afterListDueCleanupsCounter)
+	expectedInvocations := mm_atomic.LoadUint64(&mmListDueCleanups.expectedInvocations)
+
+	return totalInvocations > 0 && (expectedInvocations == 0 || expectedInvocations == totalInvocations)
+}
+
+// ListDueCleanups implements mm_client.PlacementClient
+func (mmListDueCleanups *PlacementClientMock) ListDueCleanups(ctx context.Context, limit int32) (pa1 []model.PlacementCopy, err error) {
+	mm_atomic.AddUint64(&mmListDueCleanups.beforeListDueCleanupsCounter, 1)
+	defer mm_atomic.AddUint64(&mmListDueCleanups.afterListDueCleanupsCounter, 1)
+
+	mmListDueCleanups.t.Helper()
+
+	if mmListDueCleanups.inspectFuncListDueCleanups != nil {
+		mmListDueCleanups.inspectFuncListDueCleanups(ctx, limit)
+	}
+
+	mm_params := PlacementClientMockListDueCleanupsParams{ctx, limit}
+
+	// Record call args
+	mmListDueCleanups.ListDueCleanupsMock.mutex.Lock()
+	mmListDueCleanups.ListDueCleanupsMock.callArgs = append(mmListDueCleanups.ListDueCleanupsMock.callArgs, &mm_params)
+	mmListDueCleanups.ListDueCleanupsMock.mutex.Unlock()
+
+	for _, e := range mmListDueCleanups.ListDueCleanupsMock.expectations {
+		if minimock.Equal(*e.params, mm_params) {
+			mm_atomic.AddUint64(&e.Counter, 1)
+			return e.results.pa1, e.results.err
+		}
+	}
+
+	if mmListDueCleanups.ListDueCleanupsMock.defaultExpectation != nil {
+		mm_atomic.AddUint64(&mmListDueCleanups.ListDueCleanupsMock.defaultExpectation.Counter, 1)
+		mm_want := mmListDueCleanups.ListDueCleanupsMock.defaultExpectation.params
+		mm_want_ptrs := mmListDueCleanups.ListDueCleanupsMock.defaultExpectation.paramPtrs
+
+		mm_got := PlacementClientMockListDueCleanupsParams{ctx, limit}
+
+		if mm_want_ptrs != nil {
+
+			if mm_want_ptrs.ctx != nil && !minimock.Equal(*mm_want_ptrs.ctx, mm_got.ctx) {
+				mmListDueCleanups.t.Errorf("PlacementClientMock.ListDueCleanups got unexpected parameter ctx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmListDueCleanups.ListDueCleanupsMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
+			}
+
+			if mm_want_ptrs.limit != nil && !minimock.Equal(*mm_want_ptrs.limit, mm_got.limit) {
+				mmListDueCleanups.t.Errorf("PlacementClientMock.ListDueCleanups got unexpected parameter limit, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmListDueCleanups.ListDueCleanupsMock.defaultExpectation.expectationOrigins.originLimit, *mm_want_ptrs.limit, mm_got.limit, minimock.Diff(*mm_want_ptrs.limit, mm_got.limit))
+			}
+
+		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
+			mmListDueCleanups.t.Errorf("PlacementClientMock.ListDueCleanups got unexpected parameters, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+				mmListDueCleanups.ListDueCleanupsMock.defaultExpectation.expectationOrigins.origin, *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
+		}
+
+		mm_results := mmListDueCleanups.ListDueCleanupsMock.defaultExpectation.results
+		if mm_results == nil {
+			mmListDueCleanups.t.Fatal("No results are set for the PlacementClientMock.ListDueCleanups")
+		}
+		return (*mm_results).pa1, (*mm_results).err
+	}
+	if mmListDueCleanups.funcListDueCleanups != nil {
+		return mmListDueCleanups.funcListDueCleanups(ctx, limit)
+	}
+	mmListDueCleanups.t.Fatalf("Unexpected call to PlacementClientMock.ListDueCleanups. %v %v", ctx, limit)
+	return
+}
+
+// ListDueCleanupsAfterCounter returns a count of finished PlacementClientMock.ListDueCleanups invocations
+func (mmListDueCleanups *PlacementClientMock) ListDueCleanupsAfterCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmListDueCleanups.afterListDueCleanupsCounter)
+}
+
+// ListDueCleanupsBeforeCounter returns a count of PlacementClientMock.ListDueCleanups invocations
+func (mmListDueCleanups *PlacementClientMock) ListDueCleanupsBeforeCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmListDueCleanups.beforeListDueCleanupsCounter)
+}
+
+// Calls returns a list of arguments used in each call to PlacementClientMock.ListDueCleanups.
+// The list is in the same order as the calls were made (i.e. recent calls have a higher index)
+func (mmListDueCleanups *mPlacementClientMockListDueCleanups) Calls() []*PlacementClientMockListDueCleanupsParams {
+	mmListDueCleanups.mutex.RLock()
+
+	argCopy := make([]*PlacementClientMockListDueCleanupsParams, len(mmListDueCleanups.callArgs))
+	copy(argCopy, mmListDueCleanups.callArgs)
+
+	mmListDueCleanups.mutex.RUnlock()
+
+	return argCopy
+}
+
+// MinimockListDueCleanupsDone returns true if the count of the ListDueCleanups invocations corresponds
+// the number of defined expectations
+func (m *PlacementClientMock) MinimockListDueCleanupsDone() bool {
+	if m.ListDueCleanupsMock.optional {
+		// Optional methods provide '0 or more' call count restriction.
+		return true
+	}
+
+	for _, e := range m.ListDueCleanupsMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			return false
+		}
+	}
+
+	return m.ListDueCleanupsMock.invocationsDone()
+}
+
+// MinimockListDueCleanupsInspect logs each unmet expectation
+func (m *PlacementClientMock) MinimockListDueCleanupsInspect() {
+	for _, e := range m.ListDueCleanupsMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			m.t.Errorf("Expected call to PlacementClientMock.ListDueCleanups at\n%s with params: %#v", e.expectationOrigins.origin, *e.params)
+		}
+	}
+
+	afterListDueCleanupsCounter := mm_atomic.LoadUint64(&m.afterListDueCleanupsCounter)
+	// if default expectation was set then invocations count should be greater than zero
+	if m.ListDueCleanupsMock.defaultExpectation != nil && afterListDueCleanupsCounter < 1 {
+		if m.ListDueCleanupsMock.defaultExpectation.params == nil {
+			m.t.Errorf("Expected call to PlacementClientMock.ListDueCleanups at\n%s", m.ListDueCleanupsMock.defaultExpectation.returnOrigin)
+		} else {
+			m.t.Errorf("Expected call to PlacementClientMock.ListDueCleanups at\n%s with params: %#v", m.ListDueCleanupsMock.defaultExpectation.expectationOrigins.origin, *m.ListDueCleanupsMock.defaultExpectation.params)
+		}
+	}
+	// if func was set then invocations count should be greater than zero
+	if m.funcListDueCleanups != nil && afterListDueCleanupsCounter < 1 {
+		m.t.Errorf("Expected call to PlacementClientMock.ListDueCleanups at\n%s", m.funcListDueCleanupsOrigin)
+	}
+
+	if !m.ListDueCleanupsMock.invocationsDone() && afterListDueCleanupsCounter > 0 {
+		m.t.Errorf("Expected %d calls to PlacementClientMock.ListDueCleanups at\n%s but found %d calls",
+			mm_atomic.LoadUint64(&m.ListDueCleanupsMock.expectedInvocations), m.ListDueCleanupsMock.expectedInvocationsOrigin, afterListDueCleanupsCounter)
 	}
 }
 
@@ -1833,7 +2600,11 @@ func (m *PlacementClientMock) MinimockFinish() {
 		if !m.minimockDone() {
 			m.MinimockAbortCopyInspect()
 
+			m.MinimockCompleteCleanupInspect()
+
 			m.MinimockGetPlacementInspect()
+
+			m.MinimockListDueCleanupsInspect()
 
 			m.MinimockListMigrationCopiesInspect()
 
@@ -1864,7 +2635,9 @@ func (m *PlacementClientMock) minimockDone() bool {
 	done := true
 	return done &&
 		m.MinimockAbortCopyDone() &&
+		m.MinimockCompleteCleanupDone() &&
 		m.MinimockGetPlacementDone() &&
+		m.MinimockListDueCleanupsDone() &&
 		m.MinimockListMigrationCopiesDone() &&
 		m.MinimockReserveCopyDone() &&
 		m.MinimockSwitchPlacementDone()

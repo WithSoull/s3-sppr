@@ -43,3 +43,15 @@ type MigrationExecutor interface {
 	// it has to wait; it reports whether there was an action to process.
 	Step(ctx context.Context) (bool, error)
 }
+
+type MigrationCleanup interface {
+	Run(ctx context.Context) error
+	Step(ctx context.Context) error
+}
+
+type MigrationObserver interface {
+	Actions(ctx context.Context, outcome, reason string, count int64)
+	Copied(ctx context.Context, targetClass string, bytes int64)
+	Duration(ctx context.Context, elapsed time.Duration)
+	Cleanup(ctx context.Context, outcome string)
+}

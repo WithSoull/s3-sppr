@@ -35,6 +35,7 @@ func (s *migrationService) SubmitActions(ctx context.Context, planID string, spe
 	}
 
 	result := model.SubmitResult{Accepted: []string{}, Existing: []string{}}
+	var cancelled []string
 	err = s.tx.ReadCommitted(ctx, func(ctx context.Context) error {
 		result = model.SubmitResult{Accepted: []string{}, Existing: []string{}}
 		known, err := s.actions.GetMany(ctx, append(ids, outside...))
@@ -75,7 +76,7 @@ func (s *migrationService) SubmitActions(ctx context.Context, planID string, spe
 		if len(unsuccessfulDeps) == 0 {
 			return nil
 		}
-		_, err = s.actions.CancelDependents(ctx, unsuccessfulDeps)
+		cancelled, err = s.actions.CancelDependents(ctx, unsuccessfulDeps)
 		return err
 	})
 	var pgErr *pgconn.PgError
@@ -84,6 +85,9 @@ func (s *migrationService) SubmitActions(ctx context.Context, planID string, spe
 	}
 	if err != nil {
 		return model.SubmitResult{}, err
+	}
+	if s.observer != nil && len(cancelled) > 0 {
+		s.observer.Actions(ctx, string(model.ActionCancelled), string(model.ReasonDependencyFailed), int64(len(cancelled)))
 	}
 	return result, nil
 }

@@ -236,3 +236,12 @@ down-volumes:
 rebuild:
 	docker compose --profile services build --no-cache
 	docker compose --profile services up -d
+
+.PHONY: smoke-migration smoke-migration-local
+# Requires SPPR with MIGRATION_ENABLED=true and a dedicated Gateway stand.
+smoke-migration:
+	go run ./services/sppr/cmd/smoke-migration $(SMOKE_MIGRATION_ARGS)
+
+smoke-migration-local:
+	GATEWAY_MAX_READ_DURATION=2s MIGRATION_SOURCE_CLEANUP_DELAY=5s METADATA_DELETE_CLEANUP_DELAY=5s MIGRATION_CLEANUP_INTERVAL=250ms $(MAKE) up-sppr-migration
+	$(MAKE) smoke-migration

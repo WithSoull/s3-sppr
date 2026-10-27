@@ -144,6 +144,9 @@ func (e *executor) copyAndSwitch(ctx context.Context, a *model.Action, target mo
 	backoff := e.cfg.RetryBackoff
 	for attempt := 1; ; attempt++ {
 		copied = copyBlob(ctx, source, p.BlobID, sink, target.BlobID, p.SizeBytes)
+		if e.observer != nil {
+			e.observer.Copied(ctx, string(target.Class), copied.bytes)
+		}
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}

@@ -18,9 +18,8 @@ import (
 
 const classObjectSize = 1<<20 + 7
 
-// storageClasses checks HOT/COLD routing on the real services. Until the
-// migration executor exists, it moves one version to HOT by hand through the
-// same PlacementService protocol the executor will use.
+// storageClasses keeps Gateway routing and the Metadata protocol independently
+// testable without SPPR. Executor orchestration is checked by smoke-migration.
 func storageClasses(ctx context.Context, httpClient *http.Client, gateway, bucket string, metaConn, hotConn, coldConn *grpc.ClientConn) error {
 	meta := metadatav1.NewMetadataServiceClient(metaConn)
 	placements := metadatav1.NewPlacementServiceClient(metaConn)

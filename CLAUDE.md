@@ -98,8 +98,9 @@ size stays in HOT if it fits (no reservation). Gateway reads and writes through
 `storage-hot` or `storage-cold` by that class; their addresses are Gateway config.
 `PlacementService` (same port as MetadataService) lets the migration executor
 reserve a copy, switch the placement by CAS and record cleanup. The executor runs
-in SPPR ([README](services/sppr/README.md#перенос-версии)); the cleanup loop that
-deletes old blobs is not implemented yet. See
+in SPPR ([README](services/sppr/README.md#перенос-версии)); its cleanup loop deletes
+due source, aborted target and orphan blobs, then confirms deletion to Metadata.
+Migration pause does not stop cleanup; both run only with `MIGRATION_ENABLED=true`. See
 [Metadata README](services/metadata/README.md#перенос-версии-между-классами).
 
 Публичные relations: `MEMBER_OF`, `HAS_PERMISSION`, `PARENT_OF`. Для владельца

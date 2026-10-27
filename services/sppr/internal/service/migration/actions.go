@@ -101,6 +101,14 @@ func (s *migrationService) CancelActions(ctx context.Context, req model.CancelRe
 		result = model.CancelResult{Cancelled: cancelled, Dependents: dependents}
 		return nil
 	})
+	if err == nil && s.observer != nil {
+		if len(result.Cancelled) > 0 {
+			s.observer.Actions(ctx, string(model.ActionCancelled), string(model.ReasonUser), int64(len(result.Cancelled)))
+		}
+		if len(result.Dependents) > 0 {
+			s.observer.Actions(ctx, string(model.ActionCancelled), string(model.ReasonDependencyFailed), int64(len(result.Dependents)))
+		}
+	}
 	return result, err
 }
 

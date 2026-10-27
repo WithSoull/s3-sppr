@@ -9,13 +9,16 @@ import (
 	metadataClient "github.com/alesplll/opens3-rebac/services/sppr/internal/client/metadata"
 	storageClient "github.com/alesplll/opens3-rebac/services/sppr/internal/client/storage"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/model"
+	"github.com/alesplll/opens3-rebac/services/sppr/internal/observability"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/repository"
 	actionRepository "github.com/alesplll/opens3-rebac/services/sppr/internal/repository/action"
 	pinRepository "github.com/alesplll/opens3-rebac/services/sppr/internal/repository/pin"
 	settingsRepository "github.com/alesplll/opens3-rebac/services/sppr/internal/repository/settings"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/service"
+	cleanupService "github.com/alesplll/opens3-rebac/services/sppr/internal/service/cleanup"
 	executorService "github.com/alesplll/opens3-rebac/services/sppr/internal/service/executor"
 	migrationService "github.com/alesplll/opens3-rebac/services/sppr/internal/service/migration"
+	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/metric"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/tracing"
 	metadatav1 "github.com/alesplll/opens3-rebac/shared/pkg/go/metadata/v1"
 	storagev1 "github.com/alesplll/opens3-rebac/shared/pkg/go/storage/v1"
@@ -87,7 +90,15 @@ func (s *serviceProvider) MigrationService(ctx context.Context) (service.Migrati
 		if err != nil {
 			return nil, err
 		}
-		s.migrationService = migrationService.NewService(actions, settings, pins, tx)
+		metrics, err := observability.NewMigrationMetrics(metric.Meter())
+		if err != nil {
+			return nil, err
+		}
+		s.migrationMetrics = metrics
+		s.migrationService = migrationService.NewService(actions, settings, pins, tx, metrics)
+		if err := metrics.RegisterBudget(s.migrationService.GetBudget); err != nil {
+			return nil, err
+		}
 	}
 	return s.migrationService, nil
 }
@@ -122,6 +133,7 @@ func (s *serviceProvider) StorageClients() (map[model.StorageClass]client.Storag
 				address,
 				grpc.WithTransportCredentials(insecure.NewCredentials()),
 				grpc.WithStreamInterceptor(tracing.StreamClientInterceptor("sppr.storage")),
+				grpc.WithUnaryInterceptor(tracing.UnaryClientInterceptor("sppr.storage")),
 			)
 			if err != nil {
 				return nil, fmt.Errorf("create %s Storage client: %w", class, err)
@@ -167,7 +179,22 @@ func (s *serviceProvider) MigrationExecutor(ctx context.Context) (service.Migrat
 			RetryBackoff:       cfg.RetryBackoff(),
 			SourceCleanupDelay: cfg.SourceCleanupDelay(),
 			PollInterval:       migrationPollInterval,
-		}, actions, settings, pins, tx, placements, storages)
+		}, actions, settings, pins, tx, placements, storages, s.migrationMetrics)
 	}
 	return s.migrationExecutor, nil
+}
+
+func (s *serviceProvider) MigrationCleanup() (service.MigrationCleanup, error) {
+	if s.migrationCleanup == nil {
+		placements, err := s.PlacementClient()
+		if err != nil {
+			return nil, err
+		}
+		storages, err := s.StorageClients()
+		if err != nil {
+			return nil, err
+		}
+		s.migrationCleanup = cleanupService.NewService(s.cfg.Migration.CleanupInterval(), placements, storages, s.migrationMetrics)
+	}
+	return s.migrationCleanup, nil
 }

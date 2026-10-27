@@ -14,6 +14,7 @@ func TestNewMigrationConfig(t *testing.T) {
 		wantBudget int64
 		wantErr    string
 	}{
+		{name: "invalid cleanup interval", env: map[string]string{"MIGRATION_CLEANUP_INTERVAL": "0s"}, wantErr: "MIGRATION_CLEANUP_INTERVAL"},
 		{name: "defaults", wantBudget: 1 << 30},
 		{name: "plain bytes", env: map[string]string{"MIGRATION_BUDGET_BYTES": "1500"}, wantBudget: 1500},
 		{name: "MiB", env: map[string]string{"MIGRATION_BUDGET_BYTES": "512MiB"}, wantBudget: 512 << 20},

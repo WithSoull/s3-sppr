@@ -19,6 +19,13 @@ type StorageClientMock struct {
 	t          minimock.Tester
 	finishOnce sync.Once
 
+	funcDelete          func(ctx context.Context, blobID string) (err error)
+	funcDeleteOrigin    string
+	inspectFuncDelete   func(ctx context.Context, blobID string)
+	afterDeleteCounter  uint64
+	beforeDeleteCounter uint64
+	DeleteMock          mStorageClientMockDelete
+
 	funcOpen          func(ctx context.Context, blobID string) (r1 io.ReadCloser, err error)
 	funcOpenOrigin    string
 	inspectFuncOpen   func(ctx context.Context, blobID string)
@@ -42,6 +49,9 @@ func NewStorageClientMock(t minimock.Tester) *StorageClientMock {
 		controller.RegisterMocker(m)
 	}
 
+	m.DeleteMock = mStorageClientMockDelete{mock: m}
+	m.DeleteMock.callArgs = []*StorageClientMockDeleteParams{}
+
 	m.OpenMock = mStorageClientMockOpen{mock: m}
 	m.OpenMock.callArgs = []*StorageClientMockOpenParams{}
 
@@ -51,6 +61,348 @@ func NewStorageClientMock(t minimock.Tester) *StorageClientMock {
 	t.Cleanup(m.MinimockFinish)
 
 	return m
+}
+
+type mStorageClientMockDelete struct {
+	optional           bool
+	mock               *StorageClientMock
+	defaultExpectation *StorageClientMockDeleteExpectation
+	expectations       []*StorageClientMockDeleteExpectation
+
+	callArgs []*StorageClientMockDeleteParams
+	mutex    sync.RWMutex
+
+	expectedInvocations       uint64
+	expectedInvocationsOrigin string
+}
+
+// StorageClientMockDeleteExpectation specifies expectation struct of the StorageClient.Delete
+type StorageClientMockDeleteExpectation struct {
+	mock               *StorageClientMock
+	params             *StorageClientMockDeleteParams
+	paramPtrs          *StorageClientMockDeleteParamPtrs
+	expectationOrigins StorageClientMockDeleteExpectationOrigins
+	results            *StorageClientMockDeleteResults
+	returnOrigin       string
+	Counter            uint64
+}
+
+// StorageClientMockDeleteParams contains parameters of the StorageClient.Delete
+type StorageClientMockDeleteParams struct {
+	ctx    context.Context
+	blobID string
+}
+
+// StorageClientMockDeleteParamPtrs contains pointers to parameters of the StorageClient.Delete
+type StorageClientMockDeleteParamPtrs struct {
+	ctx    *context.Context
+	blobID *string
+}
+
+// StorageClientMockDeleteResults contains results of the StorageClient.Delete
+type StorageClientMockDeleteResults struct {
+	err error
+}
+
+// StorageClientMockDeleteOrigins contains origins of expectations of the StorageClient.Delete
+type StorageClientMockDeleteExpectationOrigins struct {
+	origin       string
+	originCtx    string
+	originBlobID string
+}
+
+// Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
+// the test will fail minimock's automatic final call check if the mocked method was not called at least once.
+// Optional() makes method check to work in '0 or more' mode.
+// It is NOT RECOMMENDED to use this option unless you really need it, as default behaviour helps to
+// catch the problems when the expected method call is totally skipped during test run.
+func (mmDelete *mStorageClientMockDelete) Optional() *mStorageClientMockDelete {
+	mmDelete.optional = true
+	return mmDelete
+}
+
+// Expect sets up expected params for StorageClient.Delete
+func (mmDelete *mStorageClientMockDelete) Expect(ctx context.Context, blobID string) *mStorageClientMockDelete {
+	if mmDelete.mock.funcDelete != nil {
+		mmDelete.mock.t.Fatalf("StorageClientMock.Delete mock is already set by Set")
+	}
+
+	if mmDelete.defaultExpectation == nil {
+		mmDelete.defaultExpectation = &StorageClientMockDeleteExpectation{}
+	}
+
+	if mmDelete.defaultExpectation.paramPtrs != nil {
+		mmDelete.mock.t.Fatalf("StorageClientMock.Delete mock is already set by ExpectParams functions")
+	}
+
+	mmDelete.defaultExpectation.params = &StorageClientMockDeleteParams{ctx, blobID}
+	mmDelete.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
+	for _, e := range mmDelete.expectations {
+		if minimock.Equal(e.params, mmDelete.defaultExpectation.params) {
+			mmDelete.mock.t.Fatalf("Expectation set by When has same params: %#v", *mmDelete.defaultExpectation.params)
+		}
+	}
+
+	return mmDelete
+}
+
+// ExpectCtxParam1 sets up expected param ctx for StorageClient.Delete
+func (mmDelete *mStorageClientMockDelete) ExpectCtxParam1(ctx context.Context) *mStorageClientMockDelete {
+	if mmDelete.mock.funcDelete != nil {
+		mmDelete.mock.t.Fatalf("StorageClientMock.Delete mock is already set by Set")
+	}
+
+	if mmDelete.defaultExpectation == nil {
+		mmDelete.defaultExpectation = &StorageClientMockDeleteExpectation{}
+	}
+
+	if mmDelete.defaultExpectation.params != nil {
+		mmDelete.mock.t.Fatalf("StorageClientMock.Delete mock is already set by Expect")
+	}
+
+	if mmDelete.defaultExpectation.paramPtrs == nil {
+		mmDelete.defaultExpectation.paramPtrs = &StorageClientMockDeleteParamPtrs{}
+	}
+	mmDelete.defaultExpectation.paramPtrs.ctx = &ctx
+	mmDelete.defaultExpectation.expectationOrigins.originCtx = minimock.CallerInfo(1)
+
+	return mmDelete
+}
+
+// ExpectBlobIDParam2 sets up expected param blobID for StorageClient.Delete
+func (mmDelete *mStorageClientMockDelete) ExpectBlobIDParam2(blobID string) *mStorageClientMockDelete {
+	if mmDelete.mock.funcDelete != nil {
+		mmDelete.mock.t.Fatalf("StorageClientMock.Delete mock is already set by Set")
+	}
+
+	if mmDelete.defaultExpectation == nil {
+		mmDelete.defaultExpectation = &StorageClientMockDeleteExpectation{}
+	}
+
+	if mmDelete.defaultExpectation.params != nil {
+		mmDelete.mock.t.Fatalf("StorageClientMock.Delete mock is already set by Expect")
+	}
+
+	if mmDelete.defaultExpectation.paramPtrs == nil {
+		mmDelete.defaultExpectation.paramPtrs = &StorageClientMockDeleteParamPtrs{}
+	}
+	mmDelete.defaultExpectation.paramPtrs.blobID = &blobID
+	mmDelete.defaultExpectation.expectationOrigins.originBlobID = minimock.CallerInfo(1)
+
+	return mmDelete
+}
+
+// Inspect accepts an inspector function that has same arguments as the StorageClient.Delete
+func (mmDelete *mStorageClientMockDelete) Inspect(f func(ctx context.Context, blobID string)) *mStorageClientMockDelete {
+	if mmDelete.mock.inspectFuncDelete != nil {
+		mmDelete.mock.t.Fatalf("Inspect function is already set for StorageClientMock.Delete")
+	}
+
+	mmDelete.mock.inspectFuncDelete = f
+
+	return mmDelete
+}
+
+// Return sets up results that will be returned by StorageClient.Delete
+func (mmDelete *mStorageClientMockDelete) Return(err error) *StorageClientMock {
+	if mmDelete.mock.funcDelete != nil {
+		mmDelete.mock.t.Fatalf("StorageClientMock.Delete mock is already set by Set")
+	}
+
+	if mmDelete.defaultExpectation == nil {
+		mmDelete.defaultExpectation = &StorageClientMockDeleteExpectation{mock: mmDelete.mock}
+	}
+	mmDelete.defaultExpectation.results = &StorageClientMockDeleteResults{err}
+	mmDelete.defaultExpectation.returnOrigin = minimock.CallerInfo(1)
+	return mmDelete.mock
+}
+
+// Set uses given function f to mock the StorageClient.Delete method
+func (mmDelete *mStorageClientMockDelete) Set(f func(ctx context.Context, blobID string) (err error)) *StorageClientMock {
+	if mmDelete.defaultExpectation != nil {
+		mmDelete.mock.t.Fatalf("Default expectation is already set for the StorageClient.Delete method")
+	}
+
+	if len(mmDelete.expectations) > 0 {
+		mmDelete.mock.t.Fatalf("Some expectations are already set for the StorageClient.Delete method")
+	}
+
+	mmDelete.mock.funcDelete = f
+	mmDelete.mock.funcDeleteOrigin = minimock.CallerInfo(1)
+	return mmDelete.mock
+}
+
+// When sets expectation for the StorageClient.Delete which will trigger the result defined by the following
+// Then helper
+func (mmDelete *mStorageClientMockDelete) When(ctx context.Context, blobID string) *StorageClientMockDeleteExpectation {
+	if mmDelete.mock.funcDelete != nil {
+		mmDelete.mock.t.Fatalf("StorageClientMock.Delete mock is already set by Set")
+	}
+
+	expectation := &StorageClientMockDeleteExpectation{
+		mock:               mmDelete.mock,
+		params:             &StorageClientMockDeleteParams{ctx, blobID},
+		expectationOrigins: StorageClientMockDeleteExpectationOrigins{origin: minimock.CallerInfo(1)},
+	}
+	mmDelete.expectations = append(mmDelete.expectations, expectation)
+	return expectation
+}
+
+// Then sets up StorageClient.Delete return parameters for the expectation previously defined by the When method
+func (e *StorageClientMockDeleteExpectation) Then(err error) *StorageClientMock {
+	e.results = &StorageClientMockDeleteResults{err}
+	return e.mock
+}
+
+// Times sets number of times StorageClient.Delete should be invoked
+func (mmDelete *mStorageClientMockDelete) Times(n uint64) *mStorageClientMockDelete {
+	if n == 0 {
+		mmDelete.mock.t.Fatalf("Times of StorageClientMock.Delete mock can not be zero")
+	}
+	mm_atomic.StoreUint64(&mmDelete.expectedInvocations, n)
+	mmDelete.expectedInvocationsOrigin = minimock.CallerInfo(1)
+	return mmDelete
+}
+
+func (mmDelete *mStorageClientMockDelete) invocationsDone() bool {
+	if len(mmDelete.expectations) == 0 && mmDelete.defaultExpectation == nil && mmDelete.mock.funcDelete == nil {
+		return true
+	}
+
+	totalInvocations := mm_atomic.LoadUint64(&mmDelete.mock.afterDeleteCounter)
+	expectedInvocations := mm_atomic.LoadUint64(&mmDelete.expectedInvocations)
+
+	return totalInvocations > 0 && (expectedInvocations == 0 || expectedInvocations == totalInvocations)
+}
+
+// Delete implements mm_client.StorageClient
+func (mmDelete *StorageClientMock) Delete(ctx context.Context, blobID string) (err error) {
+	mm_atomic.AddUint64(&mmDelete.beforeDeleteCounter, 1)
+	defer mm_atomic.AddUint64(&mmDelete.afterDeleteCounter, 1)
+
+	mmDelete.t.Helper()
+
+	if mmDelete.inspectFuncDelete != nil {
+		mmDelete.inspectFuncDelete(ctx, blobID)
+	}
+
+	mm_params := StorageClientMockDeleteParams{ctx, blobID}
+
+	// Record call args
+	mmDelete.DeleteMock.mutex.Lock()
+	mmDelete.DeleteMock.callArgs = append(mmDelete.DeleteMock.callArgs, &mm_params)
+	mmDelete.DeleteMock.mutex.Unlock()
+
+	for _, e := range mmDelete.DeleteMock.expectations {
+		if minimock.Equal(*e.params, mm_params) {
+			mm_atomic.AddUint64(&e.Counter, 1)
+			return e.results.err
+		}
+	}
+
+	if mmDelete.DeleteMock.defaultExpectation != nil {
+		mm_atomic.AddUint64(&mmDelete.DeleteMock.defaultExpectation.Counter, 1)
+		mm_want := mmDelete.DeleteMock.defaultExpectation.params
+		mm_want_ptrs := mmDelete.DeleteMock.defaultExpectation.paramPtrs
+
+		mm_got := StorageClientMockDeleteParams{ctx, blobID}
+
+		if mm_want_ptrs != nil {
+
+			if mm_want_ptrs.ctx != nil && !minimock.Equal(*mm_want_ptrs.ctx, mm_got.ctx) {
+				mmDelete.t.Errorf("StorageClientMock.Delete got unexpected parameter ctx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmDelete.DeleteMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
+			}
+
+			if mm_want_ptrs.blobID != nil && !minimock.Equal(*mm_want_ptrs.blobID, mm_got.blobID) {
+				mmDelete.t.Errorf("StorageClientMock.Delete got unexpected parameter blobID, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmDelete.DeleteMock.defaultExpectation.expectationOrigins.originBlobID, *mm_want_ptrs.blobID, mm_got.blobID, minimock.Diff(*mm_want_ptrs.blobID, mm_got.blobID))
+			}
+
+		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
+			mmDelete.t.Errorf("StorageClientMock.Delete got unexpected parameters, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+				mmDelete.DeleteMock.defaultExpectation.expectationOrigins.origin, *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
+		}
+
+		mm_results := mmDelete.DeleteMock.defaultExpectation.results
+		if mm_results == nil {
+			mmDelete.t.Fatal("No results are set for the StorageClientMock.Delete")
+		}
+		return (*mm_results).err
+	}
+	if mmDelete.funcDelete != nil {
+		return mmDelete.funcDelete(ctx, blobID)
+	}
+	mmDelete.t.Fatalf("Unexpected call to StorageClientMock.Delete. %v %v", ctx, blobID)
+	return
+}
+
+// DeleteAfterCounter returns a count of finished StorageClientMock.Delete invocations
+func (mmDelete *StorageClientMock) DeleteAfterCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmDelete.afterDeleteCounter)
+}
+
+// DeleteBeforeCounter returns a count of StorageClientMock.Delete invocations
+func (mmDelete *StorageClientMock) DeleteBeforeCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmDelete.beforeDeleteCounter)
+}
+
+// Calls returns a list of arguments used in each call to StorageClientMock.Delete.
+// The list is in the same order as the calls were made (i.e. recent calls have a higher index)
+func (mmDelete *mStorageClientMockDelete) Calls() []*StorageClientMockDeleteParams {
+	mmDelete.mutex.RLock()
+
+	argCopy := make([]*StorageClientMockDeleteParams, len(mmDelete.callArgs))
+	copy(argCopy, mmDelete.callArgs)
+
+	mmDelete.mutex.RUnlock()
+
+	return argCopy
+}
+
+// MinimockDeleteDone returns true if the count of the Delete invocations corresponds
+// the number of defined expectations
+func (m *StorageClientMock) MinimockDeleteDone() bool {
+	if m.DeleteMock.optional {
+		// Optional methods provide '0 or more' call count restriction.
+		return true
+	}
+
+	for _, e := range m.DeleteMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			return false
+		}
+	}
+
+	return m.DeleteMock.invocationsDone()
+}
+
+// MinimockDeleteInspect logs each unmet expectation
+func (m *StorageClientMock) MinimockDeleteInspect() {
+	for _, e := range m.DeleteMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			m.t.Errorf("Expected call to StorageClientMock.Delete at\n%s with params: %#v", e.expectationOrigins.origin, *e.params)
+		}
+	}
+
+	afterDeleteCounter := mm_atomic.LoadUint64(&m.afterDeleteCounter)
+	// if default expectation was set then invocations count should be greater than zero
+	if m.DeleteMock.defaultExpectation != nil && afterDeleteCounter < 1 {
+		if m.DeleteMock.defaultExpectation.params == nil {
+			m.t.Errorf("Expected call to StorageClientMock.Delete at\n%s", m.DeleteMock.defaultExpectation.returnOrigin)
+		} else {
+			m.t.Errorf("Expected call to StorageClientMock.Delete at\n%s with params: %#v", m.DeleteMock.defaultExpectation.expectationOrigins.origin, *m.DeleteMock.defaultExpectation.params)
+		}
+	}
+	// if func was set then invocations count should be greater than zero
+	if m.funcDelete != nil && afterDeleteCounter < 1 {
+		m.t.Errorf("Expected call to StorageClientMock.Delete at\n%s", m.funcDeleteOrigin)
+	}
+
+	if !m.DeleteMock.invocationsDone() && afterDeleteCounter > 0 {
+		m.t.Errorf("Expected %d calls to StorageClientMock.Delete at\n%s but found %d calls",
+			mm_atomic.LoadUint64(&m.DeleteMock.expectedInvocations), m.DeleteMock.expectedInvocationsOrigin, afterDeleteCounter)
+	}
 }
 
 type mStorageClientMockOpen struct {
@@ -805,6 +1157,8 @@ func (m *StorageClientMock) MinimockStoreInspect() {
 func (m *StorageClientMock) MinimockFinish() {
 	m.finishOnce.Do(func() {
 		if !m.minimockDone() {
+			m.MinimockDeleteInspect()
+
 			m.MinimockOpenInspect()
 
 			m.MinimockStoreInspect()
@@ -831,6 +1185,7 @@ func (m *StorageClientMock) MinimockWait(timeout mm_time.Duration) {
 func (m *StorageClientMock) minimockDone() bool {
 	done := true
 	return done &&
+		m.MinimockDeleteDone() &&
 		m.MinimockOpenDone() &&
 		m.MinimockStoreDone()
 }
