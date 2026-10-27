@@ -1,8 +1,10 @@
 package executor_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"testing"
 	"time"
@@ -261,6 +263,114 @@ func TestProcessNewAction(t *testing.T) {
 				require.NoError(t, err)
 			}
 			require.Equal(t, tt.want, d.recorded)
+		})
+	}
+}
+
+func TestProcessReservationSize(t *testing.T) {
+	newReservation := func(d *deps) {
+		fresh(d)
+		d.placements.GetPlacementMock.Return(placement(1, time.Now()), nil)
+		d.checks(false, 0)
+		d.placements.ReserveCopyMock.Return(reserved(), nil)
+	}
+	resumeReservation := func(d *deps) {
+		d.placements.ListMigrationCopiesMock.Return([]model.PlacementCopy{reserved()}, nil)
+	}
+	type args struct {
+		plannedSize int64
+		step        model.ActionStep
+	}
+	cases := []struct {
+		name      string
+		args      args
+		build     func(*testing.T, *deps)
+		want      []step
+		wantError string
+	}{
+		{
+			name: "matching size copies and switches with the original charge",
+			args: args{plannedSize: size, step: model.StepReserving},
+			build: func(t *testing.T, d *deps) {
+				newReservation(d)
+				d.cold.OpenMock.Expect(minimock.AnyContext, sourceBlobID).
+					Return(io.NopCloser(bytes.NewReader(content)), nil)
+				d.hot.StoreMock.Set(func(_ context.Context, blobID string, headerSize int64, body io.Reader) (string, error) {
+					require.Equal(t, targetBlobID, blobID)
+					require.Equal(t, size, headerSize)
+					got, err := io.ReadAll(body)
+					require.NoError(t, err)
+					require.Equal(t, content, got)
+					return contentMD5, nil
+				})
+				switches(d, nil)
+			},
+			want: []step{copying(), switching(), succeeded()},
+		},
+		{
+			name: "understated size aborts and refunds before copying",
+			args: args{plannedSize: size - 1, step: model.StepReserving},
+			build: func(t *testing.T, d *deps) {
+				newReservation(d)
+				aborts(d, model.ReasonStale, nil)
+			},
+			want:      []step{aborting(model.ReasonStale, 0), failed(model.ReasonStale)},
+			wantError: fmt.Sprintf("planned size_bytes %d differs from reserved copy size_bytes %d", size-1, size),
+		},
+		{
+			name: "overstated size also aborts and refunds before copying",
+			args: args{plannedSize: size + 1, step: model.StepReserving},
+			build: func(t *testing.T, d *deps) {
+				newReservation(d)
+				aborts(d, model.ReasonStale, nil)
+			},
+			want:      []step{aborting(model.ReasonStale, 0), failed(model.ReasonStale)},
+			wantError: fmt.Sprintf("planned size_bytes %d differs from reserved copy size_bytes %d", size+1, size),
+		},
+		{
+			name: "resumed reservation with a mismatched size refunds without copying",
+			args: args{plannedSize: size - 1, step: model.StepReserving},
+			build: func(t *testing.T, d *deps) {
+				resumeReservation(d)
+				aborts(d, model.ReasonStale, nil)
+			},
+			want:      []step{aborting(model.ReasonStale, 0), failed(model.ReasonStale)},
+			wantError: fmt.Sprintf("planned size_bytes %d differs from reserved copy size_bytes %d", size-1, size),
+		},
+		{
+			name: "interrupted copy with a mismatched size retains its unknown previous charge",
+			args: args{plannedSize: size - 1, step: model.StepCopying},
+			build: func(t *testing.T, d *deps) {
+				resumeReservation(d)
+				aborts(d, model.ReasonStale, nil)
+			},
+			want:      []step{aborting(model.ReasonStale, size-1), failed(model.ReasonStale)},
+			wantError: fmt.Sprintf("planned size_bytes %d differs from reserved copy size_bytes %d", size-1, size),
+		},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			mc := minimock.NewController(t)
+			a := running(tt.args.step, model.ReasonNone, true)
+			a.SizeBytes = tt.args.plannedSize
+			d := newDeps(mc, a)
+			tt.build(t, d)
+			d.actions.TransitionMock.Set(func(_ context.Context, tr model.Transition) ([]string, error) {
+				d.recorded = append(d.recorded, step{tr.Status, tr.Step, tr.Reason, tr.Settle, tr.Bytes, tr.Reopen})
+				if tr.Step == model.StepAborting {
+					require.Equal(t, tt.wantError, tr.Error)
+				}
+				return nil, nil
+			})
+			worked, err := d.executor().Step(context.Background())
+			require.True(t, worked)
+			require.NoError(t, err)
+			require.Equal(t, tt.want, d.recorded)
+			if tt.wantError != "" {
+				require.Zero(t, d.cold.OpenAfterCounter())
+				require.Zero(t, d.hot.StoreAfterCounter())
+				require.Zero(t, d.placements.SwitchPlacementAfterCounter())
+			}
 		})
 	}
 }
