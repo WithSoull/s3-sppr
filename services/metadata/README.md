@@ -242,9 +242,12 @@ GetPlacement ─► ReserveCopy ─► запись blob_id в Storage целе�
 1. `ReserveCopy` в одной транзакции: блокирует строки объекта и расположения,
    проверяет активность объекта и допустимость переноса: текущая версия может
    перемещаться в обе стороны, нетекущая — только HOT → COLD. Поколение и исходный
-   класс должны быть равны ожидаемым. Затем блокирует строку целевого класса,
-   считает занятость и вставляет целевую копию
-   `reserved`. Блокировка класса сериализует резервирования: без неё
+   класс должны быть равны ожидаемым. Затем одним запросом блокирует строки
+   исходного и целевого классов в порядке `ORDER BY name FOR UPDATE`, отдельным
+   запросом считает занятость только целевого класса и вставляет целевую копию
+   `reserved`. Оба класса нужны из-за FK целевой копии: блокировка только target
+   вызывает deadlock при встречных переносах HOT ↔ COLD. Блокировка классов
+   сериализует резервирования: без неё
    параллельные запросы переполняют HOT (проверено integration-тестом).
 2. Поколение и исходный класс сохраняются в целевой копии. `SwitchPlacement`
    повторно блокирует объект и расположение и обновляет запись только при
@@ -258,6 +261,8 @@ GetPlacement ─► ReserveCopy ─► запись blob_id в Storage целе�
    расположение, затем target copy перечитывается под блокировкой. Этот порядок
    не даёт удалению (объект → FK-обновления copy rows) образовать deadlock с
    переключением (copy row → объект).
+   Перед CAS и вставкой source copy оба класса блокируются в том же порядке
+   по имени, чтобы их FK-блокировки не образовали цикл с `ReserveCopy`.
 3. При успехе целевая копия становится `promoted`, прежний blob записывается
    копией-источником `cleanup_pending` с `cleanup_after = now() + пауза`.
 4. Конфликт оставляет расположение и копии без изменений; исполнитель вызывает
@@ -309,7 +314,8 @@ DeleteObjectMeta в одной READ COMMITTED транзакции:
    и не добавляют версию или blob, который шаг 2 не увидит.
 2. Для каждой версии с расположением вставляет копию `orphan` в
    `cleanup_pending` с классом и blob_id расположения, размером версии и
-   `cleanup_after = now() + METADATA_DELETE_CLEANUP_DELAY`.
+   `cleanup_after = now() + METADATA_DELETE_CLEANUP_DELAY`. Вставка идёт по имени
+   класса, чтобы FK-блокировки классов совпадали с порядком `ReserveCopy`.
 3. Удаляет object; versions и `version_placements` уходят каскадно.
 
 Ошибка любого шага откатывает всё: объект остаётся, копий нет. Событие
@@ -469,7 +475,8 @@ make down-e2e
 `make test-metadata-integration`. Кроме repository suites, команда запускает
 [сценарии протокола переноса](internal/service/placement/tests/protocol_integration_test.go)
 с настоящими транзакциями: цикл COLD → HOT → COLD, повторы команд, учёт копий в
-ёмкости, конкурентные резервирования, перезапись и удаление объекта во время
+ёмкости, конкурентные резервирования (включая 100 раундов встречных HOT ↔ COLD),
+перезапись и удаление объекта во время
 переноса, [выселение нетекущих HOT-версий](internal/service/placement/tests/eviction_integration_test.go)
 (в том числе при перезаписи), сериализация выселения и удаления в обоих порядках,
 копии `orphan` версий удалённого объекта в HOT и COLD и сохранение
@@ -480,6 +487,8 @@ make down-e2e
 используйте конфигурацию [e2e](../../e2e/README.md), а не development/рабочую БД.
 Каталог Planner (нетекущие HOT-версии, фильтр active, порядок страниц и время
 создания): [list_integration_test.go](internal/repository/placement/tests/list_integration_test.go).
+Порядок class-блокировок при пересечении reserve со switch/delete:
+[concurrency_integration_test.go](internal/service/placement/tests/concurrency_integration_test.go).
 Тест выдачи version_number: [insert_version_integration_test.go](internal/repository/object/tests/insert_version_integration_test.go).
 
 После изменения wire schema из корня выполните `make install-deps`, затем

@@ -36,8 +36,9 @@ type PlacementRepository interface {
 	// transaction ends, so overwrites and other switches wait for the caller.
 	LockForChange(ctx context.Context, versionID string) (*model.Placement, error)
 	CompareAndSwap(ctx context.Context, versionID string, expectedGeneration int64, expectedClass, newClass model.StorageClass, newBlobID string) (int64, error)
-	// LockStorageClass serializes capacity checks of one class.
-	LockStorageClass(ctx context.Context, storageClass model.StorageClass) error
+	// LockStorageClasses locks source and target in name order after the object
+	// and placement, serializing capacity checks without inverting FK locks.
+	LockStorageClasses(ctx context.Context, sourceClass, targetClass model.StorageClass) error
 	GetUsage(ctx context.Context, storageClass model.StorageClass) (*model.StorageClassUsage, error)
 	ListUsage(ctx context.Context) ([]*model.StorageClassUsage, error)
 }

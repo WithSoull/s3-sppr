@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	domainerrors "github.com/alesplll/opens3-rebac/services/metadata/internal/errors/domain_errors"
@@ -20,6 +21,8 @@ func TestReserveCopy(t *testing.T) {
 		sourceClass        model.StorageClass
 		targetClass        model.StorageClass
 	}
+
+	lockErr := errors.New("lock storage classes failed")
 
 	validArgs := args{
 		migrationID:        migrationID,
@@ -56,7 +59,7 @@ func TestReserveCopy(t *testing.T) {
 			buildPlacementMock: func(mc *minimock.Controller) *mocks.PlacementRepositoryMock {
 				m := mocks.NewPlacementRepositoryMock(mc)
 				m.LockForChangeMock.Expect(minimock.AnyContext, versionID).Return(coldPlacement(), nil)
-				m.LockStorageClassMock.Expect(minimock.AnyContext, model.StorageClassHot).Return(nil)
+				m.LockStorageClassesMock.Expect(minimock.AnyContext, model.StorageClassCold, model.StorageClassHot).Return(nil)
 				m.GetUsageMock.Expect(minimock.AnyContext, model.StorageClassHot).Return(hotUsage(1024), nil)
 				return m
 			},
@@ -74,7 +77,7 @@ func TestReserveCopy(t *testing.T) {
 			buildPlacementMock: func(mc *minimock.Controller) *mocks.PlacementRepositoryMock {
 				m := mocks.NewPlacementRepositoryMock(mc)
 				m.LockForChangeMock.Expect(minimock.AnyContext, versionID).Return(evictionPlacement(), nil)
-				m.LockStorageClassMock.Expect(minimock.AnyContext, model.StorageClassCold).Return(nil)
+				m.LockStorageClassesMock.Expect(minimock.AnyContext, model.StorageClassHot, model.StorageClassCold).Return(nil)
 				m.GetUsageMock.Expect(minimock.AnyContext, model.StorageClassCold).Return(&model.StorageClassUsage{UsableBytes: 1024}, nil)
 				return m
 			},
@@ -182,13 +185,26 @@ func TestReserveCopy(t *testing.T) {
 			buildTxMock:   executingTx,
 		},
 		{
+			name:    "error: class lock failure stops usage check and insert",
+			args:    validArgs,
+			wantErr: lockErr,
+			buildPlacementMock: func(mc *minimock.Controller) *mocks.PlacementRepositoryMock {
+				m := mocks.NewPlacementRepositoryMock(mc)
+				m.LockForChangeMock.Expect(minimock.AnyContext, versionID).Return(coldPlacement(), nil)
+				m.LockStorageClassesMock.Expect(minimock.AnyContext, model.StorageClassCold, model.StorageClassHot).Return(lockErr)
+				return m
+			},
+			buildCopyMock: noCopy,
+			buildTxMock:   executingTx,
+		},
+		{
 			name:    "error: target class has less free space than the version",
 			args:    validArgs,
 			wantErr: domainerrors.ErrInsufficientCapacity,
 			buildPlacementMock: func(mc *minimock.Controller) *mocks.PlacementRepositoryMock {
 				m := mocks.NewPlacementRepositoryMock(mc)
 				m.LockForChangeMock.Return(coldPlacement(), nil)
-				m.LockStorageClassMock.Return(nil)
+				m.LockStorageClassesMock.Expect(minimock.AnyContext, model.StorageClassCold, model.StorageClassHot).Return(nil)
 				m.GetUsageMock.Return(hotUsage(1023), nil)
 				return m
 			},
@@ -202,7 +218,7 @@ func TestReserveCopy(t *testing.T) {
 			buildPlacementMock: func(mc *minimock.Controller) *mocks.PlacementRepositoryMock {
 				m := mocks.NewPlacementRepositoryMock(mc)
 				m.LockForChangeMock.Return(coldPlacement(), nil)
-				m.LockStorageClassMock.Return(nil)
+				m.LockStorageClassesMock.Expect(minimock.AnyContext, model.StorageClassCold, model.StorageClassHot).Return(nil)
 				m.GetUsageMock.Return(hotUsage(4096), nil)
 				return m
 			},
@@ -243,12 +259,19 @@ func TestReserveCopy(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			mc := minimock.NewController(t)
 
-			svc := placementService.NewService(tt.buildPlacementMock(mc), tt.buildCopyMock(mc), tt.buildTxMock(mc))
+			placements := tt.buildPlacementMock(mc)
+			copies := tt.buildCopyMock(mc)
+			svc := placementService.NewService(placements, copies, tt.buildTxMock(mc))
 
 			got, err := svc.ReserveCopy(context.Background(), tt.args.migrationID, tt.args.versionID, tt.args.expectedGeneration, tt.args.sourceClass, tt.args.targetClass)
 
 			if tt.wantValidationError {
 				requireValidationError(t, err)
+				require.Zero(t, placements.LockForChangeBeforeCounter())
+				require.Zero(t, placements.LockStorageClassesBeforeCounter())
+				require.Zero(t, placements.GetUsageBeforeCounter())
+				require.Zero(t, copies.GetByMigrationBeforeCounter())
+				require.Zero(t, copies.InsertTargetBeforeCounter())
 				return
 			}
 

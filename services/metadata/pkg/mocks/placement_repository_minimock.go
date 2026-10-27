@@ -68,12 +68,12 @@ type PlacementRepositoryMock struct {
 	beforeLockForChangeCounter uint64
 	LockForChangeMock          mPlacementRepositoryMockLockForChange
 
-	funcLockStorageClass          func(ctx context.Context, storageClass model.StorageClass) (err error)
-	funcLockStorageClassOrigin    string
-	inspectFuncLockStorageClass   func(ctx context.Context, storageClass model.StorageClass)
-	afterLockStorageClassCounter  uint64
-	beforeLockStorageClassCounter uint64
-	LockStorageClassMock          mPlacementRepositoryMockLockStorageClass
+	funcLockStorageClasses          func(ctx context.Context, sourceClass model.StorageClass, targetClass model.StorageClass) (err error)
+	funcLockStorageClassesOrigin    string
+	inspectFuncLockStorageClasses   func(ctx context.Context, sourceClass model.StorageClass, targetClass model.StorageClass)
+	afterLockStorageClassesCounter  uint64
+	beforeLockStorageClassesCounter uint64
+	LockStorageClassesMock          mPlacementRepositoryMockLockStorageClasses
 }
 
 // NewPlacementRepositoryMock returns a mock for mm_repository.PlacementRepository
@@ -105,8 +105,8 @@ func NewPlacementRepositoryMock(t minimock.Tester) *PlacementRepositoryMock {
 	m.LockForChangeMock = mPlacementRepositoryMockLockForChange{mock: m}
 	m.LockForChangeMock.callArgs = []*PlacementRepositoryMockLockForChangeParams{}
 
-	m.LockStorageClassMock = mPlacementRepositoryMockLockStorageClass{mock: m}
-	m.LockStorageClassMock.callArgs = []*PlacementRepositoryMockLockStorageClassParams{}
+	m.LockStorageClassesMock = mPlacementRepositoryMockLockStorageClasses{mock: m}
+	m.LockStorageClassesMock.callArgs = []*PlacementRepositoryMockLockStorageClassesParams{}
 
 	t.Cleanup(m.MinimockFinish)
 
@@ -2668,52 +2668,55 @@ func (m *PlacementRepositoryMock) MinimockLockForChangeInspect() {
 	}
 }
 
-type mPlacementRepositoryMockLockStorageClass struct {
+type mPlacementRepositoryMockLockStorageClasses struct {
 	optional           bool
 	mock               *PlacementRepositoryMock
-	defaultExpectation *PlacementRepositoryMockLockStorageClassExpectation
-	expectations       []*PlacementRepositoryMockLockStorageClassExpectation
+	defaultExpectation *PlacementRepositoryMockLockStorageClassesExpectation
+	expectations       []*PlacementRepositoryMockLockStorageClassesExpectation
 
-	callArgs []*PlacementRepositoryMockLockStorageClassParams
+	callArgs []*PlacementRepositoryMockLockStorageClassesParams
 	mutex    sync.RWMutex
 
 	expectedInvocations       uint64
 	expectedInvocationsOrigin string
 }
 
-// PlacementRepositoryMockLockStorageClassExpectation specifies expectation struct of the PlacementRepository.LockStorageClass
-type PlacementRepositoryMockLockStorageClassExpectation struct {
+// PlacementRepositoryMockLockStorageClassesExpectation specifies expectation struct of the PlacementRepository.LockStorageClasses
+type PlacementRepositoryMockLockStorageClassesExpectation struct {
 	mock               *PlacementRepositoryMock
-	params             *PlacementRepositoryMockLockStorageClassParams
-	paramPtrs          *PlacementRepositoryMockLockStorageClassParamPtrs
-	expectationOrigins PlacementRepositoryMockLockStorageClassExpectationOrigins
-	results            *PlacementRepositoryMockLockStorageClassResults
+	params             *PlacementRepositoryMockLockStorageClassesParams
+	paramPtrs          *PlacementRepositoryMockLockStorageClassesParamPtrs
+	expectationOrigins PlacementRepositoryMockLockStorageClassesExpectationOrigins
+	results            *PlacementRepositoryMockLockStorageClassesResults
 	returnOrigin       string
 	Counter            uint64
 }
 
-// PlacementRepositoryMockLockStorageClassParams contains parameters of the PlacementRepository.LockStorageClass
-type PlacementRepositoryMockLockStorageClassParams struct {
-	ctx          context.Context
-	storageClass model.StorageClass
+// PlacementRepositoryMockLockStorageClassesParams contains parameters of the PlacementRepository.LockStorageClasses
+type PlacementRepositoryMockLockStorageClassesParams struct {
+	ctx         context.Context
+	sourceClass model.StorageClass
+	targetClass model.StorageClass
 }
 
-// PlacementRepositoryMockLockStorageClassParamPtrs contains pointers to parameters of the PlacementRepository.LockStorageClass
-type PlacementRepositoryMockLockStorageClassParamPtrs struct {
-	ctx          *context.Context
-	storageClass *model.StorageClass
+// PlacementRepositoryMockLockStorageClassesParamPtrs contains pointers to parameters of the PlacementRepository.LockStorageClasses
+type PlacementRepositoryMockLockStorageClassesParamPtrs struct {
+	ctx         *context.Context
+	sourceClass *model.StorageClass
+	targetClass *model.StorageClass
 }
 
-// PlacementRepositoryMockLockStorageClassResults contains results of the PlacementRepository.LockStorageClass
-type PlacementRepositoryMockLockStorageClassResults struct {
+// PlacementRepositoryMockLockStorageClassesResults contains results of the PlacementRepository.LockStorageClasses
+type PlacementRepositoryMockLockStorageClassesResults struct {
 	err error
 }
 
-// PlacementRepositoryMockLockStorageClassOrigins contains origins of expectations of the PlacementRepository.LockStorageClass
-type PlacementRepositoryMockLockStorageClassExpectationOrigins struct {
-	origin             string
-	originCtx          string
-	originStorageClass string
+// PlacementRepositoryMockLockStorageClassesOrigins contains origins of expectations of the PlacementRepository.LockStorageClasses
+type PlacementRepositoryMockLockStorageClassesExpectationOrigins struct {
+	origin            string
+	originCtx         string
+	originSourceClass string
+	originTargetClass string
 }
 
 // Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
@@ -2721,292 +2724,320 @@ type PlacementRepositoryMockLockStorageClassExpectationOrigins struct {
 // Optional() makes method check to work in '0 or more' mode.
 // It is NOT RECOMMENDED to use this option unless you really need it, as default behaviour helps to
 // catch the problems when the expected method call is totally skipped during test run.
-func (mmLockStorageClass *mPlacementRepositoryMockLockStorageClass) Optional() *mPlacementRepositoryMockLockStorageClass {
-	mmLockStorageClass.optional = true
-	return mmLockStorageClass
+func (mmLockStorageClasses *mPlacementRepositoryMockLockStorageClasses) Optional() *mPlacementRepositoryMockLockStorageClasses {
+	mmLockStorageClasses.optional = true
+	return mmLockStorageClasses
 }
 
-// Expect sets up expected params for PlacementRepository.LockStorageClass
-func (mmLockStorageClass *mPlacementRepositoryMockLockStorageClass) Expect(ctx context.Context, storageClass model.StorageClass) *mPlacementRepositoryMockLockStorageClass {
-	if mmLockStorageClass.mock.funcLockStorageClass != nil {
-		mmLockStorageClass.mock.t.Fatalf("PlacementRepositoryMock.LockStorageClass mock is already set by Set")
+// Expect sets up expected params for PlacementRepository.LockStorageClasses
+func (mmLockStorageClasses *mPlacementRepositoryMockLockStorageClasses) Expect(ctx context.Context, sourceClass model.StorageClass, targetClass model.StorageClass) *mPlacementRepositoryMockLockStorageClasses {
+	if mmLockStorageClasses.mock.funcLockStorageClasses != nil {
+		mmLockStorageClasses.mock.t.Fatalf("PlacementRepositoryMock.LockStorageClasses mock is already set by Set")
 	}
 
-	if mmLockStorageClass.defaultExpectation == nil {
-		mmLockStorageClass.defaultExpectation = &PlacementRepositoryMockLockStorageClassExpectation{}
+	if mmLockStorageClasses.defaultExpectation == nil {
+		mmLockStorageClasses.defaultExpectation = &PlacementRepositoryMockLockStorageClassesExpectation{}
 	}
 
-	if mmLockStorageClass.defaultExpectation.paramPtrs != nil {
-		mmLockStorageClass.mock.t.Fatalf("PlacementRepositoryMock.LockStorageClass mock is already set by ExpectParams functions")
+	if mmLockStorageClasses.defaultExpectation.paramPtrs != nil {
+		mmLockStorageClasses.mock.t.Fatalf("PlacementRepositoryMock.LockStorageClasses mock is already set by ExpectParams functions")
 	}
 
-	mmLockStorageClass.defaultExpectation.params = &PlacementRepositoryMockLockStorageClassParams{ctx, storageClass}
-	mmLockStorageClass.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
-	for _, e := range mmLockStorageClass.expectations {
-		if minimock.Equal(e.params, mmLockStorageClass.defaultExpectation.params) {
-			mmLockStorageClass.mock.t.Fatalf("Expectation set by When has same params: %#v", *mmLockStorageClass.defaultExpectation.params)
+	mmLockStorageClasses.defaultExpectation.params = &PlacementRepositoryMockLockStorageClassesParams{ctx, sourceClass, targetClass}
+	mmLockStorageClasses.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
+	for _, e := range mmLockStorageClasses.expectations {
+		if minimock.Equal(e.params, mmLockStorageClasses.defaultExpectation.params) {
+			mmLockStorageClasses.mock.t.Fatalf("Expectation set by When has same params: %#v", *mmLockStorageClasses.defaultExpectation.params)
 		}
 	}
 
-	return mmLockStorageClass
+	return mmLockStorageClasses
 }
 
-// ExpectCtxParam1 sets up expected param ctx for PlacementRepository.LockStorageClass
-func (mmLockStorageClass *mPlacementRepositoryMockLockStorageClass) ExpectCtxParam1(ctx context.Context) *mPlacementRepositoryMockLockStorageClass {
-	if mmLockStorageClass.mock.funcLockStorageClass != nil {
-		mmLockStorageClass.mock.t.Fatalf("PlacementRepositoryMock.LockStorageClass mock is already set by Set")
+// ExpectCtxParam1 sets up expected param ctx for PlacementRepository.LockStorageClasses
+func (mmLockStorageClasses *mPlacementRepositoryMockLockStorageClasses) ExpectCtxParam1(ctx context.Context) *mPlacementRepositoryMockLockStorageClasses {
+	if mmLockStorageClasses.mock.funcLockStorageClasses != nil {
+		mmLockStorageClasses.mock.t.Fatalf("PlacementRepositoryMock.LockStorageClasses mock is already set by Set")
 	}
 
-	if mmLockStorageClass.defaultExpectation == nil {
-		mmLockStorageClass.defaultExpectation = &PlacementRepositoryMockLockStorageClassExpectation{}
+	if mmLockStorageClasses.defaultExpectation == nil {
+		mmLockStorageClasses.defaultExpectation = &PlacementRepositoryMockLockStorageClassesExpectation{}
 	}
 
-	if mmLockStorageClass.defaultExpectation.params != nil {
-		mmLockStorageClass.mock.t.Fatalf("PlacementRepositoryMock.LockStorageClass mock is already set by Expect")
+	if mmLockStorageClasses.defaultExpectation.params != nil {
+		mmLockStorageClasses.mock.t.Fatalf("PlacementRepositoryMock.LockStorageClasses mock is already set by Expect")
 	}
 
-	if mmLockStorageClass.defaultExpectation.paramPtrs == nil {
-		mmLockStorageClass.defaultExpectation.paramPtrs = &PlacementRepositoryMockLockStorageClassParamPtrs{}
+	if mmLockStorageClasses.defaultExpectation.paramPtrs == nil {
+		mmLockStorageClasses.defaultExpectation.paramPtrs = &PlacementRepositoryMockLockStorageClassesParamPtrs{}
 	}
-	mmLockStorageClass.defaultExpectation.paramPtrs.ctx = &ctx
-	mmLockStorageClass.defaultExpectation.expectationOrigins.originCtx = minimock.CallerInfo(1)
+	mmLockStorageClasses.defaultExpectation.paramPtrs.ctx = &ctx
+	mmLockStorageClasses.defaultExpectation.expectationOrigins.originCtx = minimock.CallerInfo(1)
 
-	return mmLockStorageClass
+	return mmLockStorageClasses
 }
 
-// ExpectStorageClassParam2 sets up expected param storageClass for PlacementRepository.LockStorageClass
-func (mmLockStorageClass *mPlacementRepositoryMockLockStorageClass) ExpectStorageClassParam2(storageClass model.StorageClass) *mPlacementRepositoryMockLockStorageClass {
-	if mmLockStorageClass.mock.funcLockStorageClass != nil {
-		mmLockStorageClass.mock.t.Fatalf("PlacementRepositoryMock.LockStorageClass mock is already set by Set")
+// ExpectSourceClassParam2 sets up expected param sourceClass for PlacementRepository.LockStorageClasses
+func (mmLockStorageClasses *mPlacementRepositoryMockLockStorageClasses) ExpectSourceClassParam2(sourceClass model.StorageClass) *mPlacementRepositoryMockLockStorageClasses {
+	if mmLockStorageClasses.mock.funcLockStorageClasses != nil {
+		mmLockStorageClasses.mock.t.Fatalf("PlacementRepositoryMock.LockStorageClasses mock is already set by Set")
 	}
 
-	if mmLockStorageClass.defaultExpectation == nil {
-		mmLockStorageClass.defaultExpectation = &PlacementRepositoryMockLockStorageClassExpectation{}
+	if mmLockStorageClasses.defaultExpectation == nil {
+		mmLockStorageClasses.defaultExpectation = &PlacementRepositoryMockLockStorageClassesExpectation{}
 	}
 
-	if mmLockStorageClass.defaultExpectation.params != nil {
-		mmLockStorageClass.mock.t.Fatalf("PlacementRepositoryMock.LockStorageClass mock is already set by Expect")
+	if mmLockStorageClasses.defaultExpectation.params != nil {
+		mmLockStorageClasses.mock.t.Fatalf("PlacementRepositoryMock.LockStorageClasses mock is already set by Expect")
 	}
 
-	if mmLockStorageClass.defaultExpectation.paramPtrs == nil {
-		mmLockStorageClass.defaultExpectation.paramPtrs = &PlacementRepositoryMockLockStorageClassParamPtrs{}
+	if mmLockStorageClasses.defaultExpectation.paramPtrs == nil {
+		mmLockStorageClasses.defaultExpectation.paramPtrs = &PlacementRepositoryMockLockStorageClassesParamPtrs{}
 	}
-	mmLockStorageClass.defaultExpectation.paramPtrs.storageClass = &storageClass
-	mmLockStorageClass.defaultExpectation.expectationOrigins.originStorageClass = minimock.CallerInfo(1)
+	mmLockStorageClasses.defaultExpectation.paramPtrs.sourceClass = &sourceClass
+	mmLockStorageClasses.defaultExpectation.expectationOrigins.originSourceClass = minimock.CallerInfo(1)
 
-	return mmLockStorageClass
+	return mmLockStorageClasses
 }
 
-// Inspect accepts an inspector function that has same arguments as the PlacementRepository.LockStorageClass
-func (mmLockStorageClass *mPlacementRepositoryMockLockStorageClass) Inspect(f func(ctx context.Context, storageClass model.StorageClass)) *mPlacementRepositoryMockLockStorageClass {
-	if mmLockStorageClass.mock.inspectFuncLockStorageClass != nil {
-		mmLockStorageClass.mock.t.Fatalf("Inspect function is already set for PlacementRepositoryMock.LockStorageClass")
+// ExpectTargetClassParam3 sets up expected param targetClass for PlacementRepository.LockStorageClasses
+func (mmLockStorageClasses *mPlacementRepositoryMockLockStorageClasses) ExpectTargetClassParam3(targetClass model.StorageClass) *mPlacementRepositoryMockLockStorageClasses {
+	if mmLockStorageClasses.mock.funcLockStorageClasses != nil {
+		mmLockStorageClasses.mock.t.Fatalf("PlacementRepositoryMock.LockStorageClasses mock is already set by Set")
 	}
 
-	mmLockStorageClass.mock.inspectFuncLockStorageClass = f
+	if mmLockStorageClasses.defaultExpectation == nil {
+		mmLockStorageClasses.defaultExpectation = &PlacementRepositoryMockLockStorageClassesExpectation{}
+	}
 
-	return mmLockStorageClass
+	if mmLockStorageClasses.defaultExpectation.params != nil {
+		mmLockStorageClasses.mock.t.Fatalf("PlacementRepositoryMock.LockStorageClasses mock is already set by Expect")
+	}
+
+	if mmLockStorageClasses.defaultExpectation.paramPtrs == nil {
+		mmLockStorageClasses.defaultExpectation.paramPtrs = &PlacementRepositoryMockLockStorageClassesParamPtrs{}
+	}
+	mmLockStorageClasses.defaultExpectation.paramPtrs.targetClass = &targetClass
+	mmLockStorageClasses.defaultExpectation.expectationOrigins.originTargetClass = minimock.CallerInfo(1)
+
+	return mmLockStorageClasses
 }
 
-// Return sets up results that will be returned by PlacementRepository.LockStorageClass
-func (mmLockStorageClass *mPlacementRepositoryMockLockStorageClass) Return(err error) *PlacementRepositoryMock {
-	if mmLockStorageClass.mock.funcLockStorageClass != nil {
-		mmLockStorageClass.mock.t.Fatalf("PlacementRepositoryMock.LockStorageClass mock is already set by Set")
+// Inspect accepts an inspector function that has same arguments as the PlacementRepository.LockStorageClasses
+func (mmLockStorageClasses *mPlacementRepositoryMockLockStorageClasses) Inspect(f func(ctx context.Context, sourceClass model.StorageClass, targetClass model.StorageClass)) *mPlacementRepositoryMockLockStorageClasses {
+	if mmLockStorageClasses.mock.inspectFuncLockStorageClasses != nil {
+		mmLockStorageClasses.mock.t.Fatalf("Inspect function is already set for PlacementRepositoryMock.LockStorageClasses")
 	}
 
-	if mmLockStorageClass.defaultExpectation == nil {
-		mmLockStorageClass.defaultExpectation = &PlacementRepositoryMockLockStorageClassExpectation{mock: mmLockStorageClass.mock}
-	}
-	mmLockStorageClass.defaultExpectation.results = &PlacementRepositoryMockLockStorageClassResults{err}
-	mmLockStorageClass.defaultExpectation.returnOrigin = minimock.CallerInfo(1)
-	return mmLockStorageClass.mock
+	mmLockStorageClasses.mock.inspectFuncLockStorageClasses = f
+
+	return mmLockStorageClasses
 }
 
-// Set uses given function f to mock the PlacementRepository.LockStorageClass method
-func (mmLockStorageClass *mPlacementRepositoryMockLockStorageClass) Set(f func(ctx context.Context, storageClass model.StorageClass) (err error)) *PlacementRepositoryMock {
-	if mmLockStorageClass.defaultExpectation != nil {
-		mmLockStorageClass.mock.t.Fatalf("Default expectation is already set for the PlacementRepository.LockStorageClass method")
+// Return sets up results that will be returned by PlacementRepository.LockStorageClasses
+func (mmLockStorageClasses *mPlacementRepositoryMockLockStorageClasses) Return(err error) *PlacementRepositoryMock {
+	if mmLockStorageClasses.mock.funcLockStorageClasses != nil {
+		mmLockStorageClasses.mock.t.Fatalf("PlacementRepositoryMock.LockStorageClasses mock is already set by Set")
 	}
 
-	if len(mmLockStorageClass.expectations) > 0 {
-		mmLockStorageClass.mock.t.Fatalf("Some expectations are already set for the PlacementRepository.LockStorageClass method")
+	if mmLockStorageClasses.defaultExpectation == nil {
+		mmLockStorageClasses.defaultExpectation = &PlacementRepositoryMockLockStorageClassesExpectation{mock: mmLockStorageClasses.mock}
 	}
-
-	mmLockStorageClass.mock.funcLockStorageClass = f
-	mmLockStorageClass.mock.funcLockStorageClassOrigin = minimock.CallerInfo(1)
-	return mmLockStorageClass.mock
+	mmLockStorageClasses.defaultExpectation.results = &PlacementRepositoryMockLockStorageClassesResults{err}
+	mmLockStorageClasses.defaultExpectation.returnOrigin = minimock.CallerInfo(1)
+	return mmLockStorageClasses.mock
 }
 
-// When sets expectation for the PlacementRepository.LockStorageClass which will trigger the result defined by the following
+// Set uses given function f to mock the PlacementRepository.LockStorageClasses method
+func (mmLockStorageClasses *mPlacementRepositoryMockLockStorageClasses) Set(f func(ctx context.Context, sourceClass model.StorageClass, targetClass model.StorageClass) (err error)) *PlacementRepositoryMock {
+	if mmLockStorageClasses.defaultExpectation != nil {
+		mmLockStorageClasses.mock.t.Fatalf("Default expectation is already set for the PlacementRepository.LockStorageClasses method")
+	}
+
+	if len(mmLockStorageClasses.expectations) > 0 {
+		mmLockStorageClasses.mock.t.Fatalf("Some expectations are already set for the PlacementRepository.LockStorageClasses method")
+	}
+
+	mmLockStorageClasses.mock.funcLockStorageClasses = f
+	mmLockStorageClasses.mock.funcLockStorageClassesOrigin = minimock.CallerInfo(1)
+	return mmLockStorageClasses.mock
+}
+
+// When sets expectation for the PlacementRepository.LockStorageClasses which will trigger the result defined by the following
 // Then helper
-func (mmLockStorageClass *mPlacementRepositoryMockLockStorageClass) When(ctx context.Context, storageClass model.StorageClass) *PlacementRepositoryMockLockStorageClassExpectation {
-	if mmLockStorageClass.mock.funcLockStorageClass != nil {
-		mmLockStorageClass.mock.t.Fatalf("PlacementRepositoryMock.LockStorageClass mock is already set by Set")
+func (mmLockStorageClasses *mPlacementRepositoryMockLockStorageClasses) When(ctx context.Context, sourceClass model.StorageClass, targetClass model.StorageClass) *PlacementRepositoryMockLockStorageClassesExpectation {
+	if mmLockStorageClasses.mock.funcLockStorageClasses != nil {
+		mmLockStorageClasses.mock.t.Fatalf("PlacementRepositoryMock.LockStorageClasses mock is already set by Set")
 	}
 
-	expectation := &PlacementRepositoryMockLockStorageClassExpectation{
-		mock:               mmLockStorageClass.mock,
-		params:             &PlacementRepositoryMockLockStorageClassParams{ctx, storageClass},
-		expectationOrigins: PlacementRepositoryMockLockStorageClassExpectationOrigins{origin: minimock.CallerInfo(1)},
+	expectation := &PlacementRepositoryMockLockStorageClassesExpectation{
+		mock:               mmLockStorageClasses.mock,
+		params:             &PlacementRepositoryMockLockStorageClassesParams{ctx, sourceClass, targetClass},
+		expectationOrigins: PlacementRepositoryMockLockStorageClassesExpectationOrigins{origin: minimock.CallerInfo(1)},
 	}
-	mmLockStorageClass.expectations = append(mmLockStorageClass.expectations, expectation)
+	mmLockStorageClasses.expectations = append(mmLockStorageClasses.expectations, expectation)
 	return expectation
 }
 
-// Then sets up PlacementRepository.LockStorageClass return parameters for the expectation previously defined by the When method
-func (e *PlacementRepositoryMockLockStorageClassExpectation) Then(err error) *PlacementRepositoryMock {
-	e.results = &PlacementRepositoryMockLockStorageClassResults{err}
+// Then sets up PlacementRepository.LockStorageClasses return parameters for the expectation previously defined by the When method
+func (e *PlacementRepositoryMockLockStorageClassesExpectation) Then(err error) *PlacementRepositoryMock {
+	e.results = &PlacementRepositoryMockLockStorageClassesResults{err}
 	return e.mock
 }
 
-// Times sets number of times PlacementRepository.LockStorageClass should be invoked
-func (mmLockStorageClass *mPlacementRepositoryMockLockStorageClass) Times(n uint64) *mPlacementRepositoryMockLockStorageClass {
+// Times sets number of times PlacementRepository.LockStorageClasses should be invoked
+func (mmLockStorageClasses *mPlacementRepositoryMockLockStorageClasses) Times(n uint64) *mPlacementRepositoryMockLockStorageClasses {
 	if n == 0 {
-		mmLockStorageClass.mock.t.Fatalf("Times of PlacementRepositoryMock.LockStorageClass mock can not be zero")
+		mmLockStorageClasses.mock.t.Fatalf("Times of PlacementRepositoryMock.LockStorageClasses mock can not be zero")
 	}
-	mm_atomic.StoreUint64(&mmLockStorageClass.expectedInvocations, n)
-	mmLockStorageClass.expectedInvocationsOrigin = minimock.CallerInfo(1)
-	return mmLockStorageClass
+	mm_atomic.StoreUint64(&mmLockStorageClasses.expectedInvocations, n)
+	mmLockStorageClasses.expectedInvocationsOrigin = minimock.CallerInfo(1)
+	return mmLockStorageClasses
 }
 
-func (mmLockStorageClass *mPlacementRepositoryMockLockStorageClass) invocationsDone() bool {
-	if len(mmLockStorageClass.expectations) == 0 && mmLockStorageClass.defaultExpectation == nil && mmLockStorageClass.mock.funcLockStorageClass == nil {
+func (mmLockStorageClasses *mPlacementRepositoryMockLockStorageClasses) invocationsDone() bool {
+	if len(mmLockStorageClasses.expectations) == 0 && mmLockStorageClasses.defaultExpectation == nil && mmLockStorageClasses.mock.funcLockStorageClasses == nil {
 		return true
 	}
 
-	totalInvocations := mm_atomic.LoadUint64(&mmLockStorageClass.mock.afterLockStorageClassCounter)
-	expectedInvocations := mm_atomic.LoadUint64(&mmLockStorageClass.expectedInvocations)
+	totalInvocations := mm_atomic.LoadUint64(&mmLockStorageClasses.mock.afterLockStorageClassesCounter)
+	expectedInvocations := mm_atomic.LoadUint64(&mmLockStorageClasses.expectedInvocations)
 
 	return totalInvocations > 0 && (expectedInvocations == 0 || expectedInvocations == totalInvocations)
 }
 
-// LockStorageClass implements mm_repository.PlacementRepository
-func (mmLockStorageClass *PlacementRepositoryMock) LockStorageClass(ctx context.Context, storageClass model.StorageClass) (err error) {
-	mm_atomic.AddUint64(&mmLockStorageClass.beforeLockStorageClassCounter, 1)
-	defer mm_atomic.AddUint64(&mmLockStorageClass.afterLockStorageClassCounter, 1)
+// LockStorageClasses implements mm_repository.PlacementRepository
+func (mmLockStorageClasses *PlacementRepositoryMock) LockStorageClasses(ctx context.Context, sourceClass model.StorageClass, targetClass model.StorageClass) (err error) {
+	mm_atomic.AddUint64(&mmLockStorageClasses.beforeLockStorageClassesCounter, 1)
+	defer mm_atomic.AddUint64(&mmLockStorageClasses.afterLockStorageClassesCounter, 1)
 
-	mmLockStorageClass.t.Helper()
+	mmLockStorageClasses.t.Helper()
 
-	if mmLockStorageClass.inspectFuncLockStorageClass != nil {
-		mmLockStorageClass.inspectFuncLockStorageClass(ctx, storageClass)
+	if mmLockStorageClasses.inspectFuncLockStorageClasses != nil {
+		mmLockStorageClasses.inspectFuncLockStorageClasses(ctx, sourceClass, targetClass)
 	}
 
-	mm_params := PlacementRepositoryMockLockStorageClassParams{ctx, storageClass}
+	mm_params := PlacementRepositoryMockLockStorageClassesParams{ctx, sourceClass, targetClass}
 
 	// Record call args
-	mmLockStorageClass.LockStorageClassMock.mutex.Lock()
-	mmLockStorageClass.LockStorageClassMock.callArgs = append(mmLockStorageClass.LockStorageClassMock.callArgs, &mm_params)
-	mmLockStorageClass.LockStorageClassMock.mutex.Unlock()
+	mmLockStorageClasses.LockStorageClassesMock.mutex.Lock()
+	mmLockStorageClasses.LockStorageClassesMock.callArgs = append(mmLockStorageClasses.LockStorageClassesMock.callArgs, &mm_params)
+	mmLockStorageClasses.LockStorageClassesMock.mutex.Unlock()
 
-	for _, e := range mmLockStorageClass.LockStorageClassMock.expectations {
+	for _, e := range mmLockStorageClasses.LockStorageClassesMock.expectations {
 		if minimock.Equal(*e.params, mm_params) {
 			mm_atomic.AddUint64(&e.Counter, 1)
 			return e.results.err
 		}
 	}
 
-	if mmLockStorageClass.LockStorageClassMock.defaultExpectation != nil {
-		mm_atomic.AddUint64(&mmLockStorageClass.LockStorageClassMock.defaultExpectation.Counter, 1)
-		mm_want := mmLockStorageClass.LockStorageClassMock.defaultExpectation.params
-		mm_want_ptrs := mmLockStorageClass.LockStorageClassMock.defaultExpectation.paramPtrs
+	if mmLockStorageClasses.LockStorageClassesMock.defaultExpectation != nil {
+		mm_atomic.AddUint64(&mmLockStorageClasses.LockStorageClassesMock.defaultExpectation.Counter, 1)
+		mm_want := mmLockStorageClasses.LockStorageClassesMock.defaultExpectation.params
+		mm_want_ptrs := mmLockStorageClasses.LockStorageClassesMock.defaultExpectation.paramPtrs
 
-		mm_got := PlacementRepositoryMockLockStorageClassParams{ctx, storageClass}
+		mm_got := PlacementRepositoryMockLockStorageClassesParams{ctx, sourceClass, targetClass}
 
 		if mm_want_ptrs != nil {
 
 			if mm_want_ptrs.ctx != nil && !minimock.Equal(*mm_want_ptrs.ctx, mm_got.ctx) {
-				mmLockStorageClass.t.Errorf("PlacementRepositoryMock.LockStorageClass got unexpected parameter ctx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
-					mmLockStorageClass.LockStorageClassMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
+				mmLockStorageClasses.t.Errorf("PlacementRepositoryMock.LockStorageClasses got unexpected parameter ctx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmLockStorageClasses.LockStorageClassesMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
 			}
 
-			if mm_want_ptrs.storageClass != nil && !minimock.Equal(*mm_want_ptrs.storageClass, mm_got.storageClass) {
-				mmLockStorageClass.t.Errorf("PlacementRepositoryMock.LockStorageClass got unexpected parameter storageClass, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
-					mmLockStorageClass.LockStorageClassMock.defaultExpectation.expectationOrigins.originStorageClass, *mm_want_ptrs.storageClass, mm_got.storageClass, minimock.Diff(*mm_want_ptrs.storageClass, mm_got.storageClass))
+			if mm_want_ptrs.sourceClass != nil && !minimock.Equal(*mm_want_ptrs.sourceClass, mm_got.sourceClass) {
+				mmLockStorageClasses.t.Errorf("PlacementRepositoryMock.LockStorageClasses got unexpected parameter sourceClass, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmLockStorageClasses.LockStorageClassesMock.defaultExpectation.expectationOrigins.originSourceClass, *mm_want_ptrs.sourceClass, mm_got.sourceClass, minimock.Diff(*mm_want_ptrs.sourceClass, mm_got.sourceClass))
+			}
+
+			if mm_want_ptrs.targetClass != nil && !minimock.Equal(*mm_want_ptrs.targetClass, mm_got.targetClass) {
+				mmLockStorageClasses.t.Errorf("PlacementRepositoryMock.LockStorageClasses got unexpected parameter targetClass, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmLockStorageClasses.LockStorageClassesMock.defaultExpectation.expectationOrigins.originTargetClass, *mm_want_ptrs.targetClass, mm_got.targetClass, minimock.Diff(*mm_want_ptrs.targetClass, mm_got.targetClass))
 			}
 
 		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
-			mmLockStorageClass.t.Errorf("PlacementRepositoryMock.LockStorageClass got unexpected parameters, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
-				mmLockStorageClass.LockStorageClassMock.defaultExpectation.expectationOrigins.origin, *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
+			mmLockStorageClasses.t.Errorf("PlacementRepositoryMock.LockStorageClasses got unexpected parameters, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+				mmLockStorageClasses.LockStorageClassesMock.defaultExpectation.expectationOrigins.origin, *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
 		}
 
-		mm_results := mmLockStorageClass.LockStorageClassMock.defaultExpectation.results
+		mm_results := mmLockStorageClasses.LockStorageClassesMock.defaultExpectation.results
 		if mm_results == nil {
-			mmLockStorageClass.t.Fatal("No results are set for the PlacementRepositoryMock.LockStorageClass")
+			mmLockStorageClasses.t.Fatal("No results are set for the PlacementRepositoryMock.LockStorageClasses")
 		}
 		return (*mm_results).err
 	}
-	if mmLockStorageClass.funcLockStorageClass != nil {
-		return mmLockStorageClass.funcLockStorageClass(ctx, storageClass)
+	if mmLockStorageClasses.funcLockStorageClasses != nil {
+		return mmLockStorageClasses.funcLockStorageClasses(ctx, sourceClass, targetClass)
 	}
-	mmLockStorageClass.t.Fatalf("Unexpected call to PlacementRepositoryMock.LockStorageClass. %v %v", ctx, storageClass)
+	mmLockStorageClasses.t.Fatalf("Unexpected call to PlacementRepositoryMock.LockStorageClasses. %v %v %v", ctx, sourceClass, targetClass)
 	return
 }
 
-// LockStorageClassAfterCounter returns a count of finished PlacementRepositoryMock.LockStorageClass invocations
-func (mmLockStorageClass *PlacementRepositoryMock) LockStorageClassAfterCounter() uint64 {
-	return mm_atomic.LoadUint64(&mmLockStorageClass.afterLockStorageClassCounter)
+// LockStorageClassesAfterCounter returns a count of finished PlacementRepositoryMock.LockStorageClasses invocations
+func (mmLockStorageClasses *PlacementRepositoryMock) LockStorageClassesAfterCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmLockStorageClasses.afterLockStorageClassesCounter)
 }
 
-// LockStorageClassBeforeCounter returns a count of PlacementRepositoryMock.LockStorageClass invocations
-func (mmLockStorageClass *PlacementRepositoryMock) LockStorageClassBeforeCounter() uint64 {
-	return mm_atomic.LoadUint64(&mmLockStorageClass.beforeLockStorageClassCounter)
+// LockStorageClassesBeforeCounter returns a count of PlacementRepositoryMock.LockStorageClasses invocations
+func (mmLockStorageClasses *PlacementRepositoryMock) LockStorageClassesBeforeCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmLockStorageClasses.beforeLockStorageClassesCounter)
 }
 
-// Calls returns a list of arguments used in each call to PlacementRepositoryMock.LockStorageClass.
+// Calls returns a list of arguments used in each call to PlacementRepositoryMock.LockStorageClasses.
 // The list is in the same order as the calls were made (i.e. recent calls have a higher index)
-func (mmLockStorageClass *mPlacementRepositoryMockLockStorageClass) Calls() []*PlacementRepositoryMockLockStorageClassParams {
-	mmLockStorageClass.mutex.RLock()
+func (mmLockStorageClasses *mPlacementRepositoryMockLockStorageClasses) Calls() []*PlacementRepositoryMockLockStorageClassesParams {
+	mmLockStorageClasses.mutex.RLock()
 
-	argCopy := make([]*PlacementRepositoryMockLockStorageClassParams, len(mmLockStorageClass.callArgs))
-	copy(argCopy, mmLockStorageClass.callArgs)
+	argCopy := make([]*PlacementRepositoryMockLockStorageClassesParams, len(mmLockStorageClasses.callArgs))
+	copy(argCopy, mmLockStorageClasses.callArgs)
 
-	mmLockStorageClass.mutex.RUnlock()
+	mmLockStorageClasses.mutex.RUnlock()
 
 	return argCopy
 }
 
-// MinimockLockStorageClassDone returns true if the count of the LockStorageClass invocations corresponds
+// MinimockLockStorageClassesDone returns true if the count of the LockStorageClasses invocations corresponds
 // the number of defined expectations
-func (m *PlacementRepositoryMock) MinimockLockStorageClassDone() bool {
-	if m.LockStorageClassMock.optional {
+func (m *PlacementRepositoryMock) MinimockLockStorageClassesDone() bool {
+	if m.LockStorageClassesMock.optional {
 		// Optional methods provide '0 or more' call count restriction.
 		return true
 	}
 
-	for _, e := range m.LockStorageClassMock.expectations {
+	for _, e := range m.LockStorageClassesMock.expectations {
 		if mm_atomic.LoadUint64(&e.Counter) < 1 {
 			return false
 		}
 	}
 
-	return m.LockStorageClassMock.invocationsDone()
+	return m.LockStorageClassesMock.invocationsDone()
 }
 
-// MinimockLockStorageClassInspect logs each unmet expectation
-func (m *PlacementRepositoryMock) MinimockLockStorageClassInspect() {
-	for _, e := range m.LockStorageClassMock.expectations {
+// MinimockLockStorageClassesInspect logs each unmet expectation
+func (m *PlacementRepositoryMock) MinimockLockStorageClassesInspect() {
+	for _, e := range m.LockStorageClassesMock.expectations {
 		if mm_atomic.LoadUint64(&e.Counter) < 1 {
-			m.t.Errorf("Expected call to PlacementRepositoryMock.LockStorageClass at\n%s with params: %#v", e.expectationOrigins.origin, *e.params)
+			m.t.Errorf("Expected call to PlacementRepositoryMock.LockStorageClasses at\n%s with params: %#v", e.expectationOrigins.origin, *e.params)
 		}
 	}
 
-	afterLockStorageClassCounter := mm_atomic.LoadUint64(&m.afterLockStorageClassCounter)
+	afterLockStorageClassesCounter := mm_atomic.LoadUint64(&m.afterLockStorageClassesCounter)
 	// if default expectation was set then invocations count should be greater than zero
-	if m.LockStorageClassMock.defaultExpectation != nil && afterLockStorageClassCounter < 1 {
-		if m.LockStorageClassMock.defaultExpectation.params == nil {
-			m.t.Errorf("Expected call to PlacementRepositoryMock.LockStorageClass at\n%s", m.LockStorageClassMock.defaultExpectation.returnOrigin)
+	if m.LockStorageClassesMock.defaultExpectation != nil && afterLockStorageClassesCounter < 1 {
+		if m.LockStorageClassesMock.defaultExpectation.params == nil {
+			m.t.Errorf("Expected call to PlacementRepositoryMock.LockStorageClasses at\n%s", m.LockStorageClassesMock.defaultExpectation.returnOrigin)
 		} else {
-			m.t.Errorf("Expected call to PlacementRepositoryMock.LockStorageClass at\n%s with params: %#v", m.LockStorageClassMock.defaultExpectation.expectationOrigins.origin, *m.LockStorageClassMock.defaultExpectation.params)
+			m.t.Errorf("Expected call to PlacementRepositoryMock.LockStorageClasses at\n%s with params: %#v", m.LockStorageClassesMock.defaultExpectation.expectationOrigins.origin, *m.LockStorageClassesMock.defaultExpectation.params)
 		}
 	}
 	// if func was set then invocations count should be greater than zero
-	if m.funcLockStorageClass != nil && afterLockStorageClassCounter < 1 {
-		m.t.Errorf("Expected call to PlacementRepositoryMock.LockStorageClass at\n%s", m.funcLockStorageClassOrigin)
+	if m.funcLockStorageClasses != nil && afterLockStorageClassesCounter < 1 {
+		m.t.Errorf("Expected call to PlacementRepositoryMock.LockStorageClasses at\n%s", m.funcLockStorageClassesOrigin)
 	}
 
-	if !m.LockStorageClassMock.invocationsDone() && afterLockStorageClassCounter > 0 {
-		m.t.Errorf("Expected %d calls to PlacementRepositoryMock.LockStorageClass at\n%s but found %d calls",
-			mm_atomic.LoadUint64(&m.LockStorageClassMock.expectedInvocations), m.LockStorageClassMock.expectedInvocationsOrigin, afterLockStorageClassCounter)
+	if !m.LockStorageClassesMock.invocationsDone() && afterLockStorageClassesCounter > 0 {
+		m.t.Errorf("Expected %d calls to PlacementRepositoryMock.LockStorageClasses at\n%s but found %d calls",
+			mm_atomic.LoadUint64(&m.LockStorageClassesMock.expectedInvocations), m.LockStorageClassesMock.expectedInvocationsOrigin, afterLockStorageClassesCounter)
 	}
 }
 
@@ -3028,7 +3059,7 @@ func (m *PlacementRepositoryMock) MinimockFinish() {
 
 			m.MinimockLockForChangeInspect()
 
-			m.MinimockLockStorageClassInspect()
+			m.MinimockLockStorageClassesInspect()
 		}
 	})
 }
@@ -3059,5 +3090,5 @@ func (m *PlacementRepositoryMock) minimockDone() bool {
 		m.MinimockListDone() &&
 		m.MinimockListUsageDone() &&
 		m.MinimockLockForChangeDone() &&
-		m.MinimockLockStorageClassDone()
+		m.MinimockLockStorageClassesDone()
 }

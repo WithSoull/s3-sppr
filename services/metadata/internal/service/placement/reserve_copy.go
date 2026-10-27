@@ -63,7 +63,7 @@ func (s *placementService) ReserveCopy(
 			return domainerrors.ErrPlacementChanged
 		}
 
-		if err := s.placementRepo.LockStorageClass(ctx, targetClass); err != nil {
+		if err := s.placementRepo.LockStorageClasses(ctx, sourceClass, targetClass); err != nil {
 			return err
 		}
 		usage, err := s.placementRepo.GetUsage(ctx, targetClass)

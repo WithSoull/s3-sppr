@@ -39,8 +39,15 @@ Both gRPC services share one process and port.
   evictions. Delete-first orphans the HOT source and invalidates the reserved
   target; switch-first leaves a HOT source copy and orphans the COLD placement.
   All bytes stay charged until cleanup, and deletion never promotes a target.
-- `ReserveCopy` locks the `storage_classes` row before computing usage; removing
-  that lock lets concurrent reservations overfill HOT.
+- `ReserveCopy` locks the object/placement first, then BOTH source and target
+  `storage_classes` rows in one `ORDER BY name FOR UPDATE` statement. Usage is
+  read in a separate statement and capacity checked only on the target. Locking
+  only the target deadlocks opposite reservations: `InsertTarget` checks FKs to
+  both classes with `KEY SHARE`. Removing the lock lets reservations overfill HOT.
+  `SwitchPlacement` takes the same ordered class locks before CAS/source insert;
+  delete inserts orphans in class-name order after locking the object, so its FK
+  locks cannot invert this order. Abort/cleanup update only copy state, with no
+  class FK changes or class locks.
 - Copies in `reserved`, `cleanup_pending`, `cleanup_failed` count against class
   capacity. Copy rows outlive deleted versions (`version_id` → NULL).
 - `DeleteObjectMeta` locks the object row, turns every placement of the object
