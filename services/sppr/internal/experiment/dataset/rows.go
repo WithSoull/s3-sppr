@@ -29,6 +29,10 @@ type Row struct {
 // Rows freezes features at T, then attaches labels in a separate pass. A label
 // is never supplied to the feature builder or predictor.
 func Rows(ctx context.Context, req model.FeatureRequest, labels model.Coverage, start time.Time) ([]Row, error) {
+	return rowsWithPeriods(ctx, req, labels, DefaultPeriods(start))
+}
+
+func rowsWithPeriods(ctx context.Context, req model.FeatureRequest, labels model.Coverage, periods Periods) ([]Row, error) {
 	if err := features.ValidateCoverage(labels); err != nil {
 		return nil, err
 	}
@@ -49,7 +53,7 @@ func Rows(ctx context.Context, req model.FeatureRequest, labels model.Coverage, 
 		if err != nil {
 			return nil, err
 		}
-		split := Split(req.At, start)
+		split := periods.Split(req.At)
 		q := features.Quality(labels, req.At, end)
 		label := Label{AvailableAt: end, Quality: q}
 		if q.Usable {
@@ -64,14 +68,5 @@ func Rows(ctx context.Context, req model.FeatureRequest, labels model.Coverage, 
 }
 
 func Split(at, start time.Time) string {
-	end := at.Add(Horizon)
-	for _, p := range []struct {
-		name     string
-		from, to time.Duration
-	}{{"train", 0, 48 * time.Hour}, {"validation", 48 * time.Hour, 72 * time.Hour}, {"test", 72 * time.Hour, 168 * time.Hour}} {
-		if !at.Before(start.Add(p.from)) && end.Compare(start.Add(p.to)) <= 0 {
-			return p.name
-		}
-	}
-	return "purged"
+	return DefaultPeriods(start).Split(at)
 }

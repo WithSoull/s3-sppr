@@ -124,7 +124,9 @@ Producer Gateway уже есть в checkout; автономный Ingestor за
 согласованными задержками.
 `make demo-sppr-data` показывает ручной расчёт признаков и EWMA, а
 `make dataset-sppr` сохраняет небольшую синтетическую выборку за семь логических суток.
-Эти команды не требуют PostgreSQL или Kafka. При `PLANNER_ENABLED=true`
+Эти команды не требуют PostgreSQL или Kafka. Внешние трассы и CSV.gz по split
+описаны в [шаге 6](docs/sppr-step6.md#внешние-трассы-и-компактные-срезы),
+доступ и условия источников — в [аудите трасс](docs/traces.md). При `PLANNER_ENABLED=true`
 (`make up-sppr-planner`) Planner по таймеру и по команде строит план по прогнозу
 EWMA (по умолчанию) или файловой LightGBM с объяснениями; администратор
 подтверждает его через `/api/planner`, и

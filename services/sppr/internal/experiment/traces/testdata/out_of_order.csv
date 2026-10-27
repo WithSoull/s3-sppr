@@ -1,0 +1,4 @@
+timestamp,cacheKey,OpType,objectSize,responseSize,responseHeaderSize,rangeStart,rangeEnd
+1678838400000,a,1,100,120,20,-1,-1
+1678838400002,a,1,100,120,20,-1,-1
+1678838400001,a,1,100,120,20,-1,-1
