@@ -24,7 +24,7 @@ Repo: https://github.com/alesplll/opens3-rebac
 | Service | Lang | Port | Owner | Status |
 |---|---|---|---|---|
 | **Gateway** | Go | `:8080` HTTP | Max | 🟡 Local PUT/GET/DELETE with Range and HOT/COLD routing; Auth/AuthZ/Quota pending |
-| **SPPR** | Go | `:8086` health + migration and planner APIs (127.0.0.1) | — | Kafka Ingestor; HOT/COLD migration executor (`MIGRATION_ENABLED`); Planner on EWMA (`PLANNER_ENABLED`); profile `sppr` |
+| **SPPR** | Go | `:8086` health + migration/planner APIs + /admin (127.0.0.1) | — | Kafka Ingestor; HOT/COLD migration executor (`MIGRATION_ENABLED`); Planner on EWMA (`PLANNER_ENABLED`); profile `sppr` |
 | **Auth** | Go | `:50050` gRPC | — | ✅ Complete |
 | **AuthZ (ReBAC)** | Python | `:50051` gRPC | Alexa | ✅ Complete |
 | **Metadata** | Go | `:50052` gRPC | Anya | ✅ Complete; HOT/COLD placements + PlacementService |
@@ -38,6 +38,17 @@ Proto source: `shared/api/`. Generated stubs: `shared/pkg/go/`, `shared/pkg/py/`
 `GetAccessToken`. `GetRefreshToken` выпускает новый token, но пока не отзывает
 старый. JWT содержит строковый UUID в claim `user_id` и `token_type`; `sub` не
 является текущим источником ID. Redis используется для login-attempt counters.
+
+SPPR `/admin` and `/api/{planner,migration}` use Auth then AuthZ when
+`ADMIN_AUTH_ENABLED` is on (defaults to `PLANNER_ENABLED`). ValidateToken takes
+Empty and metadata `authorization: Bearer <access token>`; trust `user_id` only
+following success and require `token_type=access`. AuthZ ADMIN resource is
+`system:placement`: current servicer accepts it and store infers Resource.
+`make up-sppr-planner` starts identity services too; `make seed-planner-admin`
+prints local credentials for `http://localhost:8086/admin`. Login exchanges
+refresh for access, cookie is HttpOnly/SameSite=Strict; expiry requires login.
+Runbook: [SPPR access](services/sppr/README.md#доступ-и-html-панель).
+
 
 ## Architecture
 

@@ -1,0 +1,12 @@
+{{define "commandRows"}}<table>
+<tr>
+<th>Команда / время</th>
+<th>Тип / инициатор</th>
+<th>Статус / код</th>
+</tr>{{range .}}<tr>
+<td>
+<a href="/admin/commands/{{.CommandID}}">{{.CommandID}}</a>
+<br>{{datetime .CreatedAt}}</td>
+<td>{{template "enum" .Type}} · {{text .Initiator}}</td>
+<td>{{template "enum" .Status}} · {{text .Code}}</td>
+</tr>{{end}}</table>{{end}}

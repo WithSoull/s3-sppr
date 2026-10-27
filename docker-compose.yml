@@ -83,6 +83,11 @@ services:
       MIGRATION_BUDGET_WINDOW: "${MIGRATION_BUDGET_WINDOW:-1h}"
       MIGRATION_MIN_INTERVAL: "${MIGRATION_MIN_INTERVAL:-1h}"
       PLANNER_ENABLED: "${PLANNER_ENABLED:-false}"
+      ADMIN_AUTH_ENABLED: "${ADMIN_AUTH_ENABLED:-${PLANNER_ENABLED:-false}}"
+      AUTH_GRPC_ADDR: auth:50050
+      AUTHZ_GRPC_ADDR: authz:50051
+      AUTH_RPC_TIMEOUT: "${AUTH_RPC_TIMEOUT:-5s}"
+      AUTHZ_RPC_TIMEOUT: "${AUTHZ_RPC_TIMEOUT:-5s}"
       PLANNER_INTERVAL: "${PLANNER_INTERVAL:-300s}"
       PLANNER_HORIZON: "${PLANNER_HORIZON:-1h}"
       PLANNER_MIN_GAIN_MS: "${PLANNER_MIN_GAIN_MS:-100}"
@@ -91,7 +96,7 @@ services:
       METADATA_GRPC_ADDR: metadata:50052
       STORAGE_HOT_GRPC_ADDR: storage-hot:50053
       STORAGE_COLD_GRPC_ADDR: storage-cold:50053
-    # The migration and planner APIs have no authentication yet, so they stay on the host loopback.
+    # Keep the administrator interface on loopback for the local stand.
     ports:
       - "127.0.0.1:${SPPR_HTTP_PORT:-8086}:8086"
     networks: [opens3-network]

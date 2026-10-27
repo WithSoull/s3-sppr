@@ -69,6 +69,29 @@ HTTP → Kafka → PostgreSQL. Она не нужна для автономны�
 чтения и обе задержки очистки согласованно). Примеры curl и условия stand-тестов — в
 [README SPPR](services/sppr/README.md#примеры-использования).
 
+## Панель размещения Planner
+
+```bash
+make up-sppr-planner
+make seed-planner-admin
+```
+
+Первый target запускает также Users, Auth, AuthZ и их зависимости. После их
+готовности seed создаёт пользователя и выдаёт ADMIN на `system:placement`.
+Войдите на `http://localhost:8086/admin` с напечатанными email/password (по
+умолчанию `planner-admin@example.test` / `PlannerAdmin123!`, только для тестов).
+Можно экспортировать `PLANNER_ADMIN_EMAIL` и `PLANNER_ADMIN_PASSWORD`.
+Токен хранится в HttpOnly SameSite=Strict cookie; по истечении нужен новый вход,
+выход — кнопка панели. Health открыт, API без токена отвечает 401, без прав 403,
+при сбое Auth/AuthZ 503. При включённом Planner доступ включён по умолчанию;
+`ADMIN_AUTH_ENABLED=false` допустим только в локальных тестах и даёт warning.
+
+Для проверки всего цикла нужен отдельный стенд с пустым HOT и без активных
+миграций: `make smoke-planner`, либо `make smoke-planner-local` для запуска с
+короткими задержками очистки. Настройки восстанавливаются, тестовые объекты и
+журналы остаются. Детали, адреса/таймауты Auth и известный дефект replay команды
+recompute — в [README SPPR](services/sppr/README.md#вход-и-smoke-planner).
+
 ## Порты на хосте
 
 Gateway в Compose публикует события обращений в Kafka (`object-read`,

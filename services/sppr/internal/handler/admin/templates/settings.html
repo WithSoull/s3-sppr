@@ -1,0 +1,65 @@
+{{define "settings"}}<h1>Настройки</h1>
+<section>
+<h2>Planner</h2>
+<p>Коэффициенты задают ожидаемое время, а не измеренный результат стенда.</p>
+<form action="/admin/settings/planner" method="post">
+<input type="hidden" name="command_id" value="{{id}}">{{range .Fields}}<label>{{.Label}}<input type="number" step="any" name="{{.Name}}" value="{{.Value}}" required>
+{{with settingHint .}}<small class="muted">{{.}}</small>{{end}}
+</label>{{end}}<button>Сохранить Planner</button>
+</form>
+</section>
+<section>
+<h2>Исполнитель</h2>
+<form action="/admin/settings/budget" method="post">
+<input type="hidden" name="command_id" value="{{id}}">
+<label>Бюджет, байт<input type="number" min="1" name="bytes" value="{{.Budget.Bytes}}" required>
+</label>
+<p class="muted">{{template "bytes" .Budget.Bytes}}</p>
+<label>Окно, с<input type="number" min="1" name="window_seconds" value="{{seconds .Budget.Window}}" required>
+</label>
+<p class="muted">{{duration .Budget.Window}}</p>
+<button>Сохранить бюджет</button>
+</form>
+<form action="/admin/settings/interval" method="post">
+<input type="hidden" name="command_id" value="{{id}}">
+<label>Минимальный интервал между переносами версии, с<input type="number" min="0" name="min_interval_seconds" value="{{seconds .Migration.MinInterval}}" required>
+</label>
+<p class="muted">{{duration .Migration.MinInterval}}</p>
+<button>Сохранить интервал</button>
+</form>
+<p>Пауза: {{yesno .Migration.Paused}}. Очистка копий продолжается при паузе.</p>
+<form action="/admin/commands/{{if .Migration.Paused}}resume{{else}}pause{{end}}" method="post">
+<input type="hidden" name="command_id" value="{{id}}">
+<button>{{if .Migration.Paused}}Продолжить{{else}}Приостановить{{end}}</button>
+</form>
+</section>
+<section>
+<h2>Закрепления</h2>
+<table>
+<tr>
+<th>Объект</th>
+<th>Причина / автор / время</th>
+<th>Действие</th>
+</tr>{{range .Pins}}<tr>
+<td>{{.Bucket}}/{{.Key}}</td>
+<td>{{template "enum" .Reason}} · {{text .Author}} · {{datetime .CreatedAt}}</td>
+<td>
+<form action="/admin/settings/pin-delete" method="post">
+<input type="hidden" name="command_id" value="{{id}}">
+<input type="hidden" name="bucket" value="{{.Bucket}}">
+<input type="hidden" name="key" value="{{.Key}}">
+<button>Удалить</button>
+</form>
+</td>
+</tr>{{end}}</table>
+<form action="/admin/settings/pin-add" method="post">
+<input type="hidden" name="command_id" value="{{id}}">
+<label>Бакет<input name="bucket" required>
+</label>
+<label>Ключ<input name="key" required>
+</label>
+<label>Причина<input name="reason" required>
+</label>
+<button>Закрепить</button>
+</form>
+</section>{{end}}

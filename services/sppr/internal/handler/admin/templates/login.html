@@ -1,0 +1,12 @@
+{{define "login"}}<h1>Вход администратора</h1>
+<section>
+<form action="/admin/login" method="post">
+<input type="hidden" name="command_id" value="{{id}}">
+<label>Email<input type="email" name="email" autocomplete="username" required>
+</label>
+<label>Пароль<input type="password" name="password" autocomplete="current-password" required>
+</label>
+<button>Войти</button>
+</form>
+<p>Нужно право ADMIN на system:placement. По истечении токена войдите повторно.</p>
+</section>{{end}}

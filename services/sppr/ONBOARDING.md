@@ -471,10 +471,31 @@ Planner строит план, а применяет его только исп�
 6. `migrations/20261029000000_planner.up.sql`, `internal/repository/plan/` —
    ревизии, рекомендации, зависимости, журнал команд, настройки;
    `internal/repository/history/` — агрегаты и пропуски Ingestor.
-7. `internal/handler/planner/`, `internal/handler/access/` — JSON API и место,
-   где часть 3 подключит Auth и AuthZ.
+7. `internal/handler/planner/`, `internal/handler/access/` — JSON API, проверка
+   Auth access token → JWT user_id → AuthZ ADMIN на `system:placement`.
+   `internal/client/identity/` — gRPC metadata и ограниченные по времени RPC;
+   `internal/config/env/admin.go`, `internal/app/admin_provider.go` — подключение.
+   AuthZ принимает `system:` как узел Resource; S3 bucket не нужен.
 8. Связь с исполнителем: зависимое действие ждёт удаления источника
    предшественника (`ListAwaitingSourceCleanup`, `MarkSourceCleaned` в цикле очистки).
+
+9. `internal/handler/admin/` — серверные страницы и embedded шаблоны. Формы
+   Planner идут через Execute, настройки исполнителя и pins — через
+   `internal/repository/adminform/`: эффект и результат в одной транзакции,
+   advisory lock не даёт конкурентным повторам выполнить изменение дважды.
+   Прогноз карточки отделён от измеренных байт и переходов action journal.
+10. `cmd/seed-planner-admin`, `cmd/smoke-planner` — подготовка доступа и C-02,
+    C-03, C-04, C-06 на реальном стенде. `make up-sppr-planner`, затем
+    `make seed-planner-admin`; войди в `http://localhost:8086/admin` с напечатанными
+    credentials. Полный сценарий и ограничения — в
+    [README](README.md#вход-и-smoke-planner). `make smoke-planner-local` сокращает
+    задержки на выделенном стенде. Без Docker: minimock-тесты access, identity,
+    admin; PostgreSQL-проверка adminform пропускается без `SPPR_TEST_PG_DSN`.
+
+Известный дефект прежнего Planner: после привязки вычисленного плана повтор
+`recompute` с исходным UUID конфликтует из-за изменившегося `plan_id`.
+Часть 3 не меняет его логику; открывай команду для просмотра результата,
+новую форму — для нового расчёта.
 
 Ответь себе: почему самый популярный объект не всегда переносится (большой
 размер даёт малый `Δ/s`; штраф P и порог Δmin; бюджет); почему хороший прогноз не

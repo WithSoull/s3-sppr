@@ -1,0 +1,17 @@
+{{define "command"}}<h1>Результат команды</h1>{{with .Command}}<section>
+<dl>
+<dt>Идентификатор</dt>
+<dd>
+<a href="/admin/commands/{{.CommandID}}">{{.CommandID}}</a>
+</dd>
+<dt>Тип / инициатор / время</dt>
+<dd>{{template "enum" .Type}} / {{text .Initiator}} / {{datetime .CreatedAt}}</dd>
+<dt>Статус / код</dt>
+<dd>{{template "enum" .Status}} / {{text .Code}}</dd>
+</dl>
+<p>{{$.Message}}</p>{{if .Code}}<p class="error">{{text .Message}}</p>{{end}}{{if .PlanID}}<p>
+<a href="/admin/recommendations?plan_id={{.PlanID}}">Рекомендации плана</a> · <a href="/admin/migrations?plan_id={{.PlanID}}">Миграции плана</a>
+</p>{{end}}{{range .Missing}}<p>Нужно добавить: <a href="/admin/recommendations/{{.}}?plan_id={{$.Command.PlanID}}">{{.}}</a>
+</p>{{end}}<h2>Действия исполнителя</h2>{{range .Actions}}<p>
+<a href="/admin/migrations/{{.}}">{{.}}</a>
+</p>{{else}}<p>Команда не создала действий.{{if eq .Type "recompute"}} Обновите страницу рекомендаций после расчёта.{{end}}</p>{{end}}</section>{{end}}{{end}}

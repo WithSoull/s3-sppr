@@ -24,6 +24,7 @@ type Config struct {
 	Migration MigrationConfig
 	Planner   PlannerConfig
 	Upstream  UpstreamConfig
+	Admin     AdminConfig
 }
 
 func Load(path string) (*Config, error) {
@@ -84,6 +85,10 @@ func Load(path string) (*Config, error) {
 	if plannerCfg.Enabled() && !migrationCfg.Enabled() {
 		return nil, fmt.Errorf("PLANNER_ENABLED requires MIGRATION_ENABLED")
 	}
+	adminCfg, err := env.NewAdminConfig(plannerCfg.Enabled())
+	if err != nil {
+		return nil, err
+	}
 	upstreamCfg, err := env.NewUpstreamConfig()
 	if err != nil {
 		return nil, err
@@ -107,5 +112,6 @@ func Load(path string) (*Config, error) {
 		Migration: migrationCfg,
 		Planner:   plannerCfg,
 		Upstream:  upstreamCfg,
+		Admin:     adminCfg,
 	}, nil
 }

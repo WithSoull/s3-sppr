@@ -10,9 +10,11 @@ import (
 
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/config"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/handler/access"
+	"github.com/alesplll/opens3-rebac/services/sppr/internal/handler/admin"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/handler/health"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/handler/migration"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/handler/planner"
+	"github.com/alesplll/opens3-rebac/services/sppr/internal/repository/adminform"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/service"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/closer"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/logger"
@@ -82,8 +84,10 @@ func (a *App) initDeps(ctx context.Context) error {
 			return err
 		}
 	}
-	// Stage 7 part 3 replaces AllowAll with Auth and AuthZ checks.
-	authorizer := access.AllowAll()
+	auth, authorizer, err := a.provider.AdminAccess(ctx)
+	if err != nil {
+		return err
+	}
 	mux := http.NewServeMux()
 	mux.Handle("/", health.NewHandler(client.DB()))
 	mux.Handle(migration.Prefix+"/", access.Middleware(authorizer, migration.NewHandler(migrations)))
@@ -92,6 +96,13 @@ func (a *App) initDeps(ctx context.Context) error {
 			return err
 		}
 		mux.Handle(planner.Prefix+"/", access.Middleware(authorizer, planner.NewHandler(a.planner)))
+		tx, err := a.provider.TxManager(ctx)
+		if err != nil {
+			return err
+		}
+		panel := admin.NewHandler(a.planner, migrations, adminform.New(client, tx), auth, authorizer)
+		mux.Handle("/admin/", panel)
+		mux.Handle("/admin", panel)
 	}
 	return a.initHTTPServer(mux)
 }

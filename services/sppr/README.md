@@ -34,8 +34,8 @@
   допустимую часть, и подтверждённые действия уходят исполнителю.
 
 Feature Builder и EWMA работают и в автономном CLI (датасеты шага 6), и внутри
-Planner. ML Predictor (этап 8), HTML-панель и проверка прав через Auth/AuthZ
-(этап 7, часть 3) пока отсутствуют. Таблиц моделей ещё нет. Цикл очистки старых
+Planner. Доступ через Auth/AuthZ и HTML-панель реализованы; ML Predictor
+(этап 8) пока отсутствует. Таблиц моделей ещё нет. Цикл очистки старых
 blobs работает в том же процессе; проверки сбоев и `make smoke-migration`
 описаны ниже.
 
@@ -148,7 +148,8 @@ gRPC API нет.
 
 JSON на том же порту, префикс `/api/migration`. Ручки отвечают и при
 `MIGRATION_ENABLED=false`: действия можно поставить в очередь до включения
-воркеров. Аутентификации нет до этапа 7, `author` — свободный текст, поэтому
+воркеров. Доступ защищён при `ADMIN_AUTH_ENABLED=true` (по умолчанию вместе с
+Planner); при выключенной проверке это локальный тестовый API с warning.
 Compose публикует порт только на `127.0.0.1`. Planner этапа 7 вызывает те же
 методы `service.MigrationService` без HTTP.
 
@@ -215,8 +216,9 @@ Ingestor можно запускать и тестировать без producer
 ### HTTP API Planner
 
 JSON на том же порту, префикс `/api/planner`, только при `PLANNER_ENABLED=true`.
-Как и `/api/migration`, проходит через `access.Middleware`; пока это заглушка,
-пропускающая всех как `anonymous` (часть 3 этапа 7 подключит Auth и AuthZ).
+Как и `/api/migration`, проходит через `access.Middleware`: Auth проверяет
+access token, AuthZ — право ADMIN на `system:placement`. Инициатор команды —
+строковый UUID `user_id` из проверенного JWT, а не `sub`.
 
 | Метод | Путь | Назначение |
 |---|---|---|
@@ -240,6 +242,62 @@ JSON на том же порту, префикс `/api/planner`, только п
 освобождает для него место; `missing` перечисляет недостающие). План не
 дополняется автоматически. Предшественник, отправленный исполнителю прошлым
 подтверждением того же плана, недостающим не считается.
+
+### Доступ и HTML-панель
+
+При `PLANNER_ENABLED=true` проверка доступа включена по умолчанию. Токен
+передаётся в `Authorization: Bearer <access token>` либо cookie `sppr_access`.
+SPPR вызывает `AuthV1.ValidateToken(Empty)` с gRPC metadata
+`authorization: Bearer …`, затем читает JWT `user_id` (UUID), `token_type=access`
+и срок `exp`. До успешной проверки Auth payload не используется. Следом
+`PermissionService.Check` получает `subject=user:<user_id>`, `ACTION_ADMIN`,
+`object=system:placement`. Этот идентификатор поддерживается текущим AuthZ:
+servicer не ограничивает префикс, `infer_node_label` относит его к `Resource`.
+Это отдельный административный ресурс, создавать S3 bucket для него не нужно.
+AuthZ не изменён. Его комментарии proto перечисляют примеры `bucket:`/`object:`,
+но runtime принимает и `system:`.
+
+Без токена или с неверным/истёкшим токеном JSON API отвечает **401**, без ADMIN —
+**403**, с кодом `ACCESS_DENIED`. Ошибка/таймаут Auth или AuthZ даёт **503**:
+доступ не открывается при сбое. `/healthz` и `/readyz` остаются открытыми;
+проверка `/readyz` по-прежнему относится к БД, не к Auth/AuthZ.
+
+Откройте `http://localhost:8086/admin`. `GET/POST /admin/login` обменивает
+email/password через `Auth.Login` → refresh token → `GetAccessToken`; refresh
+не сохраняется. После проверки ADMIN access token записывается в HttpOnly
+cookie, `SameSite=Strict`, `Path=/`, со сроком JWT; при HTTPS также `Secure`.
+`POST /admin/logout` удаляет cookie. После истечения токена HTML перенаправляет
+на логин; автоматического продления сессии нет. Bearer имеет приоритет над cookie.
+HTML и ответы входа имеют `Cache-Control: no-store`.
+
+Страницы (Go `html/template`, встроены через `embed.FS`, без JavaScript):
+
+- `/admin`: суммарная занятость классов с копиями и целями pending, качество
+  истории, метод, бюджет/пауза/интервал, последняя ревизия, pending/running;
+- `/admin/settings`: все коэффициенты Planner, бюджет/окно/интервал исполнителя,
+  пауза и закрепления; автор закрепления берётся из проверенного пользователя;
+- `/admin/recommendations`, `/admin/plans`: последняя и сохранённые ревизии,
+  фильтры selected/kind, страницы по 50 строк, карточки объяснений и зависимостей;
+  чекбоксы подтверждают только отмеченные строки текущей страницы, отдельная
+  кнопка подтверждает весь план; пустой выбор не подтверждает весь план;
+- `/admin/commands`, `/admin/commands/{id}`: принятые и отклонённые команды,
+  человекочитаемая причина и следующий шаг, недостающие зависимости, ссылки
+  на действия; `/admin/migrations?plan_id=…`, `/admin/migrations/{id}` — действия
+  и журнал переходов/байт/очистки из MigrationService.
+
+Ожидаемый эффект карточки визуально отделён от фактических результатов журнала.
+Формы изменений несут UUID `command_id`; повтор возвращает сохранённый результат,
+а изменение полей под тем же UUID даёт 409. Команды Planner используют его
+существующий журнал; бюджет, интервал и pins — новую `admin_form_commands`,
+запись результата и эффект одной транзакцией с блокировкой concurrent retry.
+Эти два журнала показаны отдельно на странице «Команды». Примените все SQL
+миграции, включая `20261030000000_admin_forms`. Вход/выход не являются командами
+размещения и не сохраняют пароль или токены в журнале.
+
+CSRF: SameSite=Strict и запрет изменяющих запросов с чужим host в Origin **или**
+Referer (также login/logout и cookie JSON API). CLI без обоих заголовков разрешён.
+Необходим прямой host панели в этих заголовках; при reverse proxy сохраняйте Host.
+
 
 ## Данные и основные сценарии
 
@@ -465,6 +523,9 @@ blob считается успешно удалённым. После успех
 | `GATEWAY_MAX_READ_DURATION` | `5m`; тот же параметр, что у Gateway, Compose передаёт одну переменную |
 | `MIGRATION_BUDGET_BYTES`, `MIGRATION_BUDGET_WINDOW` | `1GiB` (байты или суффикс `KiB`/`MiB`/`GiB`/`TiB`), `1h`; начальный бюджет |
 | `MIGRATION_MIN_INTERVAL` | `1h`; начальное Δmin |
+| `ADMIN_AUTH_ENABLED` | наследует `PLANNER_ENABLED`; `false` только для локальных тестов, в логе warning об открытом API |
+| `AUTH_GRPC_ADDR`, `AUTHZ_GRPC_ADDR` | обязательны при включённом доступе; Compose: `auth:50050`, `authz:50051` |
+| `AUTH_RPC_TIMEOUT`, `AUTHZ_RPC_TIMEOUT` | `5s`, положительные; Auth timeout покрывает обмен Login → GetAccessToken |
 | `PLANNER_ENABLED` | `false`; цикл планирования и `/api/planner`. Требует `MIGRATION_ENABLED=true` |
 | `PLANNER_INTERVAL`, `PLANNER_KEEP_PLANS`, `PLANNER_MAX_REJECTED` | `300s`, `200`, `1000` |
 | `PLANNER_HORIZON` | `1h`; горизонт H, целые секунды |
@@ -547,7 +608,7 @@ curl -s http://localhost:8086/api/migration/budget
 make smoke-migration SMOKE_MIGRATION_ARGS="-timeout 12m"
 ```
 
-Planner вместе с исполнителем:
+Planner вместе с исполнителем, Auth, AuthZ, Users и их зависимостями:
 
 ```bash
 make up-sppr-planner
@@ -610,6 +671,11 @@ curl -s -X POST localhost:8086/api/migration/pins -d '{"bucket":"docs-demo","key
 ```
 
 ### Ручная демонстрация COLD → HOT → COLD
+
+Примеры ниже рассчитаны на migration-only профиль с `PLANNER_ENABLED=false`
+и выключенной проверкой доступа. На защищённом стенде добавьте к curl
+`-H "Authorization: Bearer $ACCESS_TOKEN"` либо используйте панель.
+
 
 Нужны `curl`, `grpcurl`, `jq`, `uuidgen` и включённый исполнитель. Пример запускается
 в subshell, сохраняет Δmin и восстанавливает его при выходе. Уменьшение Δmin —
@@ -690,6 +756,57 @@ make smoke-migration SMOKE_MIGRATION_ARGS='-sppr http://localhost:8086 -gateway 
 `make smoke-sppr` отдельно проверяет ingestion; `make smoke-gateway` отдельно
 проверяет протокол Metadata и маршрутизацию без зависимости от SPPR.
 
+### Вход и smoke Planner
+
+Из корня (Go нужен для seed и smoke; `.env.example` содержит тестовые значения):
+
+```bash
+make up-sppr-planner
+make seed-planner-admin
+# Откройте http://localhost:8086/admin
+make smoke-planner SMOKE_PLANNER_ARGS="-timeout 15m -objects 3"
+# Быстрый выделенный стенд с лимитом чтения 2s и очисткой 5s:
+make smoke-planner-local
+```
+
+Seed вызывает `UserV1.ValidateCredentials`/`Create`, затем Login/GetAccessToken
+и `AuthZ.WriteTuple(HAS_PERMISSION, ADMIN, system:placement)`. Повтор с теми же
+credentials использует пользователя; чужой существующий пароль не заменяет.
+Он намеренно печатает использованные **тестовые** email/password:
+`planner-admin@example.test` / `PlannerAdmin123!` по умолчанию. Overrides:
+`PLANNER_ADMIN_EMAIL`, `PLANNER_ADMIN_PASSWORD`, `USERS_GRPC_ADDR` (localhost:50054),
+`AUTH_GRPC_ADDR` (localhost:50050), `AUTHZ_GRPC_ADDR` (localhost:50051).
+Env надо экспортировать в shell; seed не читает сервисный `.env` автоматически.
+После выдачи права ранее закешированный отказ AuthZ может жить до 30 s;
+smoke ждёт фактический допуск. Токены в stdout не выводятся.
+
+Smoke требует **отдельный стенд: пустой HOT, нет pending/running**, producer
+Gateway включён, история без gaps, исполнитель и Planner активны, авторизация
+включена. Он создаёт свой bucket и N объектов COLD по 64 КиБ, читает первый,
+задаёт известные коэффициенты модели, нулевые порог/штраф и интервал,
+уменьшает HOT через настройки до 1,5 размера объекта, получает и подтверждает
+перенос. Затем читает второй чаще: замена требует вытеснения первого в COLD.
+Проверки: 401 без токена на обоих API; 403 подтверждения non-admin (C-04);
+старый план → PLAN_STALE (C-03); выбор promotion без eviction →
+DEPENDENCY_REQUIRED с missing (C-02); действия succeeded и удаление HOT-источников обязательных вытеснений;
+placement HOT и те же байты через Gateway; обратный перенос остывшей версии;
+проверенные связи рекомендация → команда с user_id → action journal, включая
+HTML-страницы (C-06). Качество прогноза или реальное ускорение не измеряются.
+
+Изменённые настройки Planner/бюджет/окно/интервал/пауза восстанавливаются даже
+при ошибке; ошибка восстановления также завершает smoke ненулевым кодом.
+Bucket, объекты, тестовые пользователи и журналы остаются для просмотра.
+Не запускайте параллельно другой smoke или администратора, меняющего настройки.
+Таймаут включает задержку удаления HOT-источника предшественника
+(обычно 10m, в local — 5s); остальные источники могут ещё ожидать фоновой очистки.
+Флаги: `-gateway`, `-sppr`, `-metadata`, `-objects` (2…100), `-timeout`.
+
+При `PLANNER_ENABLED=false` старые локальные migration-only команды по-прежнему
+работают без Auth; SPPR явно предупреждает об этом. Для защищённого migration-only
+запуска задайте `ADMIN_AUTH_ENABLED=true` и адреса Auth/AuthZ; старый
+`smoke-migration` не отправляет токен — для защищённого полного цикла используйте
+`smoke-planner`.
+
 ## Наблюдаемость и диагностика
 
 | Инструмент | Содержимое |
@@ -738,6 +855,13 @@ go vet ./...
 
 Для `go generate ./pkg/mocks` нужен `minimock` v3.4.7 в `PATH`; исходные
 директивы также закрепляют версию зависимостью сервиса.
+
+`internal/handler/access`, `internal/client/identity`, `internal/handler/admin`
+проверяются table-driven minimock-тестами без внешних сервисов: 401/403/503,
+metadata/claims, cookie login/logout, маршруты/формы, отказ/зависимости, Origin и
+HTML escaping. `internal/repository/adminform/repository_integration_test.go`
+проверяет concurrent retry, сохранённый отказ, 409 и rollback эффекта; без
+`SPPR_TEST_PG_DSN` пропускается.
 
 Integration tests создают и удаляют уникальные PostgreSQL schemas; нужны права
 `CREATE SCHEMA`. Полный тест также создаёт/удаляет уникальные Kafka topics и
@@ -837,14 +961,14 @@ Gateway producer уже есть в checkout. Полнота истории ещ
 Минутного агрегата недостаточно для произвольной границы T; точные события сохраняются.
 
 Нет retention/partitioning истории, DLQ, восстановления пропусков, SASL/TLS
-конфигурации Kafka и административного доступа. Запуск рассчитан на один
+конфигурации Kafka. Запуск рассчитан на один
 экземпляр во внутренней development сети: несколько исполнителей на одной БД не
-поддерживаются, кроме защиты `SKIP LOCKED` при взятии. В сервере прогноз ещё не выполняется;
-производительность и квота 2 ядра / 2 ГиБ пока не подтверждены измерениями.
+поддерживаются, кроме защиты `SKIP LOCKED` при взятии. Прогноз в Planner работает
+через EWMA; квота 2 ядра / 2 ГиБ для всего runtime пока не подтверждена измерениями.
 
 Очистка работает только при `MIGRATION_ENABLED=true`: выключенный процесс или
-недоступный Storage оставляет копии занимающими место. Нет HTML-панели и
-авторизации API (этап 7, часть 3) и ML-прогноза (этап 8). Planner считает
+недоступный Storage оставляет копии занимающими место. Нет ML-прогноза
+(этап 8). Planner считает
 историю полной до T, пока нет heartbeat (этап 5); коэффициенты `c`, `v`, `P`,
 Δmin — заглушки до измерений этапа 10. Каталог для признаков содержит только
 текущие версии и старые версии в HOT, поэтому перезаписи ключа, чьи старые версии

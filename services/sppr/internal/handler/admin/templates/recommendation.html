@@ -1,0 +1,72 @@
+{{define "recommendation"}}<h1>Карточка рекомендации</h1>{{with .Recommendation}}<p>
+<a href="/admin/recommendations?plan_id={{.PlanID}}">К ревизии</a> · <a href="/admin/commands?plan_id={{.PlanID}}">Команды плана</a> · <a href="/admin/migrations/{{.RecommendationID}}">Действие исполнителя</a> (после подтверждения)</p>
+<section>
+<h2>{{.Bucket}}/{{.Key}}</h2>
+<dl>
+<dt>Рекомендация = действие</dt>
+<dd>{{.RecommendationID}}</dd>
+<dt>Версия / поколение размещения</dt>
+<dd>{{.VersionID}} / {{integer .ExpectedGeneration}}</dd>
+<dt>Перенос</dt>
+<dd>{{text .SourceClass}} → {{text .TargetClass}} · {{template "bytes" .SizeBytes}} · {{template "enum" .Kind}}</dd>
+<dt>В плане / причина</dt>
+<dd>{{yesno .Selected}} / {{template "enum" .Reason}} {{if .Reason}}{{help (printf "%s" .Reason)}}{{end}}</dd>
+</dl>
+</section>
+<section class="expected">
+<h2>Ожидаемый эффект и объяснение</h2>{{with .Explanation.Forecast}}<h3>Прогноз</h3>
+<dl>
+<dt>Метод / горизонт</dt>
+<dd>{{text .Method}} / {{durationSeconds .HorizonSeconds}}</dd>
+<dt>Чтений / доля чтения / ожидаемый объём</dt>
+<dd>{{decimal .ExpectedReads}} / {{percent .ReadFraction}} / {{decimal .ExpectedMiB}} МиБ</dd>
+<dt>Качество / процентиль</dt>
+<dd>{{template "enum" .Quality}} / {{number .Percentile}}</dd>
+<dt>Чтения за 5 мин / 1 ч / 6 ч / 24 ч</dt>
+<dd>{{integer .Reads5m}} / {{integer .Reads1h}} / {{integer .Reads6h}} / {{integer .Reads24h}}</dd>
+<dt>EWMA / время с последнего чтения</dt>
+<dd>{{decimal .EWMA1h}} / {{elapsed .LastReadSeconds}}</dd>
+</dl>{{end}}{{with .Explanation.Effect}}<h3>Эффект</h3>
+<dl>
+<dt>Время обслуживания COLD / HOT</dt>
+<dd>{{ms .ColdLatencyMs}} / {{ms .HotLatencyMs}}</dd>
+<dt>Выигрыш версии</dt>
+<dd>{{ms .GainMs}}</dd>
+<dt>Выигрыш / штраф / чистый выигрыш набора</dt>
+<dd>{{ms .SetGainMs}} / {{ms .SetPenaltyMs}} / {{ms .SetNetGainMs}}</dd>
+<dt>Порог</dt>
+<dd>{{ms .MinGainMs}}</dd>
+</dl>{{range .Displaced}}<p>Вытеснение: <a href="/admin/recommendations/{{.RecommendationID}}?plan_id={{$.Plan.PlanID}}">{{.VersionID}}</a> · {{template "bytes" .SizeBytes}} · потеря {{ms .GainMs}}</p>{{end}}{{end}}{{with .Explanation.Resources}}<h3>Ресурсы</h3>
+<table>
+<tr>
+<th>Ресурс</th>
+<th>До</th>
+<th>После</th>
+<th>Предел</th>
+</tr>
+<tr>
+<td>HOT</td>
+<td>{{template "bytes" .HotUsedBefore}}</td>
+<td>{{template "bytes" .HotUsedAfter}}</td>
+<td>{{template "bytes" .HotUsable}}</td>
+</tr>
+<tr>
+<td>COLD</td>
+<td>{{template "bytes" .ColdUsedBefore}}</td>
+<td>{{template "bytes" .ColdUsedAfter}}</td>
+<td>{{template "bytes" .ColdUsable}}</td>
+</tr>
+<tr>
+<td>Бюджет</td>
+<td>{{template "bytes" .BudgetBefore}}</td>
+<td>{{template "bytes" .BudgetAfter}}</td>
+<td>Копирование {{template "bytes" .CopyBytes}}</td>
+</tr>
+</table>{{end}}<p>{{text .Explanation.Note}}</p>
+<h3>Обязательные предшественники</h3>{{range .DependsOn}}<p>
+<a href="/admin/recommendations/{{.}}?plan_id={{$.Plan.PlanID}}">{{.}}</a>
+</p>{{else}}<p>Нет.</p>{{end}}</section>
+<section class="measured">
+<h2>Фактическое выполнение</h2>
+<p>Прогноз выше не изменяется после переноса. Байты, причины и переходы состояний смотрите в <a href="/admin/migrations/{{.RecommendationID}}">журнале действия</a>.</p>
+</section>{{end}}{{end}}
