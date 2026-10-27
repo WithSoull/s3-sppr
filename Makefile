@@ -158,7 +158,7 @@ generate-quota-py:
 test-users:
 	go test ./services/users/... -count=1
 
-.PHONY: test-sppr test-sppr-integration up-sppr up-sppr-gateway up-sppr-migration up-sppr-planner smoke-sppr smoke-sppr-local require-gateway-access-producer demo-sppr-data dataset-sppr
+.PHONY: ml-sppr-venv ml-sppr-data ml-sppr-train ml-sppr-train-all ml-sppr-report ml-sppr-notebook test-sppr-ml test-sppr test-sppr-integration up-sppr up-sppr-gateway up-sppr-migration up-sppr-planner smoke-sppr smoke-sppr-local require-gateway-access-producer demo-sppr-data dataset-sppr
 SPPR_DATA_CONFIG ?= services/sppr/examples/data/small.json
 SPPR_DATA_OUT ?= build/sppr-data
 SPPR_SCENARIO ?= stable
@@ -169,6 +169,40 @@ demo-sppr-data:
 
 dataset-sppr:
 	go run ./services/sppr/cmd/dataset -config "$(SPPR_DATA_CONFIG)" -out "$(SPPR_DATA_OUT)" -scenario "$(SPPR_SCENARIO)" -seed "$(SPPR_SEED)"
+
+SPPR_ML := services/sppr/ml
+SPPR_ML_PY := $(SPPR_ML)/.venv/bin/python
+SPPR_ML_DATA ?= build/ml-medium/shift-0
+SPPR_ML_OUT ?= build/ml-models/shift-0
+
+ml-sppr-venv:
+	test -x $(SPPR_ML_PY) || python3 -m venv $(SPPR_ML)/.venv
+	$(SPPR_ML_PY) -m pip install -q -r $(SPPR_ML)/requirements.txt
+
+# Six synthetic scenarios, seed 0, 1000 objects: the stage 8 working set.
+ml-sppr-data:
+	for s in stable decay periodic burst shift uniform; do \
+		test -d build/ml-medium/$$s-0 || go run ./services/sppr/cmd/dataset -config services/sppr/examples/data/medium.json -scenario $$s -seed 0 -out build/ml-medium/$$s-0 >/dev/null || exit 1; \
+	done
+
+ml-sppr-train:
+	PYTHONPATH=$(SPPR_ML) $(SPPR_ML_PY) -m sppr_ml train --data $(SPPR_ML_DATA) --out $(SPPR_ML_OUT)
+
+ml-sppr-train-all: ml-sppr-data
+	for s in stable decay periodic burst shift uniform; do \
+		test -d build/ml-models/$$s-0 || $(MAKE) ml-sppr-train SPPR_ML_DATA=build/ml-medium/$$s-0 SPPR_ML_OUT=build/ml-models/$$s-0 || exit 1; \
+	done
+
+ml-sppr-report:
+	PYTHONPATH=$(SPPR_ML) $(SPPR_ML_PY) -m sppr_ml report build/ml-models/*/report.json
+	PYTHONPATH=$(SPPR_ML) $(SPPR_ML_PY) -m sppr_ml report --summary build/ml-models/*/report.json
+
+ml-sppr-notebook:
+	PYTHONPATH=$(CURDIR)/$(SPPR_ML) $(SPPR_ML_PY) $(SPPR_ML)/scripts/build_notebook.py
+	cd $(SPPR_ML)/notebooks && PYTHONPATH=$(CURDIR)/$(SPPR_ML) ../.venv/bin/jupyter nbconvert --to notebook --execute --inplace stage8.ipynb
+
+test-sppr-ml:
+	cd $(SPPR_ML) && .venv/bin/python -m pytest -q tests
 
 test-sppr:
 	go test -race ./services/sppr/... -count=1

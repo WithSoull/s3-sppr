@@ -1,0 +1,17 @@
+{
+  "scenario": "stable",
+  "seed": 0,
+  "start": "2026-10-01T00:00:00Z",
+  "objects": 1000,
+  "size_bytes": 1048576,
+  "reads_per_second": 2,
+  "snapshot_seconds": 900,
+  "hot_fraction": 0.1,
+  "hot_probability": 0.8,
+  "decay_hours": 24,
+  "period_hours": 24,
+  "burst_at_hours": 100,
+  "burst_duration_hours": 0.5,
+  "shift_every_hours": 24,
+  "lifecycle": false
+}
