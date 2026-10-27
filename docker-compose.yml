@@ -325,6 +325,11 @@ services:
       - "50052:50052"
     env_file:
       - services/metadata/.env
+    environment:
+      # Blobs of a deleted object stay until GETs started before DELETE finish;
+      # Metadata refuses to start unless the delay exceeds the Gateway read limit.
+      METADATA_DELETE_CLEANUP_DELAY: "${METADATA_DELETE_CLEANUP_DELAY:-10m}"
+      GATEWAY_MAX_READ_DURATION: "${GATEWAY_MAX_READ_DURATION:-5m}"
     networks:
       - opens3-network
     restart: unless-stopped

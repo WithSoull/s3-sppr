@@ -95,7 +95,8 @@ type PlacementServiceClient interface {
 	// переключения, source). Используется для восстановления после перезапуска.
 	ListMigrationCopies(ctx context.Context, in *ListMigrationCopiesRequest, opts ...grpc.CallOption) (*ListMigrationCopiesResponse, error)
 	// ListDueCleanups возвращает копии, blob которых пора удалить из Storage:
-	// cleanup_pending и cleanup_failed с cleanup_after <= now().
+	// cleanup_pending и cleanup_failed с cleanup_after <= now(). Сюда попадают
+	// отменённые цели, источники переносов и blobs удалённых объектов (orphan).
 	ListDueCleanups(ctx context.Context, in *ListDueCleanupsRequest, opts ...grpc.CallOption) (*ListDueCleanupsResponse, error)
 	// CompleteCleanup фиксирует результат удаления blob копии. deleted=true
 	// освобождает место; deleted=false переводит копию в cleanup_failed,
@@ -267,7 +268,8 @@ type PlacementServiceServer interface {
 	// переключения, source). Используется для восстановления после перезапуска.
 	ListMigrationCopies(context.Context, *ListMigrationCopiesRequest) (*ListMigrationCopiesResponse, error)
 	// ListDueCleanups возвращает копии, blob которых пора удалить из Storage:
-	// cleanup_pending и cleanup_failed с cleanup_after <= now().
+	// cleanup_pending и cleanup_failed с cleanup_after <= now(). Сюда попадают
+	// отменённые цели, источники переносов и blobs удалённых объектов (orphan).
 	ListDueCleanups(context.Context, *ListDueCleanupsRequest) (*ListDueCleanupsResponse, error)
 	// CompleteCleanup фиксирует результат удаления blob копии. deleted=true
 	// освобождает место; deleted=false переводит копию в cleanup_failed,

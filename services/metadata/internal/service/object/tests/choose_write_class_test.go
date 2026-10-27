@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	domainerrors "github.com/alesplll/opens3-rebac/services/metadata/internal/errors/domain_errors"
 	"github.com/alesplll/opens3-rebac/services/metadata/internal/model"
@@ -142,7 +143,7 @@ func TestChooseWriteClass(t *testing.T) {
 				placementMock = tt.buildPlacementMock(mc)
 			}
 
-			svc := objectService.NewService(repoMock, placementMock, mocks.NewTxManagerMock(mc), mocks.NewProducerMock(mc), nil, nil)
+			svc := objectService.NewService(repoMock, placementMock, mocks.NewCopyRepositoryMock(mc), mocks.NewTxManagerMock(mc), mocks.NewProducerMock(mc), time.Minute, nil, nil)
 
 			got, err := svc.ChooseWriteClass(ctx, tt.args.bucketName, tt.args.key, tt.args.sizeBytes)
 

@@ -5,6 +5,7 @@ package tests
 import (
 	"context"
 	"testing"
+	"time"
 
 	e2esuite "github.com/alesplll/opens3-rebac/e2e/suite"
 	e2econfig "github.com/alesplll/opens3-rebac/e2e/suite/config"
@@ -18,6 +19,7 @@ import (
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/client/db"
 	pgclient "github.com/alesplll/opens3-rebac/shared/pkg/go-kit/client/db/pg"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/client/db/transaction"
+	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/kafka"
 	"github.com/stretchr/testify/suite"
 	"go.uber.org/zap"
 )
@@ -25,6 +27,15 @@ import (
 type testLogger struct{}
 
 func (testLogger) Debug(context.Context, string, ...zap.Field) {}
+
+// discardProducer stands in for Kafka: these tests check rows, not events.
+type discardProducer struct{}
+
+func (discardProducer) Send(context.Context, []byte, []byte, kafka.PrettyDecoder) error { return nil }
+
+// deleteCleanupDelay is long enough that only expireCleanupDelays makes orphan
+// copies due.
+const deleteCleanupDelay = time.Hour
 
 // PlacementProtocolSuite runs the migration protocol against real PostgreSQL:
 // row locks, CAS and capacity accounting cannot be checked with mocks.
@@ -55,11 +66,12 @@ func (s *PlacementProtocolSuite) SetupSuite() {
 
 	txManager := transaction.NewTransactionManager(client.DB())
 	placements := placementRepo.NewRepository(client)
+	copies := placementCopyRepo.NewRepository(client)
 
 	s.client = client
 	s.objects = objectRepo.NewRepository(client)
-	s.objectSvc = objectService.NewService(s.objects, placements, txManager, nil, nil, nil)
-	s.placements = placementService.NewService(placements, placementCopyRepo.NewRepository(client), txManager)
+	s.objectSvc = objectService.NewService(s.objects, placements, copies, txManager, discardProducer{}, deleteCleanupDelay, nil, nil)
+	s.placements = placementService.NewService(placements, copies, txManager)
 }
 
 func (s *PlacementProtocolSuite) SetupTest() {

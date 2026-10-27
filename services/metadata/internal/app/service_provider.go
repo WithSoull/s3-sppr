@@ -195,8 +195,10 @@ func (s *serviceProvider) ObjectService(ctx context.Context) service.ObjectServi
 		s.objectService = objectSvc.NewService(
 			s.ObjectRepository(ctx),
 			s.PlacementRepository(ctx),
+			s.CopyRepository(ctx),
 			s.TxManager(ctx),
 			s.ObjectDeletedProducer(ctx),
+			config.AppConfig().Cleanup.DeleteCleanupDelay(),
 			s.PGClient(ctx),
 			s.SaramaClient(ctx),
 		)
