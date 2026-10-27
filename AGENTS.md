@@ -11,7 +11,11 @@ HOT/COLD migration executor (`/api/migration`, workers behind `MIGRATION_ENABLED
 the Planner (`/api/planner`, behind `PLANNER_ENABLED`, which needs the executor) and
 the Feature Builder/EWMA used both by the planner and by an offline dataset pipeline. `make demo-sppr-data` prints
 the hand-checkable example; `make dataset-sppr` generates a small seven-day
-dataset without external infrastructure. See the service README for profiles.
+dataset without external infrastructure. The dataset CLI also accepts external
+`-catalog`/`-events` with explicit coverage/split bounds, `-format csv.gz` and
+`-train-every`. `cmd/trace-convert` converts local Meta CDN CSV/zstd; preserve its
+source manifest and explicit inferred-success limitation. Audit and blocked IBM
+sources: `docs/traces.md`. See the service README for profiles.
 Use its service provider and shared go-kit clients. Preserve commit-before-ack,
 stream deduplication and atomic event/progress/gap/aggregate updates. Mark events
 that a retry cannot fix with `model.ErrRejected` so they are committed; return

@@ -108,7 +108,8 @@ startup тоже освобождает их. Последним закрыва�
 cmd/server/                       entrypoint, flags, signals
 cmd/smoke/                        сквозная проверка Gateway → Kafka → SPPR
 cmd/smoke-migration/              Gateway → API переносов → Storage → очистка
-cmd/dataset/                      учебный пример и синтетическая выборка
+cmd/dataset/                      учебный пример, синтетика и внешняя история
+cmd/trace-convert/                локальный Meta CDN CSV/zstd → формат шага 6
 internal/experiment/              генератор и сборка выборки по логическому времени
 internal/service/features/        общие правила признаков до T
 internal/service/predictor/ewma/   оценка числа чтений за горизонт
@@ -309,7 +310,7 @@ Referer (также login/logout и cookie JSON API). CLI без обоих за
 История передаётся после дедупликации Ingestor. Используются только успешные
 клиентские чтения строго до T. Метка отдельно считает чтения в `[T,T+1ч)`.
 Расчёт доступен через `service.FeatureBuilder` и service provider; периодический
-вызов в работающем сервере пока не подключён. Срезы сохраняет CLI в JSONL.
+вызов в работающем сервере пока не подключён. Срезы сохраняет CLI в JSONL (default) или CSV.gz по split.
 Детальные правила, качество данных и маршрут чтения — в
 [шаге 6](../../docs/sppr-step6.md).
 
@@ -689,6 +690,29 @@ make dataset-sppr SPPR_SCENARIO=shift SPPR_SEED=1 SPPR_DATA_OUT=build/sppr-shift
 и срезы раз в 300 с; это большой профиль для отдельного запуска, а не результат
 уже проведённого эксперимента. Шесть сценариев и все параметры описаны в
 [разборе шага 6](../../docs/sppr-step6.md).
+
+Внешние трассы (только уже доступные локальные файлы) преобразует
+`go run ./services/sppr/cmd/trace-convert`: Meta CDN CSV/zstd → `catalog.json`,
+`events.jsonl`, manifest с URL, лицензией, SHA-256, mapping и долями выборки.
+Обязательны `-input`, `-source-url`, `-source-share`, `-out` и явный
+`-allow-inferred-success`: в Meta нет HTTP status, GET с телом — только прокси
+успеха. Неизвестный размер пропускается. Источники IBM пока требуют действий
+автора; [аудит трасс](../../docs/traces.md) содержит ссылки, размеры и условия.
+Go-конвертер использует уже имеющийся zstd, Python/requirements не нужны.
+
+CLI `cmd/dataset` принимает `-catalog`, `-events`, `-start`, `-end` вместо
+`-config`. Границы покрытия задаются явно, не выводятся из последнего события.
+Для истории не в семь суток обязательны `-train-end` и `-validation-end`;
+интервалы и их доли сохраняются до обучения. Соседний manifest конвертера
+включается в результат с проверкой хешей (`-source-manifest` переопределяет путь).
+`-format csv.gz` пишет train/validation/test/purged.csv.gz с идентификаторами,
+всеми `features-v1`, `label_reads`, `label_has_read`, `eligible`, `split`,
+`ewma_forecast` и качеством; null — пустая ячейка. `-train-every 15m` прореживает
+только train, `-snapshot-every 5m` задаёт базовую сетку. Эти флаги доступны и для
+синтетики; JSONL остаётся default. Полные команды и ограничения реконструкции —
+в [шаге 6](../../docs/sppr-step6.md#внешние-трассы-и-компактные-срезы).
+Срезы пишутся потоково, в памяти один batch каталога и ограниченная история,
+а не все 20 160 000 строк профиля приёмки; полная ресурсная квота ещё не измерена.
 
 События — бинарный protobuf, поэтому `kafka-console-producer` для ручной
 отправки не подходит. Последовательность `1, 1, 3` с повтором и пропуском

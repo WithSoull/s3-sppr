@@ -51,7 +51,9 @@ PostgreSQL и мигратор, Kafka и ZooKeeper без остальных п�
 обращениями, признаками, часовыми метками, прогнозами EWMA и manifest.
 Существующий каталог не перезаписывается; для повтора задайте
 `SPPR_DATA_OUT=build/sppr-data-repeat`. Профили и границы применимости описаны в
-[разборе шага 6](docs/sppr-step6.md).
+[разборе шага 6](docs/sppr-step6.md); там же вход внешнего каталога/событий,
+CSV.gz и прореживание train. Перед работой с реальными данными прочтите
+[аудит трасс](docs/traces.md).
 
 Gateway producer из отдельного [PR #1](https://github.com/WithSoull/s3-sppr/pull/1) уже есть в checkout.
 Для автономной проверки Ingestor используйте integration tests из README; порядок чтения
