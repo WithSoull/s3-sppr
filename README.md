@@ -29,7 +29,7 @@ PUT/GET/HEAD/DELETE поверх Metadata и двух экземпляров Sto
 | Users | Go | 50054 | PostgreSQL |
 | Quota | Rust | 50055 | Redis |
 | [Gateway](services/gateway/README.md) | Go, локальный PUT/GET/HEAD/DELETE, Range | 8080 (localhost) | Metadata, Storage HOT и COLD |
-| SPPR | Go | 8086 (health, API переносов и Planner, 127.0.0.1) | PostgreSQL, Kafka; Metadata и Storage при `MIGRATION_ENABLED`; отдельный профиль `sppr` |
+| SPPR | Go | 8086 (health, API переносов/Planner, /admin, 127.0.0.1) | PostgreSQL, Kafka; Metadata и Storage при `MIGRATION_ENABLED`, Auth/AuthZ для доступа; отдельный профиль `sppr` |
 
 Сервис Storage хранит immutable blobs и поддерживает внутренние RPC для обычной и
 multipart-загрузки. Metadata хранит buckets, objects и versions. Наличие этих RPC
@@ -127,7 +127,13 @@ Producer Gateway уже есть в checkout; автономный Ingestor за
 Эти команды не требуют PostgreSQL или Kafka. При `PLANNER_ENABLED=true`
 (`make up-sppr-planner`) Planner по таймеру и по команде строит план по прогнозу
 EWMA с объяснениями; администратор подтверждает его через `/api/planner`, и
-исполнитель переносит версии. ML, HTML-панель и авторизация API ещё предстоят.
+исполнитель переносит версии. Панель — `http://localhost:8086/admin`:
+после `make up-sppr-planner` выполните `make seed-planner-admin`, войдите с
+напечатанными тестовыми credentials. Auth проверяет access token, AuthZ — ADMIN
+на `system:placement`; оба API и панель защищены. `make smoke-planner` проверяет
+весь цикл на выделенном стенде, `make smoke-planner-local` — с короткой очисткой.
+Подробности и известное ограничение повтора recompute — в
+[README SPPR](services/sppr/README.md#доступ-и-html-панель). ML ещё предстоит.
 Начать чтение кода можно с
 [онбординга SPPR](services/sppr/ONBOARDING.md), продолжить — с
 [разбора шага 6](docs/sppr-step6.md).

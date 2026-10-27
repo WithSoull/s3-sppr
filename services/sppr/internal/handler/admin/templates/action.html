@@ -1,0 +1,36 @@
+{{define "action"}}<h1>Журнал миграции</h1>{{with .Action}}{{with .Action}}<section class="measured">
+<h2>Фактическое выполнение</h2>
+<dl>
+<dt>Действие</dt>
+<dd>{{.ActionID}}</dd>
+<dt>Рекомендация</dt>
+<dd>
+<a href="/admin/recommendations/{{.ActionID}}?plan_id={{.PlanID}}">Карточка ожидаемого эффекта</a>
+</dd>
+<dt>Команды плана</dt>
+<dd>
+<a href="/admin/commands?plan_id={{.PlanID}}">{{.PlanID}}</a>
+</dd>
+<dt>Статус / шаг / причина</dt>
+<dd>{{template "enum" .Status}} / {{template "enum" .Step}} / {{template "enum" .Reason}}</dd>
+<dt>Версия / классы / размер</dt>
+<dd>{{.VersionID}} / {{text .SourceClass}} → {{text .TargetClass}} / {{template "bytes" .SizeBytes}}</dd>
+<dt>Попытки / списано</dt>
+<dd>{{integer .Attempts}} / {{template "bytes" .BytesCharged}}</dd>
+<dt>Начало / окончание</dt>
+<dd>{{datetime .StartedAt}} / {{datetime .FinishedAt}}</dd>
+</dl>
+<p>Успешный перенос и очистка источника — разные этапы; события очистки видны ниже.</p>
+</section>{{end}}<p>Блокировка: {{template "enum" .BlockedBy}}</p>
+<table>
+<tr>
+<th>Время</th>
+<th>Статус / шаг: до → после</th>
+<th>Объём</th>
+<th>Причина / ошибка</th>
+</tr>{{range .Events}}<tr>
+<td>{{datetime .At}}</td>
+<td>{{template "enum" .FromStatus}}/{{template "enum" .FromStep}} → {{template "enum" .ToStatus}}/{{template "enum" .ToStep}}</td>
+<td>{{template "bytes" .Bytes}}</td>
+<td>{{template "enum" .Reason}} · {{text .Error}}</td>
+</tr>{{end}}</table>{{end}}{{end}}

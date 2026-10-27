@@ -21,8 +21,7 @@ const (
 
 type handler struct{ service service.MigrationService }
 
-// NewHandler serves the migration API under Prefix. There is no authentication
-// yet, so the port must stay inside the stand.
+// NewHandler serves the migration API under Prefix; the app wraps it in access.Middleware.
 func NewHandler(s service.MigrationService) http.Handler {
 	h := &handler{service: s}
 	mux := http.NewServeMux()

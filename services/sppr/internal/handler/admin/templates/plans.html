@@ -1,0 +1,12 @@
+{{define "plans"}}<h1>Ревизии планов</h1>
+<table>
+<tr>
+<th>Ревизия / время</th>
+<th>Статус / причина</th>
+<th>Метод / триггер</th>
+</tr>{{range .Plans.Plans}}<tr>
+<td>
+<a href="/admin/recommendations?plan_id={{.PlanID}}">{{integer .Revision}}</a> · {{datetime .CreatedAt}}</td>
+<td>{{template "enum" .Status}} · {{template "enum" .Reason}}</td>
+<td>{{text .MethodVersion}} · {{template "enum" .Trigger}}</td>
+</tr>{{end}}</table>{{if .Plans.NextPageToken}}<a href="/admin/plans?page_token={{urlquery .Plans.NextPageToken}}">Следующая страница</a>{{end}}{{end}}

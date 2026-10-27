@@ -1,0 +1,2 @@
+{{define "commands"}}<h1>Команды</h1>
+<h2>Планы и пауза</h2>{{template "commandRows" .Commands.Commands}}{{if .Commands.NextPageToken}}<a href="{{.Next}}">Следующая страница команд Planner</a>{{end}}<h2>Бюджет, интервал и закрепления</h2>{{template "commandRows" .FormCommands.Commands}}{{if .FormCommands.NextPageToken}}<a href="{{.FormNext}}">Следующая страница настроек исполнителя</a>{{end}}{{end}}

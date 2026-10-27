@@ -1,0 +1,71 @@
+{{define "page"}}<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Управление размещением OpenS3</title>
+<style>
+body { font:16px/1.55 system-ui,sans-serif; color:#202c39; background:#f4f6f8; margin:0}
+main,nav { max-width:1200px; margin:auto; padding:24px}
+nav { display:flex; gap:18px; flex-wrap:wrap; align-items:center}
+a { color:#155da3}
+h1,h2,h3 { line-height:1.25}
+section,.card { background:white; padding:20px; margin:18px 0; border:1px solid #d7dee5; border-radius:8px}
+table { border-collapse:collapse; width:100%; background:white; margin:14px 0}
+th,td { border:1px solid #d7dee5; padding:9px; text-align:left; vertical-align:top; overflow-wrap:anywhere}
+th { background:#e9eff5}
+input,select,button { font:inherit; padding:6px 10px; max-width:95%}
+button { background:#155da3; color:white; border:0; border-radius:4px; cursor:pointer}
+label { display:block; margin:12px 0}
+label input { display:block}
+input[type=checkbox] { display:inline}
+form.inline { display:inline}
+code { overflow-wrap:anywhere}
+.error { border-left:5px solid #b43d3d; background:#fff4f4; padding:16px}
+.muted { color:#506173}
+.scroll { overflow-x:auto}
+dl { display:grid; grid-template-columns:minmax(180px,1fr) 3fr; gap:8px}
+dt { font-weight:bold}
+dd { margin:0; overflow-wrap:anywhere}
+pre { white-space:pre-wrap}
+nav form { margin-left:auto}
+.expected { border-left:5px solid #947000}
+.measured { border-left:5px solid #26754b}
+
+</style>
+</head>
+<body>
+{{if .Authenticated}}<nav>
+<strong>OpenS3 · Размещение</strong>
+<a href="/admin">Состояние</a>
+<a href="/admin/settings">Настройки</a>
+<a href="/admin/recommendations">Рекомендации</a>
+<a href="/admin/commands">Команды</a>
+<a href="/admin/migrations">Миграции</a>
+<form action="/admin/logout" method="post">
+<input type="hidden" name="command_id" value="{{id}}">
+<button>Выйти</button>
+</form>
+</nav>{{end}}
+<main>
+{{if eq .Page "login"}}{{template "login" .}}{{end}}
+{{if eq .Page "error"}}<h1>Запрос не выполнен</h1>
+<div class="error">
+<strong>{{text .Code}}</strong>
+<p>{{text .Message}}</p>
+</div>
+<p>
+{{if .Authenticated}}<a href="/admin">К состоянию</a> · {{end}}<a href="/admin/login">Войти</a>
+</p>{{end}}
+{{if eq .Page "status"}}{{template "status" .}}{{end}}
+{{if eq .Page "settings"}}{{template "settings" .}}{{end}}
+{{if eq .Page "plans"}}{{template "plans" .}}{{end}}
+{{if eq .Page "recommendations"}}{{template "recommendations" .}}{{end}}
+{{if eq .Page "recommendation"}}{{template "recommendation" .}}{{end}}
+{{if eq .Page "commands"}}{{template "commands" .}}{{end}}
+{{if eq .Page "command"}}{{template "command" .}}{{end}}
+{{if eq .Page "actions"}}{{template "actions" .}}{{end}}
+{{if eq .Page "action"}}{{template "action" .}}{{end}}
+</main>
+</body>
+</html>{{end}}

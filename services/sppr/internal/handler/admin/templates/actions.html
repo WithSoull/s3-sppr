@@ -1,0 +1,37 @@
+{{define "actions"}}<h1>Миграции</h1>
+<form method="get" action="/admin/migrations">
+<label>План<input name="plan_id" value="{{.PlanID}}">
+</label>
+<label>Статус<select name="status">
+<option value="">Все</option>
+<option value="pending" title="pending">ожидает</option>
+<option value="running" title="running">выполняется</option>
+<option value="succeeded" title="succeeded">успешно завершено</option>
+<option value="failed" title="failed">ошибка выполнения</option>
+<option value="cancelled" title="cancelled">отменено</option>
+</select>
+</label>
+<button>Фильтр</button>
+</form>
+<div class="scroll">
+<table>
+<tr>
+<th>Действие / версия</th>
+<th>Классы</th>
+<th>Статус / шаг</th>
+<th>Причина / блокировка</th>
+</tr>{{range .Actions.Actions}}{{with .Action}}<tr>
+<td>
+<a href="/admin/migrations/{{.ActionID}}">{{.ActionID}}</a>
+<br>{{.VersionID}}</td>
+<td>{{text .SourceClass}} → {{text .TargetClass}}</td>
+<td>{{template "enum" .Status}} / {{template "enum" .Step}}</td>
+<td>{{template "enum" .Reason}}</td>
+</tr>{{end}}{{if .BlockedBy}}<tr>
+<td colspan="4">Ожидает: {{template "enum" .BlockedBy}}</td>
+</tr>{{end}}{{end}}</table>
+</div>{{if .Actions.NextPageToken}}<a href="{{.Next}}">Следующая страница</a>{{end}}{{if .PlanID}}<form action="/admin/commands/cancel_pending" method="post">
+<input type="hidden" name="command_id" value="{{id}}">
+<input type="hidden" name="plan_id" value="{{.PlanID}}">
+<button>Отменить ожидающие действия плана</button>
+</form>{{end}}{{end}}

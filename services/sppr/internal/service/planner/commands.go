@@ -124,7 +124,9 @@ func validateSettings(s model.PlannerSettings) error {
 // replay answers a retried command with its first result; a different command
 // under the same ID is a client error.
 func replay(existing model.Command, req model.CommandRequest) (model.Command, error) {
-	same := existing.Type == req.Type && existing.PlanID == req.PlanID &&
+	// A recompute names no plan; the plan it produced is attached afterwards.
+	samePlan := existing.PlanID == req.PlanID || (req.Type == model.CommandRecompute && req.PlanID == "")
+	same := existing.Type == req.Type && samePlan &&
 		slices.Equal(existing.RecommendationIDs, req.RecommendationIDs) &&
 		(existing.Settings == nil) == (req.Settings == nil) &&
 		(existing.Settings == nil || *existing.Settings == *req.Settings)

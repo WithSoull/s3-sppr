@@ -1,0 +1,43 @@
+{{define "status"}}<h1>Состояние</h1>{{with .Status}}<section>
+<h2>Занятость классов</h2>
+<p>Сумма включает размещённые версии, временные копии и ещё не зарезервированные цели принятых действий.</p>
+<table>
+<tr>
+<th>Класс</th>
+<th>Занято</th>
+<th>Ёмкость</th>
+<th>Предел Metadata</th>
+</tr>
+<tr>
+<td>HOT</td>
+<td>{{template "bytes" .Hot.UsedBytes}}</td>
+<td>{{template "bytes" .Hot.CapacityBytes}}</td>
+<td>{{percent .Hot.MaxUtilization}}</td>
+</tr>
+<tr>
+<td>COLD</td>
+<td>{{template "bytes" .Cold.UsedBytes}}</td>
+<td>{{template "bytes" .Cold.CapacityBytes}}</td>
+<td>{{percent .Cold.MaxUtilization}}</td>
+</tr>
+</table>
+</section>
+<section>
+<h2>История и исполнитель</h2>
+<dl>
+<dt>Метод</dt>
+<dd>{{text .MethodVersion}}</dd>
+<dt>Качество истории</dt>
+<dd>Пригодна: {{yesno .HistoryQuality.Usable}} · {{template "enum" .HistoryQuality.Reason}}{{if not .HistoryQuality.Usable}}<p>{{help "HISTORY_INCOMPLETE"}}</p>{{end}}</dd>
+<dt>Пауза</dt>
+<dd>{{yesno .Migration.Paused}}</dd>
+<dt>Минимальный интервал</dt>
+<dd>{{duration .Migration.MinInterval}}</dd>
+<dt>Бюджет / потрачено / остаток</dt>
+<dd>{{template "bytes" .Budget.Bytes}} / {{template "bytes" .Budget.Spent}} / {{template "bytes" .Budget.Remaining}}</dd>
+<dt>Окно бюджета</dt>
+<dd>{{duration .Budget.Window}}</dd>
+<dt>Ожидают / выполняются</dt>
+<dd>{{integer .PendingActions}} / {{integer .RunningActions}}</dd>
+</dl>
+</section>{{with .LatestPlan}}<p>Последняя ревизия: <a href="/admin/recommendations?plan_id={{.PlanID}}">{{integer .Revision}}</a> · {{datetime .CreatedAt}} · {{template "enum" .Status}} · {{template "enum" .Reason}}</p>{{else}}<p>Ревизий ещё нет.</p>{{end}}{{end}}{{template "recompute" .}}{{end}}

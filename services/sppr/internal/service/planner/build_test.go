@@ -260,6 +260,7 @@ func TestBuildExplanationMatchesPlan(t *testing.T) {
 	nets := make(map[string]float64)
 	for _, r := range res.Recommendations {
 		e := r.Explanation
+		assert.InDelta(t, e.Effect.ColdLatencyMs-e.Effect.HotLatencyMs, e.Effect.GainMs, 1e-9, r.VersionID)
 		if !r.Selected {
 			assert.Equal(t, r.Reason, e.Reason)
 			continue

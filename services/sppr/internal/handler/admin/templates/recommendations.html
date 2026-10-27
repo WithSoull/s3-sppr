@@ -1,0 +1,72 @@
+{{define "recommendations"}}<h1>Рекомендации</h1>
+<p>
+<a href="/admin/plans">Все ревизии</a> · <a href="/admin/recommendations">Последняя ревизия</a>
+</p>{{template "recompute" .}}{{with .Plan}}<section>
+<h2>Ревизия {{integer .Revision}}</h2>
+<dl>
+<dt>План</dt>
+<dd>{{.PlanID}}</dd>
+<dt>Время / горизонт</dt>
+<dd>{{datetime .CreatedAt}} / {{duration .Params.Horizon}}</dd>
+<dt>Триггер</dt>
+<dd>{{template "enum" .Trigger}}</dd>
+<dt>Метод / статус</dt>
+<dd>{{text .MethodVersion}} / {{template "enum" .Status}}</dd>
+<dt>Причина</dt>
+<dd>{{template "enum" .Reason}}{{if eq .Status "history_incomplete"}}<p>{{help "HISTORY_INCOMPLETE"}}</p>{{end}}</dd>
+</dl>
+<p class="expected">Ожидаемый эффект: {{ms .Summary.NetGainMs}}; копирование {{template "bytes" .Summary.CopyBytes}}; {{integer .Summary.Actions}} действий. Фактическое выполнение — в <a href="/admin/migrations?plan_id={{.PlanID}}">журнале миграций</a>.</p>
+</section>
+<form method="get" action="/admin/recommendations">
+<input type="hidden" name="plan_id" value="{{.PlanID}}">
+<label>Выбор<select name="selected">
+<option value="">Все</option>
+<option value="true" {{if eq $.Selected "true"}}selected{{end}}>В плане</option>
+<option value="false" {{if eq $.Selected "false"}}selected{{end}}>Отклонённые</option>
+</select>
+</label>
+<label>Тип<select name="kind">
+<option value="">Все</option>
+<option value="promote" title="promote" {{if eq $.Kind "promote"}}selected{{end}}>в HOT</option>
+<option value="evict" title="evict" {{if eq $.Kind "evict"}}selected{{end}}>вытеснение в COLD</option>
+<option value="rebalance" title="rebalance" {{if eq $.Kind "rebalance"}}selected{{end}}>разгрузка HOT</option>
+<option value="evict_noncurrent" title="evict_noncurrent" {{if eq $.Kind "evict_noncurrent"}}selected{{end}}>старая версия в COLD</option>
+</select>
+</label>
+<button>Фильтр</button>
+</form>
+<form action="/admin/commands/confirm" method="post">
+<input type="hidden" name="command_id" value="{{id}}">
+<input type="hidden" name="plan_id" value="{{.PlanID}}">
+<div class="scroll">
+<table>
+<tr>
+<th>Выбор</th>
+<th>Объект / версия</th>
+<th>Тип / классы / размер</th>
+<th>Причина</th>
+</tr>{{range $.Recommendations.Recommendations}}<tr>
+<td>{{if .Selected}}<input type="checkbox" name="recommendation_id" value="{{.RecommendationID}}" aria-label="Выбрать {{.Key}}">{{end}}</td>
+<td>
+<a href="/admin/recommendations/{{.RecommendationID}}?plan_id={{.PlanID}}">{{.Bucket}}/{{.Key}}</a>
+<br>
+<code>{{.VersionID}}</code>
+</td>
+<td>{{template "enum" .Kind}} · {{text .SourceClass}} → {{text .TargetClass}} · {{template "bytes" .SizeBytes}}</td>
+<td>{{template "enum" .Reason}}{{if .Reason}}<p>{{help (printf "%s" .Reason)}}</p>{{end}}</td>
+</tr>{{end}}</table>
+</div>
+<button>Подтвердить выбор на этой странице</button>
+</form>{{if $.Recommendations.NextPageToken}}<p>
+<a href="{{$.Next}}">Следующая страница</a>
+</p>{{end}}<form action="/admin/commands/confirm" method="post">
+<input type="hidden" name="command_id" value="{{id}}">
+<input type="hidden" name="plan_id" value="{{.PlanID}}">
+<input type="hidden" name="all" value="true">
+<button>Подтвердить весь план</button>
+</form>
+<form action="/admin/commands/reject" method="post">
+<input type="hidden" name="command_id" value="{{id}}">
+<input type="hidden" name="plan_id" value="{{.PlanID}}">
+<button>Отклонить план</button>
+</form>{{else}}<p>Ревизий ещё нет. Выполните расчёт и обновите страницу.</p>{{end}}{{end}}

@@ -28,7 +28,9 @@ import (
 func database(t *testing.T) (db.Client, service.Ingestor) {
 	t.Helper()
 	dsn := os.Getenv("SPPR_TEST_PG_DSN")
-	require.NotEmpty(t, dsn, "set SPPR_TEST_PG_DSN to a test PostgreSQL database")
+	if dsn == "" {
+		t.Skip("set SPPR_TEST_PG_DSN to a test PostgreSQL database")
+	}
 	ctx := context.Background()
 	conn, err := pgx.Connect(ctx, dsn)
 	require.NoError(t, err)

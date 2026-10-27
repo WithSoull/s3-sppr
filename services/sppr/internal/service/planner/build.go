@@ -415,6 +415,7 @@ func (s *planState) add(c *candidate, kind model.RecommendationKind, deps []stri
 	rec := s.recommendation(c, kind)
 	rec.Selected = true
 	rec.DependsOn = deps
+	effect.ColdLatencyMs, effect.HotLatencyMs = c.coldMs, c.hotMs
 	rec.Explanation = model.Explanation{Forecast: s.forecast(c), Effect: effect, Resources: res, DependsOn: deps, Note: note}
 	rec.Order = len(s.result)
 	s.result = append(s.result, rec)
@@ -437,6 +438,7 @@ func (s *planState) rejectWith(c *candidate, kind model.RecommendationKind, reas
 	res := s.snapshot()
 	res.HotUsedAfter, res.ColdUsedAfter, res.BudgetAfter = s.hotUsed, s.coldUsed, s.budget
 	res.CopyBytes = c.item.SizeBytes
+	effect.ColdLatencyMs, effect.HotLatencyMs = c.coldMs, c.hotMs
 	rec.Explanation = model.Explanation{Forecast: s.forecast(c), Effect: effect, Resources: res, Reason: reason}
 	s.rejected = append(s.rejected, rejection{rec: rec, density: c.density})
 }

@@ -189,7 +189,7 @@ up-sppr-migration:
 	MIGRATION_ENABLED=true docker compose --profile services --profile sppr up --build -d gateway sppr metadata storage-hot storage-cold
 
 up-sppr-planner:
-	MIGRATION_ENABLED=true PLANNER_ENABLED=true docker compose --profile services --profile sppr up --build -d gateway sppr metadata storage-hot storage-cold
+	MIGRATION_ENABLED=true PLANNER_ENABLED=true docker compose --profile services --profile sppr up --build -d gateway sppr metadata storage-hot storage-cold auth authz users
 
 smoke-sppr: require-gateway-access-producer
 	SPPR_SMOKE_PG_DSN="$${SPPR_SMOKE_PG_DSN:-postgres://sppr_user:sppr_password@localhost:$${SPPR_DB_PORT:-5436}/sppr_db?sslmode=disable}" go run ./services/sppr/cmd/smoke
@@ -259,3 +259,14 @@ smoke-migration:
 smoke-migration-local:
 	GATEWAY_MAX_READ_DURATION=2s MIGRATION_SOURCE_CLEANUP_DELAY=5s METADATA_DELETE_CLEANUP_DELAY=5s MIGRATION_CLEANUP_INTERVAL=250ms $(MAKE) up-sppr-migration
 	$(MAKE) smoke-migration
+
+.PHONY: seed-planner-admin smoke-planner smoke-planner-local
+seed-planner-admin:
+	go run ./services/sppr/cmd/seed-planner-admin
+
+smoke-planner:
+	go run ./services/sppr/cmd/smoke-planner $(SMOKE_PLANNER_ARGS)
+
+smoke-planner-local:
+	GATEWAY_MAX_READ_DURATION=2s MIGRATION_SOURCE_CLEANUP_DELAY=5s METADATA_DELETE_CLEANUP_DELAY=5s MIGRATION_CLEANUP_INTERVAL=250ms MIGRATION_MIN_INTERVAL=0s $(MAKE) up-sppr-planner
+	$(MAKE) smoke-planner

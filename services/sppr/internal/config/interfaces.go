@@ -96,3 +96,12 @@ type UpstreamConfig interface {
 	StorageHotAddress() string
 	StorageColdAddress() string
 }
+
+// AdminConfig follows the upstream address/timeout configuration pattern.
+type AdminConfig interface {
+	Enabled() bool
+	AuthAddress() string
+	AuthZAddress() string
+	AuthTimeout() time.Duration
+	AuthZTimeout() time.Duration
+}

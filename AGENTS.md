@@ -30,6 +30,13 @@ that the source still holds the space the dependent needs. The planner's greedy
 `planner.Build` is pure and tested against exhaustive search; keep explanations
 computed from the same values as the plan. Administrator commands are applied
 once per `command_id` and journaled, refused ones included.
+Administrator routes use Auth.ValidateToken (Bearer metadata) then AuthZ ADMIN
+on `system:placement`; only validated JWT `user_id` is an initiator. Access
+defaults on with Planner; explicitly disabling it is for local tests and logs a
+warning. Panel templates are embedded; preserve Origin/Referer checks, HttpOnly
+SameSite cookies and command_id replay. Executor settings/pins from panel use
+`admin_form_commands` atomically with their effects. See the service README for
+login, seed and smoke instructions.
 Run `make test-sppr`; database/Kafka checks use `make test-sppr-integration` with
 documented test environment variables. Real-service failure tests additionally
 require `SPPR_TEST_MIGRATION_STAND=1`; their executor owns the run, so do not run a
@@ -48,7 +55,9 @@ competing SPPR executor/cleanup. See the SPPR README for endpoint overrides.
 - `make smoke-migration`: check COLD → HOT → COLD through the running SPPR API, source deletion and HOT occupancy; `SMOKE_MIGRATION_ARGS` forwards CLI flags.
 - `make smoke-migration-local`: start the dedicated Compose demo with coordinated short read/cleanup limits and run the migration smoke.
 - `make up-sppr-migration`: start SPPR with the migration executor enabled, plus Gateway, Metadata and both Storage instances.
-- `make up-sppr-planner`: the same stack with the Planner enabled (`/api/planner`).
+- `make up-sppr-planner`: Planner, executor and identity stack (Auth/AuthZ/Users).
+- `make seed-planner-admin`: provision the local test administrator; use its printed credentials at `http://localhost:8086/admin`.
+- `make smoke-planner` / `make smoke-planner-local`: authenticated full-loop checks on a dedicated empty-HOT stand; local shortens read/cleanup limits. See the SPPR README for config, overrides and remaining recompute replay defect.
 - `make up-gateway`: start Gateway, Metadata, the HOT and COLD Storage instances, and their local Compose dependencies.
 - `make test-metadata-integration`: run Metadata integration tests sequentially (`-p 1`) against the dedicated e2e PostgreSQL profile; the suites reset a shared schema.
 - `make test-metadata-integration-local`: start the dedicated e2e PostgreSQL container and then run Metadata integration tests.
