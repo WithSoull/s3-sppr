@@ -112,6 +112,10 @@ func (e *executor) start(ctx context.Context, a *model.Action) error {
 }
 
 func (e *executor) copyAndSwitch(ctx context.Context, a *model.Action, target model.PlacementCopy, p *model.Placement) error {
+	if target.SizeBytes != a.SizeBytes {
+		return e.failAndAbort(ctx, a, model.ReasonStale, unknownCharge(a),
+			fmt.Errorf("planned size_bytes %d differs from reserved copy size_bytes %d", a.SizeBytes, target.SizeBytes))
+	}
 	if p == nil {
 		var fresh model.Placement
 		err := e.retry(ctx, func() error {
