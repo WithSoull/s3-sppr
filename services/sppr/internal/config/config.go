@@ -20,6 +20,9 @@ type Config struct {
 	ObjectReadConsumer    ObjectReadConsumerConfig
 	ObjectWrittenConsumer ObjectWrittenConsumerConfig
 	Retry                 RetryConfig
+
+	Migration MigrationConfig
+	Upstream  UpstreamConfig
 }
 
 func Load(path string) (*Config, error) {
@@ -68,6 +71,14 @@ func Load(path string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	migrationCfg, err := env.NewMigrationConfig()
+	if err != nil {
+		return nil, err
+	}
+	upstreamCfg, err := env.NewUpstreamConfig()
+	if err != nil {
+		return nil, err
+	}
 	if pgCfg.Timeout() <= 0 || metricsCfg.PushTimeout() <= 0 {
 		return nil, fmt.Errorf("PG_TIMEOUT and OTEL_METRICS_PUSH_TIMEOUT must be positive")
 	}
@@ -83,5 +94,8 @@ func Load(path string) (*Config, error) {
 		ObjectReadConsumer:    objectReadConsumerCfg,
 		ObjectWrittenConsumer: objectWrittenConsumerCfg,
 		Retry:                 retryCfg,
+
+		Migration: migrationCfg,
+		Upstream:  upstreamCfg,
 	}, nil
 }

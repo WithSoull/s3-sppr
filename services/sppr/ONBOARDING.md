@@ -6,9 +6,11 @@
 
 ## Что сервис делает сейчас
 
-SPPR пока реализует Ingestor: получает события обращений из Kafka, сохраняет
-историю в PostgreSQL и считает минутный спрос на версии объектов. Предсказаний,
-выбора HOT/COLD и переносов данных здесь ещё нет.
+SPPR реализует Ingestor: получает события обращений из Kafka, сохраняет
+историю в PostgreSQL и считает минутный спрос на версии объектов. Второй
+компонент — исполнитель переносов HOT/COLD: принимает действия через HTTP API и
+переносит версии между Storage (маршрут чтения — [в конце](#исполнитель-переносов)).
+Предсказаний и автоматического выбора HOT/COLD здесь ещё нет.
 
 Gateway уже существует: он обслуживает HTTP PUT/GET через Metadata и Storage.
 Producer обращений вынесен в независимый [PR #1](https://github.com/WithSoull/s3-sppr/pull/1).
@@ -396,6 +398,35 @@ go vet ./services/sppr/...
 Kafka-проверка пропускается без её env. PostgreSQL-проверки требуют явно заданный
 DSN. В [CI](../../.github/workflows/sppr-ci.yml) обе зависимости поднимаются
 отдельно; там проверяются vet и тесты с `-race`.
+
+## Исполнитель переносов
+
+Это отдельный путь, Kafka он не использует. Сначала прочитай протокол Metadata
+([README Metadata](../metadata/README.md#перенос-версии-между-классами)): исполнитель
+только вызывает его RPC и копирует байты.
+
+1. `internal/model/migration.go` — статусы, шаги, причины и `Transition`.
+2. `migrations/20261028000000_migration.up.sql` — действия, рёбра, журнал,
+   списания бюджета (одна строка на попытку), настройки, закрепления.
+3. `internal/service/migration/` и `internal/handler/migration/` — Submit с
+   идемпотентностью по `action_id`, отмена, бюджет, `blocked_by`.
+4. `internal/repository/action/write.go` — `Claim` (`FOR UPDATE SKIP LOCKED` под
+   блокировкой строки настроек) и `Transition` (статус, списание, журнал и каскад
+   `dependency_failed` в одной транзакции).
+5. `internal/service/executor/process.go` — шаги действия. `process` начинается с
+   `ListMigrationCopies`, поэтому новое и прерванное рестартом действие идут одним
+   путём. `copy.go` — поток Storage → Storage с подсчётом MD5.
+6. Тесты: `internal/service/executor/*_test.go` описывают каждый исход как
+   последовательность переходов; `internal/repository/action/*_integration_test.go`
+   проверяют блокировки на PostgreSQL.
+
+Ответь себе: зачем копия проверяется до CAS (Gateway не должен читать
+непроверенный blob); почему источник удаляется только после
+`MIGRATION_SOURCE_CLEANUP_DELAY > GATEWAY_MAX_READ_DURATION` (GET, начатый до
+переключения, ещё читает старый blob); что остаётся после сбоя на каждом шаге в
+Metadata (копия `reserved`/`promoted`/`cleanup_pending`), в БД SPPR (`running` с
+шагом, открытое списание) и на дисках (частичная или полная копия под
+`blob_id` резервирования).
 
 ## Что учитывать при следующем изменении
 
