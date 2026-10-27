@@ -228,7 +228,7 @@ func (r *repo) PrunePlans(ctx context.Context, keep int) error {
 	_, err := r.db.DB().ExecContext(ctx, db.Query{Name: "plan:prune", QueryRaw: `
 		DELETE FROM plans WHERE plan_id IN (
 			SELECT plan_id FROM plans
-			WHERE status IN ('superseded','history_incomplete','failed','rejected')
+			WHERE status IN ('ready','superseded','history_incomplete','failed','rejected')
 			ORDER BY revision DESC OFFSET $1)`}, keep)
 	return err
 }

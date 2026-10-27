@@ -86,7 +86,8 @@ type PlanRepository interface {
 	LatestPlan(ctx context.Context) (*model.Plan, error)
 	ListPlans(ctx context.Context, filter model.PlanFilter) ([]model.Plan, error)
 	SetPlanStatus(ctx context.Context, planID string, status model.PlanStatus) error
-	// PrunePlans keeps the newest keep plans that were never confirmed.
+	// PrunePlans keeps the newest keep finished plans that were never confirmed;
+	// keep is at least 1, so the latest revision always stays.
 	PrunePlans(ctx context.Context, keep int) error
 
 	ListRecommendations(ctx context.Context, filter model.RecommendationFilter) ([]model.Recommendation, error)

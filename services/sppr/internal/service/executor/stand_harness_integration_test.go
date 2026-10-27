@@ -231,5 +231,5 @@ func (s *stand) cleaner(copyID string) service.MigrationCleanup {
 		}
 		return own, nil
 	}}
-	return cleanup.NewService(5*time.Millisecond, filtered, s.storages, nil)
+	return cleanup.NewService(5*time.Millisecond, s.actions, filtered, s.storages, nil)
 }
