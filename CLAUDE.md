@@ -24,7 +24,7 @@ Repo: https://github.com/alesplll/opens3-rebac
 | Service | Lang | Port | Owner | Status |
 |---|---|---|---|---|
 | **Gateway** | Go | `:8080` HTTP | Max | 🟡 Local PUT/GET/DELETE with Range and HOT/COLD routing; Auth/AuthZ/Quota pending |
-| **SPPR** | Go | `:8086` health + migration API (127.0.0.1) | — | Kafka Ingestor; HOT/COLD migration executor (`MIGRATION_ENABLED`); profile `sppr` |
+| **SPPR** | Go | `:8086` health + migration API (127.0.0.1) | — | Kafka Ingestor; HOT/COLD migration executor (`MIGRATION_ENABLED`); offline Feature Builder/EWMA; profile `sppr` |
 | **Auth** | Go | `:50050` gRPC | — | ✅ Complete |
 | **AuthZ (ReBAC)** | Python | `:50051` gRPC | Alexa | ✅ Complete |
 | **Metadata** | Go | `:50052` gRPC | Anya | ✅ Complete; HOT/COLD placements + PlacementService |
@@ -111,10 +111,11 @@ Migration pause does not stop cleanup; both run only with `MIGRATION_ENABLED=tru
 
 SPPR самостоятельно читает Kafka и сохраняет историю, gaps и минутный спрос.
 Runbook — [README](services/sppr/README.md), маршрут чтения —
-[онбординг](services/sppr/ONBOARDING.md). Gateway producer поставляется отдельным
-PR; для запуска и тестов Ingestor он не нужен. Контракт —
+[онбординг](services/sppr/ONBOARDING.md). Gateway producer из отдельного
+[PR #1](https://github.com/WithSoull/s3-sppr/pull/1) уже есть в checkout;
+для запуска и тестов Ingestor он не нужен. Контракт —
 `shared/api/events/v1/access.proto`, решения — [спека Kafka](docs/kafka-spec.md).
-Оба PR зависят от общей ветки `feat/access-events-contract`.
+Исторически оба PR зависели от общей ветки `feat/access-events-contract`.
 
 | Service | Does NOT |
 |---|---|

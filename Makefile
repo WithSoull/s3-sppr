@@ -158,7 +158,18 @@ generate-quota-py:
 test-users:
 	go test ./services/users/... -count=1
 
-.PHONY: test-sppr test-sppr-integration up-sppr up-sppr-gateway up-sppr-migration smoke-sppr smoke-sppr-local require-gateway-access-producer
+.PHONY: test-sppr test-sppr-integration up-sppr up-sppr-gateway up-sppr-migration smoke-sppr smoke-sppr-local require-gateway-access-producer demo-sppr-data dataset-sppr
+SPPR_DATA_CONFIG ?= services/sppr/examples/data/small.json
+SPPR_DATA_OUT ?= build/sppr-data
+SPPR_SCENARIO ?= stable
+SPPR_SEED ?= 0
+
+demo-sppr-data:
+	go run ./services/sppr/cmd/dataset -demo
+
+dataset-sppr:
+	go run ./services/sppr/cmd/dataset -config "$(SPPR_DATA_CONFIG)" -out "$(SPPR_DATA_OUT)" -scenario "$(SPPR_SCENARIO)" -seed "$(SPPR_SEED)"
+
 test-sppr:
 	go test -race ./services/sppr/... -count=1
 

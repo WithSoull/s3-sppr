@@ -46,11 +46,18 @@ PostgreSQL и мигратор, Kafka и ZooKeeper без остальных п�
 [README SPPR](services/sppr/README.md). Порт БД — 5436; профиль `services`
 не включает SPPR.
 
-Gateway producer поставляется отдельным [PR #1](https://github.com/WithSoull/s3-sppr/pull/1).
+Для знакомства с данными СППР без Docker запустите из корня `make demo-sppr-data`,
+затем `make dataset-sppr`. Вторая команда создаёт `build/sppr-data` с каталогом,
+обращениями, признаками, часовыми метками, прогнозами EWMA и manifest.
+Существующий каталог не перезаписывается; для повтора задайте
+`SPPR_DATA_OUT=build/sppr-data-repeat`. Профили и границы применимости описаны в
+[разборе шага 6](docs/sppr-step6.md).
+
+Gateway producer из отдельного [PR #1](https://github.com/WithSoull/s3-sppr/pull/1) уже есть в checkout.
 Для автономной проверки Ingestor используйте integration tests из README; порядок чтения
 кода — в [онбординге SPPR](services/sppr/ONBOARDING.md).
 
-После мержа обоих PR доступен `make smoke-sppr-local`: дополнительная проверка
+Доступен `make smoke-sppr-local`: дополнительная проверка
 HTTP → Kafka → PostgreSQL. Она не нужна для автономных тестов Ingestor.
 
 `make up-sppr-migration` поднимает SPPR с включённым исполнителем переносов

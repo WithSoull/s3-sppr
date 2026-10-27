@@ -113,16 +113,22 @@ Storage записывает blob во временный файл, синхро
 ### SPPR
 
 Ingestor читает protobuf-события `object-read` и `object-written` из Kafka и одной
-транзакцией сохраняет историю, пропуски, прогресс потока и минутный спрос в PostgreSQL. Gateway producer
-поставляется отдельным [PR #1](https://github.com/WithSoull/s3-sppr/pull/1);
-для автономного Ingestor он не требуется. Исполнитель переносов HOT/COLD
+транзакцией сохраняет историю, пропуски, прогресс потока и минутный спрос в PostgreSQL.
+Producer Gateway уже есть в checkout; автономный Ingestor запускается без него.
+Исполнитель переносов HOT/COLD
 принимает действия через HTTP API `/api/migration` и при `MIGRATION_ENABLED=true`
 копирует версии между Storage по протоколу Metadata `PlacementService` и очищает
 источники, отменённые цели и blobs удалённых объектов после задержки. Пауза действий
 очистку не останавливает. `make smoke-migration` проверяет COLD → HOT → COLD и
 освобождение HOT; `make smoke-migration-local` поднимает отдельный стенд с короткими
-согласованными задержками. Planner, прогноз, HTML-панель и авторизация API отсутствуют. Начать чтение
-кода можно с [онбординга SPPR](services/sppr/ONBOARDING.md).
+согласованными задержками.
+`make demo-sppr-data` показывает ручной расчёт признаков и EWMA, а
+`make dataset-sppr` сохраняет небольшую синтетическую выборку за семь логических суток.
+Эти команды не требуют PostgreSQL или Kafka. Подключение признаков к живой истории,
+ML и автоматическое размещение ещё предстоят. Planner, серверный прогноз,
+HTML-панель и авторизация API отсутствуют. Начать чтение кода можно с
+[онбординга SPPR](services/sppr/ONBOARDING.md), продолжить — с
+[разбора шага 6](docs/sppr-step6.md).
 
 ### Gateway
 
