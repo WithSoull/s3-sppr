@@ -17,9 +17,13 @@ type builder struct{}
 
 func NewService() service.FeatureBuilder { return &builder{} }
 
+// read is one demand event, or one minute of the Ingestor aggregate (count
+// reads, bytes in total, timed at the start of the minute).
 type read struct {
-	at    time.Time
-	bytes int64
+	at     time.Time
+	bytes  int64
+	count  int64
+	minute bool
 }
 
 // Build is the single calculation used by dataset preparation and prediction.
@@ -46,9 +50,21 @@ func (*builder) Build(ctx context.Context, req model.FeatureRequest) ([]model.Fe
 			return nil, fmt.Errorf("invalid demand event")
 		}
 		ref := model.VersionRef{Bucket: e.Bucket, ObjectKey: e.ObjectKey, VersionID: e.VersionID}
-		history[ref] = append(history[ref], read{e.OccurredAt, e.Bytes})
+		history[ref] = append(history[ref], read{at: e.OccurredAt, bytes: e.Bytes, count: 1})
 		if !e.OccurredAt.Before(req.At.Add(-time.Hour)) {
 			bucketReads[e.Bucket]++
+		}
+	}
+	for _, m := range req.Reads {
+		if !m.Minute.Before(req.At) {
+			continue
+		}
+		if m.Minute.IsZero() || m.Reads <= 0 || m.Bytes < 0 {
+			return nil, fmt.Errorf("invalid minute aggregate")
+		}
+		history[m.VersionRef] = append(history[m.VersionRef], read{at: m.Minute, bytes: m.Bytes, count: m.Reads, minute: true})
+		if !m.Minute.Before(req.At.Add(-time.Hour)) {
+			bucketReads[m.Bucket] += m.Reads
 		}
 	}
 	for ref := range history {
@@ -96,41 +112,49 @@ func (*builder) Build(ctx context.Context, req model.FeatureRequest) ([]model.Fe
 			}
 		}
 		rs := history[v.VersionRef]
+		counted := int64(0)
 		for i := len(rs) - 1; i >= 0; i-- {
 			r := rs[i]
+			// A minute that began before the version was created still holds
+			// only its reads; it cannot start earlier than the version.
+			if r.minute && r.at.Before(v.CreatedAt) {
+				r.at = v.CreatedAt
+			}
 			age := req.At.Sub(r.at)
-			if i == len(rs)-1 {
+			if counted == 0 {
 				seconds := age.Seconds()
 				f.LastReadSeconds = &seconds
 			}
-			if i == len(rs)-2 {
+			if counted < 2 && counted+r.count >= 2 {
 				seconds := age.Seconds()
 				f.PreviousReadSeconds = &seconds
 			}
+			counted += r.count
 			if r.at.Before(v.CreatedAt) || (v.DeletedAt != nil && !r.at.Before(*v.DeletedAt)) {
 				return nil, fmt.Errorf("read outside version lifetime: %v", v.VersionRef)
 			}
 			if age > MaxWindow {
 				continue
 			}
-			if r.bytes > v.SizeBytes {
+			if r.bytes > v.SizeBytes*r.count {
 				return nil, fmt.Errorf("read exceeds version size: %v", v.VersionRef)
 			}
-			f.Reads24h++
+			n := float64(r.count)
+			f.Reads24h += r.count
 			if age <= 6*time.Hour {
-				f.Reads6h++
+				f.Reads6h += r.count
 			}
 			if age <= time.Hour {
-				f.Reads1h++
+				f.Reads1h += r.count
 			}
 			if age <= 5*time.Minute {
-				f.Reads5m++
+				f.Reads5m += r.count
 			}
 			if age > 23*time.Hour {
-				f.ReadsDayAgo++
+				f.ReadsDayAgo += r.count
 			}
-			f.EWMA1h += math.Ln2 * math.Exp(-math.Ln2*age.Hours())
-			f.EWMA6h += (math.Ln2 / 6) * math.Exp(-math.Ln2*age.Hours()/6)
+			f.EWMA1h += n * math.Ln2 * math.Exp(-math.Ln2*age.Hours())
+			f.EWMA6h += n * (math.Ln2 / 6) * math.Exp(-math.Ln2*age.Hours()/6)
 			if v.SizeBytes > 0 {
 				f.MeanReadFraction += float64(r.bytes) / float64(v.SizeBytes)
 			}

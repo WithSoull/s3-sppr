@@ -196,3 +196,141 @@ type PlanResult struct {
 	Recommendations []Recommendation
 	Summary         PlanSummary
 }
+
+type PlanStatus string
+
+const (
+	PlanComputing         PlanStatus = "computing"
+	PlanReady             PlanStatus = "ready"
+	PlanHistoryIncomplete PlanStatus = "history_incomplete"
+	PlanFailed            PlanStatus = "failed"
+	// PlanSuperseded: a newer revision exists, so the plan can no longer be confirmed.
+	PlanSuperseded PlanStatus = "superseded"
+	PlanConfirmed  PlanStatus = "confirmed"
+	PlanRejected   PlanStatus = "rejected"
+)
+
+type PlanTrigger string
+
+const (
+	TriggerTimer  PlanTrigger = "timer"
+	TriggerManual PlanTrigger = "manual"
+)
+
+type Plan struct {
+	PlanID        string
+	Revision      int64
+	Trigger       PlanTrigger
+	Status        PlanStatus
+	MethodVersion string
+	Params        PlannerParams
+	Summary       PlanSummary
+	// Reason explains history_incomplete and failed plans.
+	Reason     string
+	CreatedAt  time.Time
+	FinishedAt *time.Time
+}
+
+type PlanFilter struct {
+	PageSize int
+	// PageToken is the revision to continue below; plans are listed newest first.
+	PageToken string
+}
+
+type PlanPage struct {
+	Plans         []Plan
+	NextPageToken string
+}
+
+type RecommendationFilter struct {
+	PlanID    string
+	Selected  *bool
+	Kind      RecommendationKind
+	PageSize  int
+	PageToken string
+}
+
+type RecommendationPage struct {
+	Recommendations []Recommendation
+	NextPageToken   string
+}
+
+type CommandType string
+
+const (
+	CommandConfirm       CommandType = "confirm"
+	CommandReject        CommandType = "reject"
+	CommandCancelPending CommandType = "cancel_pending"
+	CommandPause         CommandType = "pause"
+	CommandResume        CommandType = "resume"
+	CommandSettings      CommandType = "settings"
+	CommandRecompute     CommandType = "recompute"
+)
+
+type CommandStatus string
+
+const (
+	CommandAccepted CommandStatus = "accepted"
+	CommandRejected CommandStatus = "rejected"
+)
+
+// CommandRequest is what an administrator sends; CommandID makes a retry return
+// the first result instead of acting twice.
+type CommandRequest struct {
+	CommandID string
+	Initiator string
+	Type      CommandType
+	PlanID    string
+	// RecommendationIDs selects part of a plan for confirm; empty means all
+	// selected recommendations. For cancel_pending they are action IDs.
+	RecommendationIDs []string
+	Settings          *PlannerSettings
+}
+
+type Command struct {
+	CommandRequest
+	Status CommandStatus
+	// Code is the administrator error code of a rejected command.
+	Code    string
+	Message string
+	// Missing lists recommendations a partial confirm depends on but did not select.
+	Missing   []string
+	Actions   []string
+	CreatedAt time.Time
+}
+
+type CommandFilter struct {
+	PlanID    string
+	PageSize  int
+	PageToken string
+}
+
+type CommandPage struct {
+	Commands      []Command
+	NextPageToken string
+}
+
+// PlannerSettings are the planner parameters an administrator may change.
+type PlannerSettings struct {
+	Horizon         time.Duration
+	HotFixedMs      float64
+	HotMiBPerMs     float64
+	ColdFixedMs     float64
+	ColdMiBPerMs    float64
+	PenaltyMsPerMiB float64
+	MinGainMs       float64
+	HotUtilization  float64
+	ColdUtilization float64
+}
+
+// PlannerStatus is the "Состояние" page: what the next plan will be based on.
+type PlannerStatus struct {
+	Hot, Cold      ClassState
+	HistoryQuality DataQuality
+	MethodVersion  string
+	Migration      MigrationSettings
+	Budget         BudgetStatus
+	LatestPlan     *Plan
+	PendingActions int
+	RunningActions int
+}

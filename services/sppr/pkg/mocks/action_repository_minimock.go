@@ -11,6 +11,7 @@ import (
 	mm_time "time"
 
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/model"
+	mm_repository "github.com/alesplll/opens3-rebac/services/sppr/internal/repository"
 	"github.com/gojuno/minimock/v3"
 )
 
@@ -67,6 +68,13 @@ type ActionRepositoryMock struct {
 	afterListCounter  uint64
 	beforeListCounter uint64
 	ListMock          mActionRepositoryMockList
+
+	funcListActive          func(ctx context.Context) (aa1 []mm_repository.ActiveAction, err error)
+	funcListActiveOrigin    string
+	inspectFuncListActive   func(ctx context.Context)
+	afterListActiveCounter  uint64
+	beforeListActiveCounter uint64
+	ListActiveMock          mActionRepositoryMockListActive
 
 	funcListAwaitingSourceCleanup          func(ctx context.Context, limit int) (sa1 []string, err error)
 	funcListAwaitingSourceCleanupOrigin    string
@@ -132,6 +140,9 @@ func NewActionRepositoryMock(t minimock.Tester) *ActionRepositoryMock {
 
 	m.ListMock = mActionRepositoryMockList{mock: m}
 	m.ListMock.callArgs = []*ActionRepositoryMockListParams{}
+
+	m.ListActiveMock = mActionRepositoryMockListActive{mock: m}
+	m.ListActiveMock.callArgs = []*ActionRepositoryMockListActiveParams{}
 
 	m.ListAwaitingSourceCleanupMock = mActionRepositoryMockListAwaitingSourceCleanup{mock: m}
 	m.ListAwaitingSourceCleanupMock.callArgs = []*ActionRepositoryMockListAwaitingSourceCleanupParams{}
@@ -2553,6 +2564,318 @@ func (m *ActionRepositoryMock) MinimockListInspect() {
 	}
 }
 
+type mActionRepositoryMockListActive struct {
+	optional           bool
+	mock               *ActionRepositoryMock
+	defaultExpectation *ActionRepositoryMockListActiveExpectation
+	expectations       []*ActionRepositoryMockListActiveExpectation
+
+	callArgs []*ActionRepositoryMockListActiveParams
+	mutex    sync.RWMutex
+
+	expectedInvocations       uint64
+	expectedInvocationsOrigin string
+}
+
+// ActionRepositoryMockListActiveExpectation specifies expectation struct of the ActionRepository.ListActive
+type ActionRepositoryMockListActiveExpectation struct {
+	mock               *ActionRepositoryMock
+	params             *ActionRepositoryMockListActiveParams
+	paramPtrs          *ActionRepositoryMockListActiveParamPtrs
+	expectationOrigins ActionRepositoryMockListActiveExpectationOrigins
+	results            *ActionRepositoryMockListActiveResults
+	returnOrigin       string
+	Counter            uint64
+}
+
+// ActionRepositoryMockListActiveParams contains parameters of the ActionRepository.ListActive
+type ActionRepositoryMockListActiveParams struct {
+	ctx context.Context
+}
+
+// ActionRepositoryMockListActiveParamPtrs contains pointers to parameters of the ActionRepository.ListActive
+type ActionRepositoryMockListActiveParamPtrs struct {
+	ctx *context.Context
+}
+
+// ActionRepositoryMockListActiveResults contains results of the ActionRepository.ListActive
+type ActionRepositoryMockListActiveResults struct {
+	aa1 []mm_repository.ActiveAction
+	err error
+}
+
+// ActionRepositoryMockListActiveOrigins contains origins of expectations of the ActionRepository.ListActive
+type ActionRepositoryMockListActiveExpectationOrigins struct {
+	origin    string
+	originCtx string
+}
+
+// Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
+// the test will fail minimock's automatic final call check if the mocked method was not called at least once.
+// Optional() makes method check to work in '0 or more' mode.
+// It is NOT RECOMMENDED to use this option unless you really need it, as default behaviour helps to
+// catch the problems when the expected method call is totally skipped during test run.
+func (mmListActive *mActionRepositoryMockListActive) Optional() *mActionRepositoryMockListActive {
+	mmListActive.optional = true
+	return mmListActive
+}
+
+// Expect sets up expected params for ActionRepository.ListActive
+func (mmListActive *mActionRepositoryMockListActive) Expect(ctx context.Context) *mActionRepositoryMockListActive {
+	if mmListActive.mock.funcListActive != nil {
+		mmListActive.mock.t.Fatalf("ActionRepositoryMock.ListActive mock is already set by Set")
+	}
+
+	if mmListActive.defaultExpectation == nil {
+		mmListActive.defaultExpectation = &ActionRepositoryMockListActiveExpectation{}
+	}
+
+	if mmListActive.defaultExpectation.paramPtrs != nil {
+		mmListActive.mock.t.Fatalf("ActionRepositoryMock.ListActive mock is already set by ExpectParams functions")
+	}
+
+	mmListActive.defaultExpectation.params = &ActionRepositoryMockListActiveParams{ctx}
+	mmListActive.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
+	for _, e := range mmListActive.expectations {
+		if minimock.Equal(e.params, mmListActive.defaultExpectation.params) {
+			mmListActive.mock.t.Fatalf("Expectation set by When has same params: %#v", *mmListActive.defaultExpectation.params)
+		}
+	}
+
+	return mmListActive
+}
+
+// ExpectCtxParam1 sets up expected param ctx for ActionRepository.ListActive
+func (mmListActive *mActionRepositoryMockListActive) ExpectCtxParam1(ctx context.Context) *mActionRepositoryMockListActive {
+	if mmListActive.mock.funcListActive != nil {
+		mmListActive.mock.t.Fatalf("ActionRepositoryMock.ListActive mock is already set by Set")
+	}
+
+	if mmListActive.defaultExpectation == nil {
+		mmListActive.defaultExpectation = &ActionRepositoryMockListActiveExpectation{}
+	}
+
+	if mmListActive.defaultExpectation.params != nil {
+		mmListActive.mock.t.Fatalf("ActionRepositoryMock.ListActive mock is already set by Expect")
+	}
+
+	if mmListActive.defaultExpectation.paramPtrs == nil {
+		mmListActive.defaultExpectation.paramPtrs = &ActionRepositoryMockListActiveParamPtrs{}
+	}
+	mmListActive.defaultExpectation.paramPtrs.ctx = &ctx
+	mmListActive.defaultExpectation.expectationOrigins.originCtx = minimock.CallerInfo(1)
+
+	return mmListActive
+}
+
+// Inspect accepts an inspector function that has same arguments as the ActionRepository.ListActive
+func (mmListActive *mActionRepositoryMockListActive) Inspect(f func(ctx context.Context)) *mActionRepositoryMockListActive {
+	if mmListActive.mock.inspectFuncListActive != nil {
+		mmListActive.mock.t.Fatalf("Inspect function is already set for ActionRepositoryMock.ListActive")
+	}
+
+	mmListActive.mock.inspectFuncListActive = f
+
+	return mmListActive
+}
+
+// Return sets up results that will be returned by ActionRepository.ListActive
+func (mmListActive *mActionRepositoryMockListActive) Return(aa1 []mm_repository.ActiveAction, err error) *ActionRepositoryMock {
+	if mmListActive.mock.funcListActive != nil {
+		mmListActive.mock.t.Fatalf("ActionRepositoryMock.ListActive mock is already set by Set")
+	}
+
+	if mmListActive.defaultExpectation == nil {
+		mmListActive.defaultExpectation = &ActionRepositoryMockListActiveExpectation{mock: mmListActive.mock}
+	}
+	mmListActive.defaultExpectation.results = &ActionRepositoryMockListActiveResults{aa1, err}
+	mmListActive.defaultExpectation.returnOrigin = minimock.CallerInfo(1)
+	return mmListActive.mock
+}
+
+// Set uses given function f to mock the ActionRepository.ListActive method
+func (mmListActive *mActionRepositoryMockListActive) Set(f func(ctx context.Context) (aa1 []mm_repository.ActiveAction, err error)) *ActionRepositoryMock {
+	if mmListActive.defaultExpectation != nil {
+		mmListActive.mock.t.Fatalf("Default expectation is already set for the ActionRepository.ListActive method")
+	}
+
+	if len(mmListActive.expectations) > 0 {
+		mmListActive.mock.t.Fatalf("Some expectations are already set for the ActionRepository.ListActive method")
+	}
+
+	mmListActive.mock.funcListActive = f
+	mmListActive.mock.funcListActiveOrigin = minimock.CallerInfo(1)
+	return mmListActive.mock
+}
+
+// When sets expectation for the ActionRepository.ListActive which will trigger the result defined by the following
+// Then helper
+func (mmListActive *mActionRepositoryMockListActive) When(ctx context.Context) *ActionRepositoryMockListActiveExpectation {
+	if mmListActive.mock.funcListActive != nil {
+		mmListActive.mock.t.Fatalf("ActionRepositoryMock.ListActive mock is already set by Set")
+	}
+
+	expectation := &ActionRepositoryMockListActiveExpectation{
+		mock:               mmListActive.mock,
+		params:             &ActionRepositoryMockListActiveParams{ctx},
+		expectationOrigins: ActionRepositoryMockListActiveExpectationOrigins{origin: minimock.CallerInfo(1)},
+	}
+	mmListActive.expectations = append(mmListActive.expectations, expectation)
+	return expectation
+}
+
+// Then sets up ActionRepository.ListActive return parameters for the expectation previously defined by the When method
+func (e *ActionRepositoryMockListActiveExpectation) Then(aa1 []mm_repository.ActiveAction, err error) *ActionRepositoryMock {
+	e.results = &ActionRepositoryMockListActiveResults{aa1, err}
+	return e.mock
+}
+
+// Times sets number of times ActionRepository.ListActive should be invoked
+func (mmListActive *mActionRepositoryMockListActive) Times(n uint64) *mActionRepositoryMockListActive {
+	if n == 0 {
+		mmListActive.mock.t.Fatalf("Times of ActionRepositoryMock.ListActive mock can not be zero")
+	}
+	mm_atomic.StoreUint64(&mmListActive.expectedInvocations, n)
+	mmListActive.expectedInvocationsOrigin = minimock.CallerInfo(1)
+	return mmListActive
+}
+
+func (mmListActive *mActionRepositoryMockListActive) invocationsDone() bool {
+	if len(mmListActive.expectations) == 0 && mmListActive.defaultExpectation == nil && mmListActive.mock.funcListActive == nil {
+		return true
+	}
+
+	totalInvocations := mm_atomic.LoadUint64(&mmListActive.mock.afterListActiveCounter)
+	expectedInvocations := mm_atomic.LoadUint64(&mmListActive.expectedInvocations)
+
+	return totalInvocations > 0 && (expectedInvocations == 0 || expectedInvocations == totalInvocations)
+}
+
+// ListActive implements mm_repository.ActionRepository
+func (mmListActive *ActionRepositoryMock) ListActive(ctx context.Context) (aa1 []mm_repository.ActiveAction, err error) {
+	mm_atomic.AddUint64(&mmListActive.beforeListActiveCounter, 1)
+	defer mm_atomic.AddUint64(&mmListActive.afterListActiveCounter, 1)
+
+	mmListActive.t.Helper()
+
+	if mmListActive.inspectFuncListActive != nil {
+		mmListActive.inspectFuncListActive(ctx)
+	}
+
+	mm_params := ActionRepositoryMockListActiveParams{ctx}
+
+	// Record call args
+	mmListActive.ListActiveMock.mutex.Lock()
+	mmListActive.ListActiveMock.callArgs = append(mmListActive.ListActiveMock.callArgs, &mm_params)
+	mmListActive.ListActiveMock.mutex.Unlock()
+
+	for _, e := range mmListActive.ListActiveMock.expectations {
+		if minimock.Equal(*e.params, mm_params) {
+			mm_atomic.AddUint64(&e.Counter, 1)
+			return e.results.aa1, e.results.err
+		}
+	}
+
+	if mmListActive.ListActiveMock.defaultExpectation != nil {
+		mm_atomic.AddUint64(&mmListActive.ListActiveMock.defaultExpectation.Counter, 1)
+		mm_want := mmListActive.ListActiveMock.defaultExpectation.params
+		mm_want_ptrs := mmListActive.ListActiveMock.defaultExpectation.paramPtrs
+
+		mm_got := ActionRepositoryMockListActiveParams{ctx}
+
+		if mm_want_ptrs != nil {
+
+			if mm_want_ptrs.ctx != nil && !minimock.Equal(*mm_want_ptrs.ctx, mm_got.ctx) {
+				mmListActive.t.Errorf("ActionRepositoryMock.ListActive got unexpected parameter ctx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmListActive.ListActiveMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
+			}
+
+		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
+			mmListActive.t.Errorf("ActionRepositoryMock.ListActive got unexpected parameters, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+				mmListActive.ListActiveMock.defaultExpectation.expectationOrigins.origin, *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
+		}
+
+		mm_results := mmListActive.ListActiveMock.defaultExpectation.results
+		if mm_results == nil {
+			mmListActive.t.Fatal("No results are set for the ActionRepositoryMock.ListActive")
+		}
+		return (*mm_results).aa1, (*mm_results).err
+	}
+	if mmListActive.funcListActive != nil {
+		return mmListActive.funcListActive(ctx)
+	}
+	mmListActive.t.Fatalf("Unexpected call to ActionRepositoryMock.ListActive. %v", ctx)
+	return
+}
+
+// ListActiveAfterCounter returns a count of finished ActionRepositoryMock.ListActive invocations
+func (mmListActive *ActionRepositoryMock) ListActiveAfterCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmListActive.afterListActiveCounter)
+}
+
+// ListActiveBeforeCounter returns a count of ActionRepositoryMock.ListActive invocations
+func (mmListActive *ActionRepositoryMock) ListActiveBeforeCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmListActive.beforeListActiveCounter)
+}
+
+// Calls returns a list of arguments used in each call to ActionRepositoryMock.ListActive.
+// The list is in the same order as the calls were made (i.e. recent calls have a higher index)
+func (mmListActive *mActionRepositoryMockListActive) Calls() []*ActionRepositoryMockListActiveParams {
+	mmListActive.mutex.RLock()
+
+	argCopy := make([]*ActionRepositoryMockListActiveParams, len(mmListActive.callArgs))
+	copy(argCopy, mmListActive.callArgs)
+
+	mmListActive.mutex.RUnlock()
+
+	return argCopy
+}
+
+// MinimockListActiveDone returns true if the count of the ListActive invocations corresponds
+// the number of defined expectations
+func (m *ActionRepositoryMock) MinimockListActiveDone() bool {
+	if m.ListActiveMock.optional {
+		// Optional methods provide '0 or more' call count restriction.
+		return true
+	}
+
+	for _, e := range m.ListActiveMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			return false
+		}
+	}
+
+	return m.ListActiveMock.invocationsDone()
+}
+
+// MinimockListActiveInspect logs each unmet expectation
+func (m *ActionRepositoryMock) MinimockListActiveInspect() {
+	for _, e := range m.ListActiveMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			m.t.Errorf("Expected call to ActionRepositoryMock.ListActive at\n%s with params: %#v", e.expectationOrigins.origin, *e.params)
+		}
+	}
+
+	afterListActiveCounter := mm_atomic.LoadUint64(&m.afterListActiveCounter)
+	// if default expectation was set then invocations count should be greater than zero
+	if m.ListActiveMock.defaultExpectation != nil && afterListActiveCounter < 1 {
+		if m.ListActiveMock.defaultExpectation.params == nil {
+			m.t.Errorf("Expected call to ActionRepositoryMock.ListActive at\n%s", m.ListActiveMock.defaultExpectation.returnOrigin)
+		} else {
+			m.t.Errorf("Expected call to ActionRepositoryMock.ListActive at\n%s with params: %#v", m.ListActiveMock.defaultExpectation.expectationOrigins.origin, *m.ListActiveMock.defaultExpectation.params)
+		}
+	}
+	// if func was set then invocations count should be greater than zero
+	if m.funcListActive != nil && afterListActiveCounter < 1 {
+		m.t.Errorf("Expected call to ActionRepositoryMock.ListActive at\n%s", m.funcListActiveOrigin)
+	}
+
+	if !m.ListActiveMock.invocationsDone() && afterListActiveCounter > 0 {
+		m.t.Errorf("Expected %d calls to ActionRepositoryMock.ListActive at\n%s but found %d calls",
+			mm_atomic.LoadUint64(&m.ListActiveMock.expectedInvocations), m.ListActiveMock.expectedInvocationsOrigin, afterListActiveCounter)
+	}
+}
+
 type mActionRepositoryMockListAwaitingSourceCleanup struct {
 	optional           bool
 	mock               *ActionRepositoryMock
@@ -4254,6 +4577,8 @@ func (m *ActionRepositoryMock) MinimockFinish() {
 
 			m.MinimockListInspect()
 
+			m.MinimockListActiveInspect()
+
 			m.MinimockListAwaitingSourceCleanupInspect()
 
 			m.MinimockListEventsInspect()
@@ -4293,6 +4618,7 @@ func (m *ActionRepositoryMock) minimockDone() bool {
 		m.MinimockGetManyDone() &&
 		m.MinimockInsertDone() &&
 		m.MinimockListDone() &&
+		m.MinimockListActiveDone() &&
 		m.MinimockListAwaitingSourceCleanupDone() &&
 		m.MinimockListEventsDone() &&
 		m.MinimockListRunningDone() &&

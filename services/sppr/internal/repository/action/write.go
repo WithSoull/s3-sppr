@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/model"
+	"github.com/alesplll/opens3-rebac/services/sppr/internal/repository"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/client/db"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/contextx/txctx"
 	"github.com/jackc/pgx/v4"
@@ -226,4 +227,27 @@ func (r *repo) MarkSourceCleaned(ctx context.Context, actionID string) error {
 		UPDATE migration_actions SET source_cleaned_at = now()
 		WHERE action_id = $1::uuid AND status = 'succeeded' AND source_cleaned_at IS NULL`}, actionID)
 	return err
+}
+
+func (r *repo) ListActive(ctx context.Context) ([]repository.ActiveAction, error) {
+	var rows []struct {
+		VersionID   string `db:"version_id"`
+		TargetClass string `db:"target_class"`
+		SizeBytes   int64  `db:"size_bytes"`
+		Status      string `db:"status"`
+		Step        string `db:"step"`
+	}
+	if err := r.db.DB().ScanAllContext(ctx, &rows, db.Query{Name: "action:list_active", QueryRaw: `
+		SELECT version_id::text, target_class, size_bytes, status, COALESCE(step, '') AS step
+		FROM migration_actions WHERE status IN ('pending','running')`}); err != nil {
+		return nil, err
+	}
+	out := make([]repository.ActiveAction, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, repository.ActiveAction{
+			VersionID: row.VersionID, TargetClass: model.StorageClass(row.TargetClass), SizeBytes: row.SizeBytes,
+			Status: model.ActionStatus(row.Status), Step: model.ActionStep(row.Step),
+		})
+	}
+	return out, nil
 }

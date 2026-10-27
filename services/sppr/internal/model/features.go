@@ -74,7 +74,10 @@ type FeatureRequest struct {
 	At      time.Time
 	Catalog []Version
 	// Events must already be deduplicated by Ingestor. Future events are ignored.
-	Events   []AccessEvent
+	Events []AccessEvent
+	// Reads is the Ingestor's per-minute aggregate, an alternative to Events
+	// that keeps a day of demand small enough for the planner's memory limit.
+	Reads    []MinuteReads
 	Coverage Coverage
 }
 
@@ -87,4 +90,12 @@ type DemandForecast struct {
 	Quality             DataQuality `json:"quality"`
 	MethodVersion       string      `json:"method_version"`
 	FeatureRulesVersion string      `json:"feature_rules_version"`
+}
+
+// MinuteReads is one row of the Ingestor's per-minute demand aggregate.
+type MinuteReads struct {
+	VersionRef
+	Minute time.Time
+	Reads  int64
+	Bytes  int64
 }
