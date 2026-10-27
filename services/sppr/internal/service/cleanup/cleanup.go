@@ -8,6 +8,7 @@ import (
 
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/client"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/model"
+	"github.com/alesplll/opens3-rebac/services/sppr/internal/repository"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/service"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/logger"
 	"go.uber.org/zap"
@@ -18,13 +19,14 @@ const deleteTimeout = 5 * time.Second
 
 type cleanup struct {
 	interval   time.Duration
+	actions    repository.ActionRepository
 	placements client.PlacementClient
 	storages   map[model.StorageClass]client.StorageClient
 	observer   service.MigrationObserver
 }
 
-func NewService(interval time.Duration, placements client.PlacementClient, storages map[model.StorageClass]client.StorageClient, observer service.MigrationObserver) service.MigrationCleanup {
-	return &cleanup{interval: interval, placements: placements, storages: storages, observer: observer}
+func NewService(interval time.Duration, actions repository.ActionRepository, placements client.PlacementClient, storages map[model.StorageClass]client.StorageClient, observer service.MigrationObserver) service.MigrationCleanup {
+	return &cleanup{interval: interval, actions: actions, placements: placements, storages: storages, observer: observer}
 }
 
 func (s *cleanup) Run(ctx context.Context) error {
@@ -54,7 +56,45 @@ func (s *cleanup) Step(ctx context.Context) error {
 		}
 		result = errors.Join(result, s.process(ctx, copy))
 	}
+	if ctx.Err() != nil {
+		return errors.Join(result, ctx.Err())
+	}
+	return errors.Join(result, s.releaseDependents(ctx))
+}
+
+// releaseDependents marks actions whose source blob Metadata reports deleted,
+// so the actions waiting for the space they free can be claimed. It asks
+// Metadata rather than trusting this loop's own deletions, which a restart or
+// a lost CompleteCleanup response would lose.
+func (s *cleanup) releaseDependents(ctx context.Context) error {
+	ids, err := s.actions.ListAwaitingSourceCleanup(ctx, batchLimit)
+	if err != nil {
+		return fmt.Errorf("list actions awaiting source cleanup: %w", err)
+	}
+	var result error
+	for _, id := range ids {
+		copies, err := s.placements.ListMigrationCopies(ctx, id)
+		if err != nil {
+			result = errors.Join(result, fmt.Errorf("list copies of %s: %w", id, err))
+			continue
+		}
+		if !sourceDeleted(copies) {
+			continue
+		}
+		if err := s.actions.MarkSourceCleaned(ctx, id); err != nil {
+			result = errors.Join(result, fmt.Errorf("mark source of %s cleaned: %w", id, err))
+		}
+	}
 	return result
+}
+
+func sourceDeleted(copies []model.PlacementCopy) bool {
+	for _, c := range copies {
+		if c.Role == model.CopyRoleSource && c.State != model.CopyDeleted {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *cleanup) process(ctx context.Context, copy model.PlacementCopy) error {

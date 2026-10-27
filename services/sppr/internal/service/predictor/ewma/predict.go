@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/model"
+	"github.com/alesplll/opens3-rebac/services/sppr/internal/service"
 )
 
 const MethodVersion = "ewma-1h-v1"
@@ -19,4 +20,15 @@ func Predict(s model.FeatureSnapshot, horizon time.Duration) (model.DemandForeca
 		return model.DemandForecast{}, fmt.Errorf("EWMA overflow")
 	}
 	return model.DemandForecast{VersionRef: s.VersionRef, At: s.At, HorizonSeconds: int64(horizon / time.Second), ExpectedReads: n, Quality: s.Quality, MethodVersion: MethodVersion, FeatureRulesVersion: s.RulesVersion}, nil
+}
+
+type predictor struct{}
+
+// NewPredictor adapts Predict to the planner's Predictor interface.
+func NewPredictor() service.Predictor { return predictor{} }
+
+func (predictor) MethodVersion() string { return MethodVersion }
+
+func (predictor) Predict(s model.FeatureSnapshot, horizon time.Duration) (model.DemandForecast, error) {
+	return Predict(s, horizon)
 }

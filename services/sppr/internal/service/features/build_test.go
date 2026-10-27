@@ -183,3 +183,51 @@ func TestBuildDemandFiltering(t *testing.T) {
 		})
 	}
 }
+
+// Minute aggregates are the planner's input; for events at the start of a
+// minute they must give exactly the features of the raw events.
+func TestBuildFromMinuteAggregates(t *testing.T) {
+	events := dataset.Lesson()
+	minutes := dataset.Lesson()
+	minutes.Events = nil
+	index := make(map[model.MinuteReads]int)
+	for _, e := range events.Events {
+		if !e.IsDemand() {
+			continue
+		}
+		require.True(t, e.OccurredAt.Equal(e.OccurredAt.Truncate(time.Minute)), "lesson events start a minute")
+		key := model.MinuteReads{VersionRef: model.VersionRef{Bucket: e.Bucket, ObjectKey: e.ObjectKey, VersionID: e.VersionID}, Minute: e.OccurredAt}
+		if i, ok := index[key]; ok {
+			minutes.Reads[i].Reads++
+			minutes.Reads[i].Bytes += e.Bytes
+			continue
+		}
+		index[key] = len(minutes.Reads)
+		key.Reads, key.Bytes = 1, e.Bytes
+		minutes.Reads = append(minutes.Reads, key)
+	}
+	require.NotEmpty(t, minutes.Reads)
+	want, err := features.NewService().Build(context.Background(), events)
+	require.NoError(t, err)
+	got, err := features.NewService().Build(context.Background(), minutes)
+	require.NoError(t, err)
+	require.Equal(t, want, got)
+}
+
+func TestBuildMinuteBeforeCreationIsClamped(t *testing.T) {
+	req := dataset.Lesson()
+	req.Events = nil
+	v := req.Catalog[0]
+	v.CreatedAt = req.At.Add(-90 * time.Second)
+	req.Catalog = []model.Version{v}
+	// The aggregate minute starts 30 s before the version existed.
+	req.Reads = []model.MinuteReads{{VersionRef: v.VersionRef, Minute: req.At.Add(-2 * time.Minute), Reads: 3, Bytes: 3 * v.SizeBytes}}
+	rows, err := features.NewService().Build(context.Background(), req)
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	f := rows[0].Features
+	require.Equal(t, int64(3), f.Reads5m)
+	require.Equal(t, 90.0, *f.LastReadSeconds)
+	require.Equal(t, 90.0, *f.PreviousReadSeconds)
+	require.InDelta(t, 1.0, f.MeanReadFraction, 1e-12)
+}

@@ -21,7 +21,8 @@ SELECT a.action_id::text, a.plan_id::text, a.version_id::text, a.expected_genera
                WHERE l.action_id = a.action_id AND NOT l.settled) AS open_charge,
        EXISTS (SELECT 1 FROM migration_action_deps d
                JOIN migration_actions p ON p.action_id = d.depends_on
-               WHERE d.action_id = a.action_id AND p.status <> 'succeeded') AS deps_pending,
+               WHERE d.action_id = a.action_id
+                 AND (p.status <> 'succeeded' OR p.source_cleaned_at IS NULL)) AS deps_pending,
        ARRAY(SELECT d.depends_on::text FROM migration_action_deps d
              WHERE d.action_id = a.action_id ORDER BY d.depends_on) AS depends_on
 FROM migration_actions a`

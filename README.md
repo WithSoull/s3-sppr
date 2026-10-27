@@ -29,7 +29,7 @@ PUT/GET/HEAD/DELETE поверх Metadata и двух экземпляров Sto
 | Users | Go | 50054 | PostgreSQL |
 | Quota | Rust | 50055 | Redis |
 | [Gateway](services/gateway/README.md) | Go, локальный PUT/GET/HEAD/DELETE, Range | 8080 (localhost) | Metadata, Storage HOT и COLD |
-| SPPR | Go | 8086 (health и API переносов, 127.0.0.1) | PostgreSQL, Kafka; Metadata и Storage при `MIGRATION_ENABLED`; отдельный профиль `sppr` |
+| SPPR | Go | 8086 (health, API переносов и Planner, 127.0.0.1) | PostgreSQL, Kafka; Metadata и Storage при `MIGRATION_ENABLED`; отдельный профиль `sppr` |
 
 Сервис Storage хранит immutable blobs и поддерживает внутренние RPC для обычной и
 multipart-загрузки. Metadata хранит buckets, objects и versions. Наличие этих RPC
@@ -124,9 +124,11 @@ Producer Gateway уже есть в checkout; автономный Ingestor за
 согласованными задержками.
 `make demo-sppr-data` показывает ручной расчёт признаков и EWMA, а
 `make dataset-sppr` сохраняет небольшую синтетическую выборку за семь логических суток.
-Эти команды не требуют PostgreSQL или Kafka. Подключение признаков к живой истории,
-ML и автоматическое размещение ещё предстоят. Planner, серверный прогноз,
-HTML-панель и авторизация API отсутствуют. Начать чтение кода можно с
+Эти команды не требуют PostgreSQL или Kafka. При `PLANNER_ENABLED=true`
+(`make up-sppr-planner`) Planner по таймеру и по команде строит план по прогнозу
+EWMA с объяснениями; администратор подтверждает его через `/api/planner`, и
+исполнитель переносит версии. ML, HTML-панель и авторизация API ещё предстоят.
+Начать чтение кода можно с
 [онбординга SPPR](services/sppr/ONBOARDING.md), продолжить — с
 [разбора шага 6](docs/sppr-step6.md).
 

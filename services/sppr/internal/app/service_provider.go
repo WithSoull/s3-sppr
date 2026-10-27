@@ -57,6 +57,7 @@ type serviceProvider struct {
 	storageClients     map[model.StorageClass]client.StorageClient
 	migrationExecutor  service.MigrationExecutor
 	migrationCleanup   service.MigrationCleanup
+	plannerService     service.PlannerService
 	migrationMetrics   *observability.MigrationMetrics
 }
 

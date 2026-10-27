@@ -22,6 +22,7 @@ type Config struct {
 	Retry                 RetryConfig
 
 	Migration MigrationConfig
+	Planner   PlannerConfig
 	Upstream  UpstreamConfig
 }
 
@@ -75,6 +76,14 @@ func Load(path string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	plannerCfg, err := env.NewPlannerConfig()
+	if err != nil {
+		return nil, err
+	}
+	// Plans are applied by the executor; without it a confirmed plan would wait forever.
+	if plannerCfg.Enabled() && !migrationCfg.Enabled() {
+		return nil, fmt.Errorf("PLANNER_ENABLED requires MIGRATION_ENABLED")
+	}
 	upstreamCfg, err := env.NewUpstreamConfig()
 	if err != nil {
 		return nil, err
@@ -96,6 +105,7 @@ func Load(path string) (*Config, error) {
 		Retry:                 retryCfg,
 
 		Migration: migrationCfg,
+		Planner:   plannerCfg,
 		Upstream:  upstreamCfg,
 	}, nil
 }

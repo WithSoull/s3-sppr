@@ -17,6 +17,9 @@ type PlacementClient interface {
 	ListMigrationCopies(ctx context.Context, migrationID string) ([]model.PlacementCopy, error)
 	ListDueCleanups(ctx context.Context, limit int32) ([]model.PlacementCopy, error)
 	CompleteCleanup(ctx context.Context, copyID string, deleted bool, message string) error
+	// ListCatalog pages through current versions and overwritten versions in HOT.
+	ListCatalog(ctx context.Context) ([]model.Placement, error)
+	ListStorageClasses(ctx context.Context) ([]model.StorageClassUsage, error)
 }
 
 // StorageClient talks to the Storage instance of one class.

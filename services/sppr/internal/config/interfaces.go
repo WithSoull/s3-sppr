@@ -74,6 +74,22 @@ type MigrationConfig interface {
 	MinInterval() time.Duration
 }
 
+type PlannerConfig interface {
+	Enabled() bool
+	Interval() time.Duration
+	KeepPlans() int
+	MaxRejectedSaved() int
+	Horizon() time.Duration
+	HotFixedMs() float64
+	HotMiBPerMs() float64
+	ColdFixedMs() float64
+	ColdMiBPerMs() float64
+	PenaltyMsPerMiB() float64
+	MinGainMs() float64
+	HotUtilization() float64
+	ColdUtilization() float64
+}
+
 type UpstreamConfig interface {
 	MetadataAddress() string
 	MetadataTimeout() time.Duration

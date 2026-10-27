@@ -59,3 +59,31 @@ type MigrationObserver interface {
 type FeatureBuilder interface {
 	Build(context.Context, model.FeatureRequest) ([]model.FeatureSnapshot, error)
 }
+
+// Predictor turns a feature snapshot into a demand forecast; EWMA now, the ML
+// model of stage 8 later.
+type Predictor interface {
+	MethodVersion() string
+	Predict(snapshot model.FeatureSnapshot, horizon time.Duration) (model.DemandForecast, error)
+}
+
+// PlannerService computes plan revisions and applies administrator commands.
+// The HTTP handler and the HTML pages are thin adapters over it.
+type PlannerService interface {
+	// Run computes a plan at start, on the timer and on recompute commands
+	// until ctx is cancelled.
+	Run(ctx context.Context) error
+	Plan(ctx context.Context, trigger model.PlanTrigger) (model.Plan, error)
+	// Execute applies a command once per CommandID. A command the rules refuse
+	// (stale plan, missing dependency) is stored and returned with status
+	// rejected and its code, not as an error.
+	Execute(ctx context.Context, req model.CommandRequest) (model.Command, error)
+	GetCommand(ctx context.Context, commandID string) (model.Command, error)
+	ListCommands(ctx context.Context, filter model.CommandFilter) (model.CommandPage, error)
+	GetPlan(ctx context.Context, planID string) (model.Plan, error)
+	LatestPlan(ctx context.Context) (*model.Plan, error)
+	ListPlans(ctx context.Context, filter model.PlanFilter) (model.PlanPage, error)
+	ListRecommendations(ctx context.Context, filter model.RecommendationFilter) (model.RecommendationPage, error)
+	GetSettings(ctx context.Context) (model.PlannerSettings, error)
+	Status(ctx context.Context) (model.PlannerStatus, error)
+}

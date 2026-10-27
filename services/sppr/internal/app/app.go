@@ -9,8 +9,10 @@ import (
 	"time"
 
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/config"
+	"github.com/alesplll/opens3-rebac/services/sppr/internal/handler/access"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/handler/health"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/handler/migration"
+	"github.com/alesplll/opens3-rebac/services/sppr/internal/handler/planner"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/service"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/closer"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/logger"
@@ -26,6 +28,7 @@ type App struct {
 	consumer          service.AccessConsumerService
 	executor          service.MigrationExecutor
 	cleanup           service.MigrationCleanup
+	planner           service.PlannerService
 	server            *http.Server
 	listener          net.Listener
 	loggerInitialized bool
@@ -75,13 +78,21 @@ func (a *App) initDeps(ctx context.Context) error {
 		if a.executor, err = a.provider.MigrationExecutor(ctx); err != nil {
 			return err
 		}
-		if a.cleanup, err = a.provider.MigrationCleanup(); err != nil {
+		if a.cleanup, err = a.provider.MigrationCleanup(ctx); err != nil {
 			return err
 		}
 	}
+	// Stage 7 part 3 replaces AllowAll with Auth and AuthZ checks.
+	authorizer := access.AllowAll()
 	mux := http.NewServeMux()
 	mux.Handle("/", health.NewHandler(client.DB()))
-	mux.Handle(migration.Prefix+"/", migration.NewHandler(migrations))
+	mux.Handle(migration.Prefix+"/", access.Middleware(authorizer, migration.NewHandler(migrations)))
+	if a.cfg.Planner.Enabled() {
+		if a.planner, err = a.provider.PlannerService(ctx); err != nil {
+			return err
+		}
+		mux.Handle(planner.Prefix+"/", access.Middleware(authorizer, planner.NewHandler(a.planner)))
+	}
 	return a.initHTTPServer(mux)
 }
 
@@ -112,6 +123,7 @@ func (a *App) Run(ctx context.Context) error {
 	consumed := make(chan error, 1)
 	executed := make(chan error, 1)
 	cleaned := make(chan error, 1)
+	planned := make(chan error, 1)
 	go func() { served <- a.server.Serve(a.listener) }()
 	go func() { consumed <- a.consumer.RunConsumer(ctx) }()
 	if a.executor != nil {
@@ -124,8 +136,13 @@ func (a *App) Run(ctx context.Context) error {
 	} else {
 		cleaned <- nil
 	}
+	if a.planner != nil {
+		go func() { planned <- a.planner.Run(ctx) }()
+	} else {
+		planned <- nil
+	}
 	logger.Info(ctx, "SPPR listening", zap.String("address", a.listener.Addr().String()),
-		zap.Bool("migration_enabled", a.executor != nil))
+		zap.Bool("migration_enabled", a.executor != nil), zap.Bool("planner_enabled", a.planner != nil))
 
 	var result error
 	serverDone, consumerDone := false, false
@@ -175,6 +192,12 @@ func (a *App) Run(ctx context.Context) error {
 		result = errors.Join(result, err)
 	case <-shutdown.Done():
 		result = errors.Join(result, fmt.Errorf("stop migration cleanup: %w", shutdown.Err()))
+	}
+	select {
+	case err := <-planned:
+		result = errors.Join(result, err)
+	case <-shutdown.Done():
+		result = errors.Join(result, fmt.Errorf("stop planner: %w", shutdown.Err()))
 	}
 	return result
 }

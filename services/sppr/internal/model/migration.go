@@ -226,6 +226,18 @@ type Placement struct {
 	Generation int64
 	SizeBytes  int64
 	UpdatedAt  time.Time
+	CreatedAt  time.Time
+	// MigrationInProgress: Metadata holds a reserved target copy of the version.
+	MigrationInProgress bool
+}
+
+type StorageClassUsage struct {
+	Class          StorageClass
+	CapacityBytes  int64
+	MaxUtilization float64
+	PlacedBytes    int64
+	CopyBytes      int64
+	FreeBytes      int64
 }
 
 type CopyRole string

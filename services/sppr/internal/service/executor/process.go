@@ -133,7 +133,8 @@ func (e *executor) copyAndSwitch(ctx context.Context, a *model.Action, target mo
 		p = &fresh
 	}
 	// The copy must be of the blob that was placed when the reservation was made.
-	if !p.IsCurrent || p.Generation != target.ExpectedGeneration || p.Class != target.ExpectedClass {
+	// Metadata moves an overwritten version only out of HOT.
+	if (!p.IsCurrent && a.TargetClass != model.StorageClassCold) || p.Generation != target.ExpectedGeneration || p.Class != target.ExpectedClass {
 		return e.failAndAbort(ctx, a, model.ReasonStale, unknownCharge(a), errors.New("placement changed since the reservation"))
 	}
 	source, sink := e.storages[p.Class], e.storages[target.Class]
