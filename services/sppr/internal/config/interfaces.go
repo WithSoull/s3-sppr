@@ -61,3 +61,21 @@ type HTTPConfig interface {
 	Address() string
 	ShutdownTimeout() time.Duration
 }
+
+type MigrationConfig interface {
+	Enabled() bool
+	Workers() int
+	MaxAttempts() int
+	RetryBackoff() time.Duration
+	SourceCleanupDelay() time.Duration
+	BudgetBytes() int64
+	BudgetWindow() time.Duration
+	MinInterval() time.Duration
+}
+
+type UpstreamConfig interface {
+	MetadataAddress() string
+	MetadataTimeout() time.Duration
+	StorageHotAddress() string
+	StorageColdAddress() string
+}

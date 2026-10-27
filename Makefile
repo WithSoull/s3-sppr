@@ -158,7 +158,7 @@ generate-quota-py:
 test-users:
 	go test ./services/users/... -count=1
 
-.PHONY: test-sppr test-sppr-integration up-sppr up-sppr-gateway smoke-sppr smoke-sppr-local require-gateway-access-producer
+.PHONY: test-sppr test-sppr-integration up-sppr up-sppr-gateway up-sppr-migration smoke-sppr smoke-sppr-local require-gateway-access-producer
 test-sppr:
 	go test -race ./services/sppr/... -count=1
 
@@ -173,6 +173,9 @@ require-gateway-access-producer:
 
 up-sppr-gateway: require-gateway-access-producer
 	ACCESS_EVENTS_ENABLED=true docker compose --profile services --profile sppr up --build -d gateway sppr metadata storage-hot storage-cold
+
+up-sppr-migration:
+	MIGRATION_ENABLED=true docker compose --profile services --profile sppr up --build -d gateway sppr metadata storage-hot storage-cold
 
 smoke-sppr: require-gateway-access-producer
 	SPPR_SMOKE_PG_DSN="$${SPPR_SMOKE_PG_DSN:-postgres://sppr_user:sppr_password@localhost:$${SPPR_DB_PORT:-5436}/sppr_db?sslmode=disable}" go run ./services/sppr/cmd/smoke
