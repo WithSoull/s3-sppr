@@ -18,6 +18,11 @@ type KafkaConfig interface {
 	BucketDeletedTopic() string
 }
 
+type CleanupConfig interface {
+	// DeleteCleanupDelay is how long blobs of a deleted object stay in Storage.
+	DeleteCleanupDelay() time.Duration
+}
+
 type LoggerConfig interface {
 	LogLevel() string
 	AsJSON() bool

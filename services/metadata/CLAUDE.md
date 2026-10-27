@@ -27,6 +27,11 @@ Both gRPC services share one process and port.
   that lock lets concurrent reservations overfill HOT.
 - Copies in `reserved`, `cleanup_pending`, `cleanup_failed` count against class
   capacity. Copy rows outlive deleted versions (`version_id` → NULL).
+- `DeleteObjectMeta` locks the object row, turns every placement of the object
+  into an `orphan` copy (`migration_id` NULL, `cleanup_pending`, due after
+  `METADATA_DELETE_CLEANUP_DELAY`) and only then deletes the object, all in one
+  transaction. The delay must exceed `GATEWAY_MAX_READ_DURATION`; config refuses
+  to start otherwise.
 - `ChooseWriteClass` returns HOT only for an overwrite of a HOT key with known size
   that fits; new keys go to COLD. It does not reserve space, and
   `CreateObjectVersion` trusts the class Gateway wrote to.

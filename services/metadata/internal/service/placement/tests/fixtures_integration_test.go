@@ -79,6 +79,37 @@ func (s *PlacementProtocolSuite) usage(class model.StorageClass) *model.StorageC
 	return &u
 }
 
+func (s *PlacementProtocolSuite) placementBlob(versionID string) string {
+	s.T().Helper()
+
+	p, err := s.placements.GetPlacement(s.Context(), versionID)
+	s.Require().NoError(err)
+
+	return p.BlobID
+}
+
+// requireOccupied checks that placed and copy bytes together did not shrink:
+// a delete moves space from placements to copies, it does not release it.
+func (s *PlacementProtocolSuite) requireOccupied(class model.StorageClass, before *model.StorageClassUsage) {
+	s.T().Helper()
+
+	now := s.usage(class)
+	s.Require().Equal(before.PlacedBytes+before.CopyBytes, now.PlacedBytes+now.CopyBytes)
+}
+
+func (s *PlacementProtocolSuite) copyByBlob(copies []*model.PlacementCopy, blobID string) *model.PlacementCopy {
+	s.T().Helper()
+
+	for _, c := range copies {
+		if c.BlobID == blobID {
+			return c
+		}
+	}
+	s.FailNow("no copy for blob " + blobID)
+
+	return nil
+}
+
 // expireCleanupDelays moves cleanup_after into the past instead of sleeping.
 func (s *PlacementProtocolSuite) expireCleanupDelays() {
 	s.T().Helper()

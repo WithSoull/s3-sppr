@@ -231,7 +231,7 @@ func TestCreateObjectVersion(t *testing.T) {
 			txMock := tt.buildTxMock(mc)
 			producerMock := mocks.NewProducerMock(mc)
 
-			svc := objectService.NewService(repoMock, placementMock, txMock, producerMock, nil, nil)
+			svc := objectService.NewService(repoMock, placementMock, mocks.NewCopyRepositoryMock(mc), txMock, producerMock, time.Minute, nil, nil)
 
 			objectID, versionID, createdAt, err := svc.CreateObjectVersion(
 				tt.args.ctx,

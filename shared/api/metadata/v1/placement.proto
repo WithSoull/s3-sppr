@@ -68,7 +68,8 @@ service PlacementService {
   rpc ListMigrationCopies(ListMigrationCopiesRequest) returns (ListMigrationCopiesResponse);
 
   // ListDueCleanups возвращает копии, blob которых пора удалить из Storage:
-  // cleanup_pending и cleanup_failed с cleanup_after <= now().
+  // cleanup_pending и cleanup_failed с cleanup_after <= now(). Сюда попадают
+  // отменённые цели, источники переносов и blobs удалённых объектов (orphan).
   rpc ListDueCleanups(ListDueCleanupsRequest) returns (ListDueCleanupsResponse);
 
   // CompleteCleanup фиксирует результат удаления blob копии. deleted=true
@@ -110,9 +111,12 @@ message StorageClassInfo {
 
 message PlacementCopyInfo {
   string copy_id             = 1;
-  string migration_id        = 2;
+  string migration_id        = 2;  // пусто для role "orphan"
   string version_id          = 3;  // пусто, если версия удалена после создания копии
-  string role                = 4;  // "target" — копия для переноса, "source" — прежний blob
+  // "target" — копия для переноса, "source" — прежний blob после переключения,
+  // "orphan" — blob версии удалённого объекта (DeleteObjectMeta), ждёт
+  // cleanup_after = время удаления + METADATA_DELETE_CLEANUP_DELAY.
+  string role                = 4;
   string storage_class       = 5;  // класс, в котором лежит blob копии
   string blob_id             = 6;
   int64  size_bytes          = 7;

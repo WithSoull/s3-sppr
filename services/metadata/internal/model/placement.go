@@ -27,6 +27,8 @@ type CopyRole string
 const (
 	CopyRoleTarget CopyRole = "target"
 	CopyRoleSource CopyRole = "source"
+	// CopyRoleOrphan is a blob of a version whose object was deleted.
+	CopyRoleOrphan CopyRole = "orphan"
 )
 
 type CopyState string
@@ -43,7 +45,7 @@ const (
 // target before CAS or a blob waiting for deletion.
 type PlacementCopy struct {
 	CopyID             string
-	MigrationID        string
+	MigrationID        string // empty for orphan copies
 	VersionID          *string
 	Role               CopyRole
 	StorageClass       StorageClass

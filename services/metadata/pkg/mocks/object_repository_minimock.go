@@ -48,6 +48,13 @@ type ObjectRepositoryMock struct {
 	beforeListCounter uint64
 	ListMock          mObjectRepositoryMockList
 
+	funcLockForDelete          func(ctx context.Context, bucketName string, key string) (s1 string, err error)
+	funcLockForDeleteOrigin    string
+	inspectFuncLockForDelete   func(ctx context.Context, bucketName string, key string)
+	afterLockForDeleteCounter  uint64
+	beforeLockForDeleteCounter uint64
+	LockForDeleteMock          mObjectRepositoryMockLockForDelete
+
 	funcSetCurrentVersion          func(ctx context.Context, objectID string, versionID string) (err error)
 	funcSetCurrentVersionOrigin    string
 	inspectFuncSetCurrentVersion   func(ctx context.Context, objectID string, versionID string)
@@ -82,6 +89,9 @@ func NewObjectRepositoryMock(t minimock.Tester) *ObjectRepositoryMock {
 
 	m.ListMock = mObjectRepositoryMockList{mock: m}
 	m.ListMock.callArgs = []*ObjectRepositoryMockListParams{}
+
+	m.LockForDeleteMock = mObjectRepositoryMockLockForDelete{mock: m}
+	m.LockForDeleteMock.callArgs = []*ObjectRepositoryMockLockForDeleteParams{}
 
 	m.SetCurrentVersionMock = mObjectRepositoryMockSetCurrentVersion{mock: m}
 	m.SetCurrentVersionMock.callArgs = []*ObjectRepositoryMockSetCurrentVersionParams{}
@@ -1780,6 +1790,380 @@ func (m *ObjectRepositoryMock) MinimockListInspect() {
 	}
 }
 
+type mObjectRepositoryMockLockForDelete struct {
+	optional           bool
+	mock               *ObjectRepositoryMock
+	defaultExpectation *ObjectRepositoryMockLockForDeleteExpectation
+	expectations       []*ObjectRepositoryMockLockForDeleteExpectation
+
+	callArgs []*ObjectRepositoryMockLockForDeleteParams
+	mutex    sync.RWMutex
+
+	expectedInvocations       uint64
+	expectedInvocationsOrigin string
+}
+
+// ObjectRepositoryMockLockForDeleteExpectation specifies expectation struct of the ObjectRepository.LockForDelete
+type ObjectRepositoryMockLockForDeleteExpectation struct {
+	mock               *ObjectRepositoryMock
+	params             *ObjectRepositoryMockLockForDeleteParams
+	paramPtrs          *ObjectRepositoryMockLockForDeleteParamPtrs
+	expectationOrigins ObjectRepositoryMockLockForDeleteExpectationOrigins
+	results            *ObjectRepositoryMockLockForDeleteResults
+	returnOrigin       string
+	Counter            uint64
+}
+
+// ObjectRepositoryMockLockForDeleteParams contains parameters of the ObjectRepository.LockForDelete
+type ObjectRepositoryMockLockForDeleteParams struct {
+	ctx        context.Context
+	bucketName string
+	key        string
+}
+
+// ObjectRepositoryMockLockForDeleteParamPtrs contains pointers to parameters of the ObjectRepository.LockForDelete
+type ObjectRepositoryMockLockForDeleteParamPtrs struct {
+	ctx        *context.Context
+	bucketName *string
+	key        *string
+}
+
+// ObjectRepositoryMockLockForDeleteResults contains results of the ObjectRepository.LockForDelete
+type ObjectRepositoryMockLockForDeleteResults struct {
+	s1  string
+	err error
+}
+
+// ObjectRepositoryMockLockForDeleteOrigins contains origins of expectations of the ObjectRepository.LockForDelete
+type ObjectRepositoryMockLockForDeleteExpectationOrigins struct {
+	origin           string
+	originCtx        string
+	originBucketName string
+	originKey        string
+}
+
+// Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
+// the test will fail minimock's automatic final call check if the mocked method was not called at least once.
+// Optional() makes method check to work in '0 or more' mode.
+// It is NOT RECOMMENDED to use this option unless you really need it, as default behaviour helps to
+// catch the problems when the expected method call is totally skipped during test run.
+func (mmLockForDelete *mObjectRepositoryMockLockForDelete) Optional() *mObjectRepositoryMockLockForDelete {
+	mmLockForDelete.optional = true
+	return mmLockForDelete
+}
+
+// Expect sets up expected params for ObjectRepository.LockForDelete
+func (mmLockForDelete *mObjectRepositoryMockLockForDelete) Expect(ctx context.Context, bucketName string, key string) *mObjectRepositoryMockLockForDelete {
+	if mmLockForDelete.mock.funcLockForDelete != nil {
+		mmLockForDelete.mock.t.Fatalf("ObjectRepositoryMock.LockForDelete mock is already set by Set")
+	}
+
+	if mmLockForDelete.defaultExpectation == nil {
+		mmLockForDelete.defaultExpectation = &ObjectRepositoryMockLockForDeleteExpectation{}
+	}
+
+	if mmLockForDelete.defaultExpectation.paramPtrs != nil {
+		mmLockForDelete.mock.t.Fatalf("ObjectRepositoryMock.LockForDelete mock is already set by ExpectParams functions")
+	}
+
+	mmLockForDelete.defaultExpectation.params = &ObjectRepositoryMockLockForDeleteParams{ctx, bucketName, key}
+	mmLockForDelete.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
+	for _, e := range mmLockForDelete.expectations {
+		if minimock.Equal(e.params, mmLockForDelete.defaultExpectation.params) {
+			mmLockForDelete.mock.t.Fatalf("Expectation set by When has same params: %#v", *mmLockForDelete.defaultExpectation.params)
+		}
+	}
+
+	return mmLockForDelete
+}
+
+// ExpectCtxParam1 sets up expected param ctx for ObjectRepository.LockForDelete
+func (mmLockForDelete *mObjectRepositoryMockLockForDelete) ExpectCtxParam1(ctx context.Context) *mObjectRepositoryMockLockForDelete {
+	if mmLockForDelete.mock.funcLockForDelete != nil {
+		mmLockForDelete.mock.t.Fatalf("ObjectRepositoryMock.LockForDelete mock is already set by Set")
+	}
+
+	if mmLockForDelete.defaultExpectation == nil {
+		mmLockForDelete.defaultExpectation = &ObjectRepositoryMockLockForDeleteExpectation{}
+	}
+
+	if mmLockForDelete.defaultExpectation.params != nil {
+		mmLockForDelete.mock.t.Fatalf("ObjectRepositoryMock.LockForDelete mock is already set by Expect")
+	}
+
+	if mmLockForDelete.defaultExpectation.paramPtrs == nil {
+		mmLockForDelete.defaultExpectation.paramPtrs = &ObjectRepositoryMockLockForDeleteParamPtrs{}
+	}
+	mmLockForDelete.defaultExpectation.paramPtrs.ctx = &ctx
+	mmLockForDelete.defaultExpectation.expectationOrigins.originCtx = minimock.CallerInfo(1)
+
+	return mmLockForDelete
+}
+
+// ExpectBucketNameParam2 sets up expected param bucketName for ObjectRepository.LockForDelete
+func (mmLockForDelete *mObjectRepositoryMockLockForDelete) ExpectBucketNameParam2(bucketName string) *mObjectRepositoryMockLockForDelete {
+	if mmLockForDelete.mock.funcLockForDelete != nil {
+		mmLockForDelete.mock.t.Fatalf("ObjectRepositoryMock.LockForDelete mock is already set by Set")
+	}
+
+	if mmLockForDelete.defaultExpectation == nil {
+		mmLockForDelete.defaultExpectation = &ObjectRepositoryMockLockForDeleteExpectation{}
+	}
+
+	if mmLockForDelete.defaultExpectation.params != nil {
+		mmLockForDelete.mock.t.Fatalf("ObjectRepositoryMock.LockForDelete mock is already set by Expect")
+	}
+
+	if mmLockForDelete.defaultExpectation.paramPtrs == nil {
+		mmLockForDelete.defaultExpectation.paramPtrs = &ObjectRepositoryMockLockForDeleteParamPtrs{}
+	}
+	mmLockForDelete.defaultExpectation.paramPtrs.bucketName = &bucketName
+	mmLockForDelete.defaultExpectation.expectationOrigins.originBucketName = minimock.CallerInfo(1)
+
+	return mmLockForDelete
+}
+
+// ExpectKeyParam3 sets up expected param key for ObjectRepository.LockForDelete
+func (mmLockForDelete *mObjectRepositoryMockLockForDelete) ExpectKeyParam3(key string) *mObjectRepositoryMockLockForDelete {
+	if mmLockForDelete.mock.funcLockForDelete != nil {
+		mmLockForDelete.mock.t.Fatalf("ObjectRepositoryMock.LockForDelete mock is already set by Set")
+	}
+
+	if mmLockForDelete.defaultExpectation == nil {
+		mmLockForDelete.defaultExpectation = &ObjectRepositoryMockLockForDeleteExpectation{}
+	}
+
+	if mmLockForDelete.defaultExpectation.params != nil {
+		mmLockForDelete.mock.t.Fatalf("ObjectRepositoryMock.LockForDelete mock is already set by Expect")
+	}
+
+	if mmLockForDelete.defaultExpectation.paramPtrs == nil {
+		mmLockForDelete.defaultExpectation.paramPtrs = &ObjectRepositoryMockLockForDeleteParamPtrs{}
+	}
+	mmLockForDelete.defaultExpectation.paramPtrs.key = &key
+	mmLockForDelete.defaultExpectation.expectationOrigins.originKey = minimock.CallerInfo(1)
+
+	return mmLockForDelete
+}
+
+// Inspect accepts an inspector function that has same arguments as the ObjectRepository.LockForDelete
+func (mmLockForDelete *mObjectRepositoryMockLockForDelete) Inspect(f func(ctx context.Context, bucketName string, key string)) *mObjectRepositoryMockLockForDelete {
+	if mmLockForDelete.mock.inspectFuncLockForDelete != nil {
+		mmLockForDelete.mock.t.Fatalf("Inspect function is already set for ObjectRepositoryMock.LockForDelete")
+	}
+
+	mmLockForDelete.mock.inspectFuncLockForDelete = f
+
+	return mmLockForDelete
+}
+
+// Return sets up results that will be returned by ObjectRepository.LockForDelete
+func (mmLockForDelete *mObjectRepositoryMockLockForDelete) Return(s1 string, err error) *ObjectRepositoryMock {
+	if mmLockForDelete.mock.funcLockForDelete != nil {
+		mmLockForDelete.mock.t.Fatalf("ObjectRepositoryMock.LockForDelete mock is already set by Set")
+	}
+
+	if mmLockForDelete.defaultExpectation == nil {
+		mmLockForDelete.defaultExpectation = &ObjectRepositoryMockLockForDeleteExpectation{mock: mmLockForDelete.mock}
+	}
+	mmLockForDelete.defaultExpectation.results = &ObjectRepositoryMockLockForDeleteResults{s1, err}
+	mmLockForDelete.defaultExpectation.returnOrigin = minimock.CallerInfo(1)
+	return mmLockForDelete.mock
+}
+
+// Set uses given function f to mock the ObjectRepository.LockForDelete method
+func (mmLockForDelete *mObjectRepositoryMockLockForDelete) Set(f func(ctx context.Context, bucketName string, key string) (s1 string, err error)) *ObjectRepositoryMock {
+	if mmLockForDelete.defaultExpectation != nil {
+		mmLockForDelete.mock.t.Fatalf("Default expectation is already set for the ObjectRepository.LockForDelete method")
+	}
+
+	if len(mmLockForDelete.expectations) > 0 {
+		mmLockForDelete.mock.t.Fatalf("Some expectations are already set for the ObjectRepository.LockForDelete method")
+	}
+
+	mmLockForDelete.mock.funcLockForDelete = f
+	mmLockForDelete.mock.funcLockForDeleteOrigin = minimock.CallerInfo(1)
+	return mmLockForDelete.mock
+}
+
+// When sets expectation for the ObjectRepository.LockForDelete which will trigger the result defined by the following
+// Then helper
+func (mmLockForDelete *mObjectRepositoryMockLockForDelete) When(ctx context.Context, bucketName string, key string) *ObjectRepositoryMockLockForDeleteExpectation {
+	if mmLockForDelete.mock.funcLockForDelete != nil {
+		mmLockForDelete.mock.t.Fatalf("ObjectRepositoryMock.LockForDelete mock is already set by Set")
+	}
+
+	expectation := &ObjectRepositoryMockLockForDeleteExpectation{
+		mock:               mmLockForDelete.mock,
+		params:             &ObjectRepositoryMockLockForDeleteParams{ctx, bucketName, key},
+		expectationOrigins: ObjectRepositoryMockLockForDeleteExpectationOrigins{origin: minimock.CallerInfo(1)},
+	}
+	mmLockForDelete.expectations = append(mmLockForDelete.expectations, expectation)
+	return expectation
+}
+
+// Then sets up ObjectRepository.LockForDelete return parameters for the expectation previously defined by the When method
+func (e *ObjectRepositoryMockLockForDeleteExpectation) Then(s1 string, err error) *ObjectRepositoryMock {
+	e.results = &ObjectRepositoryMockLockForDeleteResults{s1, err}
+	return e.mock
+}
+
+// Times sets number of times ObjectRepository.LockForDelete should be invoked
+func (mmLockForDelete *mObjectRepositoryMockLockForDelete) Times(n uint64) *mObjectRepositoryMockLockForDelete {
+	if n == 0 {
+		mmLockForDelete.mock.t.Fatalf("Times of ObjectRepositoryMock.LockForDelete mock can not be zero")
+	}
+	mm_atomic.StoreUint64(&mmLockForDelete.expectedInvocations, n)
+	mmLockForDelete.expectedInvocationsOrigin = minimock.CallerInfo(1)
+	return mmLockForDelete
+}
+
+func (mmLockForDelete *mObjectRepositoryMockLockForDelete) invocationsDone() bool {
+	if len(mmLockForDelete.expectations) == 0 && mmLockForDelete.defaultExpectation == nil && mmLockForDelete.mock.funcLockForDelete == nil {
+		return true
+	}
+
+	totalInvocations := mm_atomic.LoadUint64(&mmLockForDelete.mock.afterLockForDeleteCounter)
+	expectedInvocations := mm_atomic.LoadUint64(&mmLockForDelete.expectedInvocations)
+
+	return totalInvocations > 0 && (expectedInvocations == 0 || expectedInvocations == totalInvocations)
+}
+
+// LockForDelete implements mm_repository.ObjectRepository
+func (mmLockForDelete *ObjectRepositoryMock) LockForDelete(ctx context.Context, bucketName string, key string) (s1 string, err error) {
+	mm_atomic.AddUint64(&mmLockForDelete.beforeLockForDeleteCounter, 1)
+	defer mm_atomic.AddUint64(&mmLockForDelete.afterLockForDeleteCounter, 1)
+
+	mmLockForDelete.t.Helper()
+
+	if mmLockForDelete.inspectFuncLockForDelete != nil {
+		mmLockForDelete.inspectFuncLockForDelete(ctx, bucketName, key)
+	}
+
+	mm_params := ObjectRepositoryMockLockForDeleteParams{ctx, bucketName, key}
+
+	// Record call args
+	mmLockForDelete.LockForDeleteMock.mutex.Lock()
+	mmLockForDelete.LockForDeleteMock.callArgs = append(mmLockForDelete.LockForDeleteMock.callArgs, &mm_params)
+	mmLockForDelete.LockForDeleteMock.mutex.Unlock()
+
+	for _, e := range mmLockForDelete.LockForDeleteMock.expectations {
+		if minimock.Equal(*e.params, mm_params) {
+			mm_atomic.AddUint64(&e.Counter, 1)
+			return e.results.s1, e.results.err
+		}
+	}
+
+	if mmLockForDelete.LockForDeleteMock.defaultExpectation != nil {
+		mm_atomic.AddUint64(&mmLockForDelete.LockForDeleteMock.defaultExpectation.Counter, 1)
+		mm_want := mmLockForDelete.LockForDeleteMock.defaultExpectation.params
+		mm_want_ptrs := mmLockForDelete.LockForDeleteMock.defaultExpectation.paramPtrs
+
+		mm_got := ObjectRepositoryMockLockForDeleteParams{ctx, bucketName, key}
+
+		if mm_want_ptrs != nil {
+
+			if mm_want_ptrs.ctx != nil && !minimock.Equal(*mm_want_ptrs.ctx, mm_got.ctx) {
+				mmLockForDelete.t.Errorf("ObjectRepositoryMock.LockForDelete got unexpected parameter ctx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmLockForDelete.LockForDeleteMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
+			}
+
+			if mm_want_ptrs.bucketName != nil && !minimock.Equal(*mm_want_ptrs.bucketName, mm_got.bucketName) {
+				mmLockForDelete.t.Errorf("ObjectRepositoryMock.LockForDelete got unexpected parameter bucketName, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmLockForDelete.LockForDeleteMock.defaultExpectation.expectationOrigins.originBucketName, *mm_want_ptrs.bucketName, mm_got.bucketName, minimock.Diff(*mm_want_ptrs.bucketName, mm_got.bucketName))
+			}
+
+			if mm_want_ptrs.key != nil && !minimock.Equal(*mm_want_ptrs.key, mm_got.key) {
+				mmLockForDelete.t.Errorf("ObjectRepositoryMock.LockForDelete got unexpected parameter key, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmLockForDelete.LockForDeleteMock.defaultExpectation.expectationOrigins.originKey, *mm_want_ptrs.key, mm_got.key, minimock.Diff(*mm_want_ptrs.key, mm_got.key))
+			}
+
+		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
+			mmLockForDelete.t.Errorf("ObjectRepositoryMock.LockForDelete got unexpected parameters, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+				mmLockForDelete.LockForDeleteMock.defaultExpectation.expectationOrigins.origin, *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
+		}
+
+		mm_results := mmLockForDelete.LockForDeleteMock.defaultExpectation.results
+		if mm_results == nil {
+			mmLockForDelete.t.Fatal("No results are set for the ObjectRepositoryMock.LockForDelete")
+		}
+		return (*mm_results).s1, (*mm_results).err
+	}
+	if mmLockForDelete.funcLockForDelete != nil {
+		return mmLockForDelete.funcLockForDelete(ctx, bucketName, key)
+	}
+	mmLockForDelete.t.Fatalf("Unexpected call to ObjectRepositoryMock.LockForDelete. %v %v %v", ctx, bucketName, key)
+	return
+}
+
+// LockForDeleteAfterCounter returns a count of finished ObjectRepositoryMock.LockForDelete invocations
+func (mmLockForDelete *ObjectRepositoryMock) LockForDeleteAfterCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmLockForDelete.afterLockForDeleteCounter)
+}
+
+// LockForDeleteBeforeCounter returns a count of ObjectRepositoryMock.LockForDelete invocations
+func (mmLockForDelete *ObjectRepositoryMock) LockForDeleteBeforeCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmLockForDelete.beforeLockForDeleteCounter)
+}
+
+// Calls returns a list of arguments used in each call to ObjectRepositoryMock.LockForDelete.
+// The list is in the same order as the calls were made (i.e. recent calls have a higher index)
+func (mmLockForDelete *mObjectRepositoryMockLockForDelete) Calls() []*ObjectRepositoryMockLockForDeleteParams {
+	mmLockForDelete.mutex.RLock()
+
+	argCopy := make([]*ObjectRepositoryMockLockForDeleteParams, len(mmLockForDelete.callArgs))
+	copy(argCopy, mmLockForDelete.callArgs)
+
+	mmLockForDelete.mutex.RUnlock()
+
+	return argCopy
+}
+
+// MinimockLockForDeleteDone returns true if the count of the LockForDelete invocations corresponds
+// the number of defined expectations
+func (m *ObjectRepositoryMock) MinimockLockForDeleteDone() bool {
+	if m.LockForDeleteMock.optional {
+		// Optional methods provide '0 or more' call count restriction.
+		return true
+	}
+
+	for _, e := range m.LockForDeleteMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			return false
+		}
+	}
+
+	return m.LockForDeleteMock.invocationsDone()
+}
+
+// MinimockLockForDeleteInspect logs each unmet expectation
+func (m *ObjectRepositoryMock) MinimockLockForDeleteInspect() {
+	for _, e := range m.LockForDeleteMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			m.t.Errorf("Expected call to ObjectRepositoryMock.LockForDelete at\n%s with params: %#v", e.expectationOrigins.origin, *e.params)
+		}
+	}
+
+	afterLockForDeleteCounter := mm_atomic.LoadUint64(&m.afterLockForDeleteCounter)
+	// if default expectation was set then invocations count should be greater than zero
+	if m.LockForDeleteMock.defaultExpectation != nil && afterLockForDeleteCounter < 1 {
+		if m.LockForDeleteMock.defaultExpectation.params == nil {
+			m.t.Errorf("Expected call to ObjectRepositoryMock.LockForDelete at\n%s", m.LockForDeleteMock.defaultExpectation.returnOrigin)
+		} else {
+			m.t.Errorf("Expected call to ObjectRepositoryMock.LockForDelete at\n%s with params: %#v", m.LockForDeleteMock.defaultExpectation.expectationOrigins.origin, *m.LockForDeleteMock.defaultExpectation.params)
+		}
+	}
+	// if func was set then invocations count should be greater than zero
+	if m.funcLockForDelete != nil && afterLockForDeleteCounter < 1 {
+		m.t.Errorf("Expected call to ObjectRepositoryMock.LockForDelete at\n%s", m.funcLockForDeleteOrigin)
+	}
+
+	if !m.LockForDeleteMock.invocationsDone() && afterLockForDeleteCounter > 0 {
+		m.t.Errorf("Expected %d calls to ObjectRepositoryMock.LockForDelete at\n%s but found %d calls",
+			mm_atomic.LoadUint64(&m.LockForDeleteMock.expectedInvocations), m.LockForDeleteMock.expectedInvocationsOrigin, afterLockForDeleteCounter)
+	}
+}
+
 type mObjectRepositoryMockSetCurrentVersion struct {
 	optional           bool
 	mock               *ObjectRepositoryMock
@@ -2539,6 +2923,8 @@ func (m *ObjectRepositoryMock) MinimockFinish() {
 
 			m.MinimockListInspect()
 
+			m.MinimockLockForDeleteInspect()
+
 			m.MinimockSetCurrentVersionInspect()
 
 			m.MinimockUpsertObjectInspect()
@@ -2569,6 +2955,7 @@ func (m *ObjectRepositoryMock) minimockDone() bool {
 		m.MinimockGetMetaDone() &&
 		m.MinimockInsertVersionDone() &&
 		m.MinimockListDone() &&
+		m.MinimockLockForDeleteDone() &&
 		m.MinimockSetCurrentVersionDone() &&
 		m.MinimockUpsertObjectDone()
 }

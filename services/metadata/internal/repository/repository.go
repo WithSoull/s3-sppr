@@ -21,6 +21,9 @@ type ObjectRepository interface {
 	InsertVersion(ctx context.Context, objectID, blobID string, sizeBytes int64, etag, contentType string) (string, time.Time, error)
 	SetCurrentVersion(ctx context.Context, objectID, versionID string) error
 	GetMeta(ctx context.Context, bucketName, key, versionID string) (*model.ObjectMeta, error)
+	// LockForDelete locks the object row so concurrent overwrites and placement
+	// switches wait until the delete transaction ends.
+	LockForDelete(ctx context.Context, bucketName, key string) (string, error)
 	Delete(ctx context.Context, bucketName, key string) (string, string, error)
 	List(ctx context.Context, bucketName, prefix, continuationToken string, maxKeys int32) ([]*model.ObjectListItem, string, bool, error)
 }
@@ -42,6 +45,7 @@ type PlacementRepository interface {
 type CopyRepository interface {
 	InsertTarget(ctx context.Context, migrationID string, placement *model.Placement, targetClass model.StorageClass) (*model.PlacementCopy, error)
 	InsertSource(ctx context.Context, migrationID string, placement *model.Placement, cleanupDelay time.Duration) (*model.PlacementCopy, error)
+	InsertOrphans(ctx context.Context, objectID string, cleanupDelay time.Duration) error
 	GetByMigration(ctx context.Context, migrationID string, role model.CopyRole) (*model.PlacementCopy, error)
 	LockByMigration(ctx context.Context, migrationID string, role model.CopyRole) (*model.PlacementCopy, error)
 	LockByID(ctx context.Context, copyID string) (*model.PlacementCopy, error)
