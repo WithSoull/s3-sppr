@@ -207,6 +207,17 @@ func TestExecuteRetry(t *testing.T) {
 		{name: "same command returns the first result", req: confirmReq(freeID, freeID)},
 		{name: "other selection under the same ID conflicts", req: confirmReq(promID), wantErr: model.ErrCommandConflict},
 	}
+	recompute := model.CommandRequest{CommandID: cmdID, Initiator: userID, Type: model.CommandRecompute}
+	t.Run("recompute retried after its plan was attached returns the first result", func(t *testing.T) {
+		mc := minimock.NewController(t)
+		d := newCmdDeps(mc)
+		first := model.Command{CommandRequest: recompute, Status: model.CommandAccepted}
+		first.PlanID = planID
+		d.plans.GetCommandMock.Return(first, nil)
+		got, err := d.service().Execute(context.Background(), recompute)
+		require.NoError(t, err)
+		require.Equal(t, first, got)
+	})
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {
 			mc := minimock.NewController(t)
