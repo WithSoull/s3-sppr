@@ -38,17 +38,19 @@ LEFT JOIN (
     GROUP BY storage_class
 ) c ON c.storage_class = sc.name`
 
-func (r *repo) LockStorageClass(ctx context.Context, storageClass model.StorageClass) error {
+func (r *repo) LockStorageClasses(ctx context.Context, sourceClass, targetClass model.StorageClass) error {
 	q := db.Query{
-		Name:     "placement_repository:LockStorageClass",
-		QueryRaw: "SELECT name FROM storage_classes WHERE name = $1 FOR UPDATE",
+		Name:     "placement_repository:LockStorageClasses",
+		QueryRaw: "SELECT name FROM storage_classes WHERE name IN ($1, $2) ORDER BY name FOR UPDATE",
 	}
 
-	var name string
-	return r.db.DB().QueryRowContext(ctx, q, storageClass).Scan(&name)
+	// InsertTarget checks FKs to both classes. Locking only the target lets
+	// opposite reservations deadlock on the source's FK KEY SHARE lock.
+	var names []string
+	return r.db.DB().ScanAllContext(ctx, &names, q, sourceClass, targetClass)
 }
 
-// GetUsage must run as a separate statement after LockStorageClass: under READ
+// GetUsage must run as a separate statement after LockStorageClasses: under READ
 // COMMITTED it then sees copies reserved by the transaction that held the lock.
 func (r *repo) GetUsage(ctx context.Context, storageClass model.StorageClass) (*model.StorageClassUsage, error) {
 	q := db.Query{

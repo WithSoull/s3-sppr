@@ -74,6 +74,7 @@ RETURNING` + copyColumns,
 
 // InsertOrphans keeps the blobs of every placed version of an object that is being
 // deleted, so the space stays counted until cleanup removes them from Storage.
+// Sort by class so FK KEY SHARE locks follow ReserveCopy's class lock order.
 func (r *repo) InsertOrphans(ctx context.Context, objectID string, cleanupDelay time.Duration) error {
 	q := db.Query{
 		Name: "copy_repository:InsertOrphans",
@@ -85,7 +86,8 @@ SELECT vp.version_id, 'orphan', vp.storage_class, vp.blob_id, v.size_bytes,
        'cleanup_pending', now() + $2::bigint * interval '1 millisecond'
 FROM version_placements vp
 JOIN versions v ON v.id = vp.version_id
-WHERE v.object_id = $1`,
+WHERE v.object_id = $1
+ORDER BY vp.storage_class, vp.version_id`,
 	}
 
 	_, err := r.db.DB().ExecContext(ctx, q, objectID, cleanupDelay.Milliseconds())

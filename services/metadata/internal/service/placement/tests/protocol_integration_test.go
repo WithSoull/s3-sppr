@@ -3,7 +3,9 @@
 package tests
 
 import (
+	"context"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -164,6 +166,60 @@ func (s *PlacementProtocolSuite) TestConcurrentReservationsDoNotOverfillHot() {
 	s.Require().Equal(2, reserved)
 	s.Require().Equal(versions-2, rejected)
 	s.Require().Equal(int64(2*objectSize), s.usage(model.StorageClassHot).CopyBytes)
+}
+
+func (s *PlacementProtocolSuite) TestConcurrentOppositeReservationsDoNotDeadlock() {
+	const rounds = 100
+	s.mustCreateBucket()
+
+	for round := 0; round < rounds; round++ {
+		// Fresh objects avoid serializing on the same object/placement row or
+		// replaying a reservation from an earlier round.
+		hot := s.mustUploadHot(fmt.Sprintf("hot-%03d.txt", round), "v1")
+		cold := s.mustUpload(fmt.Sprintf("cold-%03d.txt", round), "v1")
+		requests := []struct {
+			migrationID string
+			versionID   string
+			source      model.StorageClass
+			target      model.StorageClass
+		}{
+			{s.migrationID(fmt.Sprintf("evict-%03d", round)), hot, model.StorageClassHot, model.StorageClassCold},
+			{s.migrationID(fmt.Sprintf("promote-%03d", round)), cold, model.StorageClassCold, model.StorageClassHot},
+		}
+
+		ctx, cancel := context.WithTimeout(s.Context(), 10*time.Second)
+		start := make(chan struct{})
+		var ready, done sync.WaitGroup
+		ready.Add(len(requests))
+		done.Add(len(requests))
+		copies := make([]*model.PlacementCopy, len(requests))
+		errs := make([]error, len(requests))
+		for i, req := range requests {
+			go func() {
+				defer done.Done()
+				ready.Done()
+				<-start
+				copies[i], errs[i] = s.placements.ReserveCopy(ctx, req.migrationID, req.versionID, 1, req.source, req.target)
+			}()
+		}
+		ready.Wait()
+		close(start)
+		done.Wait()
+		cancel()
+
+		for i, req := range requests {
+			s.Require().NoError(errs[i], "round %d: %s -> %s", round, req.source, req.target)
+			s.Require().NotNil(copies[i])
+			s.Require().Equal(model.CopyStateReserved, copies[i].State)
+			s.Require().Equal(req.versionID, *copies[i].VersionID)
+			s.Require().Equal(req.target, copies[i].StorageClass)
+		}
+	}
+
+	s.Require().Equal(int64(2*rounds), s.MustCount("placement_copies"))
+	for _, class := range []model.StorageClass{model.StorageClassCold, model.StorageClassHot} {
+		s.Require().Equal(int64(rounds*objectSize), s.usage(class).CopyBytes)
+	}
 }
 
 func (s *PlacementProtocolSuite) TestOverwriteAfterReservationRejectsSwitch() {

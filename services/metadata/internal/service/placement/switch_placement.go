@@ -79,6 +79,12 @@ func (s *placementService) SwitchPlacement(
 			return domainerrors.ErrVersionNotCurrent
 		}
 
+		// CAS and InsertSource check FKs in target/source order. Take the same
+		// ordered class locks as ReserveCopy before either FK can lock a class.
+		if err := s.placementRepo.LockStorageClasses(ctx, placement.StorageClass, target.StorageClass); err != nil {
+			return err
+		}
+
 		newGeneration, err := s.placementRepo.CompareAndSwap(
 			ctx,
 			placement.VersionID,

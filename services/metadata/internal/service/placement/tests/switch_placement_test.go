@@ -2,6 +2,7 @@ package tests
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -22,6 +23,7 @@ func TestSwitchPlacement(t *testing.T) {
 	}
 
 	validArgs := args{migrationID: migrationID, verifiedSize: 1024, verifiedMD5: validMD5, cleanupDelay: 30 * time.Second}
+	lockErr := errors.New("lock storage classes failed")
 
 	lockedTarget := func(target *model.PlacementCopy) func(mc *minimock.Controller) *mocks.CopyRepositoryMock {
 		return func(mc *minimock.Controller) *mocks.CopyRepositoryMock {
@@ -58,6 +60,7 @@ func TestSwitchPlacement(t *testing.T) {
 			buildPlacementMock: func(mc *minimock.Controller) *mocks.PlacementRepositoryMock {
 				m := mocks.NewPlacementRepositoryMock(mc)
 				m.LockForChangeMock.Expect(minimock.AnyContext, versionID).Return(coldPlacement(), nil)
+				m.LockStorageClassesMock.Expect(minimock.AnyContext, model.StorageClassCold, model.StorageClassHot).Return(nil)
 				m.CompareAndSwapMock.
 					Expect(minimock.AnyContext, versionID, int64(1), model.StorageClassCold, model.StorageClassHot, targetBlob).
 					Return(2, nil)
@@ -78,6 +81,7 @@ func TestSwitchPlacement(t *testing.T) {
 			buildPlacementMock: func(mc *minimock.Controller) *mocks.PlacementRepositoryMock {
 				m := mocks.NewPlacementRepositoryMock(mc)
 				m.LockForChangeMock.Expect(minimock.AnyContext, versionID).Return(evictionPlacement(), nil)
+				m.LockStorageClassesMock.Expect(minimock.AnyContext, model.StorageClassHot, model.StorageClassCold).Return(nil)
 				m.CompareAndSwapMock.Expect(minimock.AnyContext, versionID, int64(1), model.StorageClassHot, model.StorageClassCold, targetBlob).Return(2, nil)
 				return m
 			},
@@ -88,6 +92,19 @@ func TestSwitchPlacement(t *testing.T) {
 				return m
 			},
 			buildTxMock: executingTx,
+		},
+		{
+			name:    "error: class lock failure stops CAS and source insert",
+			args:    validArgs,
+			wantErr: lockErr,
+			buildPlacementMock: func(mc *minimock.Controller) *mocks.PlacementRepositoryMock {
+				m := mocks.NewPlacementRepositoryMock(mc)
+				m.LockForChangeMock.Expect(minimock.AnyContext, versionID).Return(coldPlacement(), nil)
+				m.LockStorageClassesMock.Expect(minimock.AnyContext, model.StorageClassCold, model.StorageClassHot).Return(lockErr)
+				return m
+			},
+			buildCopyMock: lockedTarget(reservedTarget()),
+			buildTxMock:   executingTx,
 		},
 		{
 			name: "error: inactive object's eviction is rejected before CAS",
@@ -107,6 +124,7 @@ func TestSwitchPlacement(t *testing.T) {
 			buildPlacementMock: func(mc *minimock.Controller) *mocks.PlacementRepositoryMock {
 				m := mocks.NewPlacementRepositoryMock(mc)
 				m.LockForChangeMock.Expect(minimock.AnyContext, versionID).Return(evictionPlacement(), nil)
+				m.LockStorageClassesMock.Expect(minimock.AnyContext, model.StorageClassHot, model.StorageClassCold).Return(nil)
 				m.CompareAndSwapMock.Expect(minimock.AnyContext, versionID, int64(1), model.StorageClassHot, model.StorageClassCold, targetBlob).Return(0, domainerrors.ErrPlacementChanged)
 				return m
 			},
@@ -217,6 +235,7 @@ func TestSwitchPlacement(t *testing.T) {
 			buildPlacementMock: func(mc *minimock.Controller) *mocks.PlacementRepositoryMock {
 				m := mocks.NewPlacementRepositoryMock(mc)
 				m.LockForChangeMock.Return(coldPlacement(), nil)
+				m.LockStorageClassesMock.Expect(minimock.AnyContext, model.StorageClassCold, model.StorageClassHot).Return(nil)
 				m.CompareAndSwapMock.Return(0, domainerrors.ErrPlacementChanged)
 				return m
 			},
