@@ -7,6 +7,10 @@ buckets, object keys, users или правах доступа.
 
 Обычная и multipart-загрузка, чтение целиком и по диапазону, удаление blob и отмена загрузки. Это внутренний data path; каталог объектов ведёт Metadata.
 
+В стенде работают два одинаковых экземпляра на разных томах: `storage-hot` и
+`storage-cold`. Storage не знает о своём классе; какой экземпляр отвечает за
+какой класс, решают Metadata (класс версии) и конфигурация Gateway (адреса).
+
 ## Архитектура и зависимости
 
 ```text
@@ -38,7 +42,7 @@ Source of truth: `shared/api/storage/v1/storage.proto`.
 
 | RPC | Тип | Назначение |
 |---|---|---|
-| `StoreObject` | client stream | сохранить blob, вернуть UUID и full-content MD5 |
+| `StoreObject` | client stream | сохранить blob под новым или заданным UUID, вернуть UUID и full-content MD5 |
 | `RetrieveObject` | server stream | читать blob целиком или по offset/length |
 | `DeleteObject` | unary | идемпотентно удалить blob |
 | `InitiateMultipartUpload` | unary | создать multipart session/upload ID |
@@ -49,6 +53,13 @@ Source of truth: `shared/api/storage/v1/storage.proto`.
 
 Client-streaming StoreObject/UploadPart используют первое сообщение `header`,
 затем сообщения `chunk`. Пустой объект поддерживается.
+
+`StoreObjectHeader.blob_id` необязателен. Пустое значение — Storage создаёт UUID.
+Заданное значение использует исполнитель миграций: копия записывается под
+`blob_id`, который выдал Metadata `ReserveCopy`. Принимается только каноническая
+форма UUID (строчные hex с дефисами), иначе `INVALID_ARGUMENT`: ID становится
+путём файла. Повторная запись с тем же `blob_id` заменяет файл, поэтому
+прерванное копирование можно повторить.
 
 Handler отклоняет нарушенный порядок messages. Header может содержать `data`;
 поле bytes представлено base64 при использовании grpcurl JSON. `RetrieveObject` возвращает server
@@ -151,9 +162,13 @@ filesystem.
 Из корня репозитория:
 
 ```bash
-docker compose --profile services up --build -d storage
-docker compose logs -f storage
+docker compose --profile services up --build -d storage-hot storage-cold
+docker compose logs -f storage-hot storage-cold
 ```
+
+`storage-cold` слушает порт хоста 50053 и использует том `storage-data`,
+`storage-hot` — порт 50056 и том `storage-hot-data`. Внутри контейнеров оба
+слушают 50053.
 
 Локально:
 
@@ -250,8 +265,8 @@ module dependency на shared package.
 - внешний S3 HTTP API;
 - durable связь Storage completion с Metadata finalize.
 
-Нельзя вызвать StoreObject на нескольких узлах и ожидать один blob ID: текущий
-request не принимает заранее выбранный ID, а каждый service сам создаёт UUID.
+Один blob ID на нескольких узлах теперь можно получить, только передав его в
+`blob_id`; без него каждый service сам создаёт UUID.
 
 Варианты будущего cleanup: синхронный вызов для простого стенда, Kafka consumer с
 at-least-once delivery либо reconciliation worker по durable catalog. Для

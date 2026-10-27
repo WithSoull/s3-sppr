@@ -27,13 +27,13 @@ docker compose ps
 Профиль `services` запускает:
 
 - одноразовые `migrator-users` и `migrator-metadata`;
-- `users`, `auth`, `authz`, `metadata`, `storage`, `quota`, `gateway`;
+- `users`, `auth`, `authz`, `metadata`, `storage-hot`, `storage-cold`, `quota`, `gateway`;
 - PostgreSQL для Users и Metadata, Redis, Neo4j, ZooKeeper и Kafka.
 
-Для минимального стенда с одним Storage node и Gateway используйте
-`make up-gateway`. Команда также поднимет зависимости Metadata.
+Для минимального стенда с Gateway и двумя Storage (HOT и COLD на разных томах)
+используйте `make up-gateway`. Команда также поднимет зависимости Metadata.
 Kafka ожидает успешной проверки готовности ZooKeeper перед запуском.
-Автоматическая проверка PUT/GET: `make smoke-gateway` (создаёт свой тестовый bucket). Перед ручным PUT
+Автоматическая проверка PUT/GET, классов HOT/COLD, Range и DELETE: `make smoke-gateway` (создаёт свой тестовый bucket). Перед ручным PUT
 создайте тестовый bucket по [инструкции Gateway](services/gateway/README.md#примеры-использования).
 Объекты доступны по `/objects/{bucket}/{key}`; Swagger расположен отдельно под `/swagger/`.
 
@@ -89,7 +89,7 @@ Kafka должна быть доступна на старте Gateway. Consumer
 docker compose ps
 docker compose logs -f metadata
 docker compose logs -f quota
-docker compose logs -f storage
+docker compose logs -f storage-hot storage-cold
 docker compose logs -f gateway
 ```
 

@@ -14,8 +14,8 @@
 ## Текущее состояние
 
 В репозитории реализованы внутренние gRPC-сервисы Auth, Users, AuthZ, Metadata,
-Storage и Quota, а также локальный экспериментальный HTTP Gateway для PUT/GET
-поверх Metadata и Storage. В Gateway пока нет Auth/AuthZ, квоты и SigV4, поэтому
+Storage и Quota, а также локальный экспериментальный HTTP Gateway для
+PUT/GET/DELETE поверх Metadata и двух экземпляров Storage (HOT и COLD). В Gateway пока нет Auth/AuthZ, квоты и SigV4, поэтому
 его нельзя открывать наружу и использовать как S3 endpoint для `aws-cli`, boto3
 и других стандартных S3 клиентов. Диаграммы распределённого хранения,
 репликации и части Kafka-flow в `docs/` и Wiki описывают проектируемую архитектуру.
@@ -25,10 +25,10 @@ Storage и Quota, а также локальный эксперименталь�
 | Auth | Go | 50050 | Users, Redis |
 | AuthZ | Python | 50051 | Neo4j, Redis, Kafka |
 | Metadata | Go | 50052 | PostgreSQL, Kafka |
-| Storage | Go | 50053 | локальная файловая система |
+| Storage | Go | 50053 (`storage-cold`), 50056 (`storage-hot`) | локальная файловая система; два тома |
 | Users | Go | 50054 | PostgreSQL |
 | Quota | Rust | 50055 | Redis |
-| [Gateway](services/gateway/README.md) | Go, локальный PUT/GET | 8080 (localhost) | Metadata, Storage |
+| [Gateway](services/gateway/README.md) | Go, локальный PUT/GET/DELETE, Range | 8080 (localhost) | Metadata, Storage HOT и COLD |
 | SPPR Ingestor | Go | 8086 (health HTTP) | PostgreSQL, Kafka; отдельный профиль `sppr` |
 
 Сервис Storage хранит immutable blobs и поддерживает внутренние RPC для обычной и
@@ -52,7 +52,7 @@ docker compose ps
 ```bash
 make up-services
 make up-gateway
-make smoke-gateway  # автоматическая проверка PUT/GET на поднятом стенде
+make smoke-gateway  # PUT/GET, HOT/COLD, Range и DELETE на поднятом стенде
 make up-e2e
 make test-metadata-integration
 make test-metadata-integration-local
@@ -120,9 +120,11 @@ Ingestor читает protobuf-события `object-read` и `object-written` 
 
 ### Gateway
 
-Gateway предоставляет локальные PUT/GET по `/objects/{bucket}/{key}` и `/healthz`.
-Он вызывает Storage и Metadata последовательно и возвращает успех записи только
-после регистрации текущей версии. Подробнее: [Gateway README](services/gateway/README.md).
+Gateway предоставляет локальные PUT/GET/DELETE по `/objects/{bucket}/{key}` (GET —
+целиком или один диапазон Range) и `/healthz`. Класс записи Gateway узнаёт у
+Metadata (`ChooseWriteClass`), пишет в Storage этого класса и возвращает успех
+записи только после регистрации текущей версии. GET читает из Storage того
+класса, который указан в расположении версии. Подробнее: [Gateway README](services/gateway/README.md).
 
 При `ACCESS_EVENTS_ENABLED=true` Gateway публикует успешные GET в `object-read`,
 а PUT — в `object-written` (protobuf, общий sarama `AsyncProducer`). В Compose
