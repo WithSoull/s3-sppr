@@ -31,11 +31,13 @@ type PutResult struct {
 
 // ByteRange is one range of a Range header before the object size is known.
 // Without Suffix it covers First..Last inclusive, Last < 0 meaning the end of the object;
-// with Suffix > 0 it covers the last Suffix bytes.
+// with Suffix > 0 it covers the last Suffix bytes. A non-empty IfRangeETag
+// (from If-Range) applies the range only while it equals the current ETag.
 type ByteRange struct {
-	First  int64
-	Last   int64
-	Suffix int64
+	First       int64
+	Last        int64
+	Suffix      int64
+	IfRangeETag string
 }
 
 // Resolve returns the offset and length of the range in an object of the given size.

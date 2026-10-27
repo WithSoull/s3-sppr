@@ -63,6 +63,11 @@ paths:
         in: header
         name: Range
         type: string
+      - description: Strong ETag; the range applies only to the version with this
+          ETag, otherwise the whole object is returned
+        in: header
+        name: If-Range
+        type: string
       produces:
       - application/octet-stream
       responses:

@@ -76,7 +76,10 @@ Storage по классу (`map[model.StorageClass]client.StorageClient`).
 HEAD, multipart и S3 authentication пока отсутствуют. Range поддерживает
 `bytes=first-last`, `bytes=first-` и `bytes=-suffix`; несколько диапазонов,
 другая единица или неверный синтаксис игнорируются, и Gateway отдаёт объект
-целиком (RFC 9110 это допускает). DELETE в отличие от S3 возвращает `404` для
+целиком (RFC 9110 это допускает). `If-Range` со strong ETag сохраняет диапазон
+только для версии с этим ETag; для другой версии, weak ETag или даты (Gateway не
+отдаёт `Last-Modified`) возвращается весь объект `200`, чтобы докачка не склеила
+части разных версий. DELETE в отличие от S3 возвращает `404` для
 отсутствующего объекта. Байты удалённого объекта остаются в Storage: очистки blob
 пока нет (consumer `object-deleted` в Storage не подключён).
 Объекты доступны только под `/objects/`; прежний путь `/{bucket}/{key}` больше
@@ -334,7 +337,7 @@ go run ./services/gateway/cmd/smoke -gateway http://127.0.0.1:8080 -metadata 127
   только после commit Storage, обрыв GET, отмену клиента и то, что неудачный PUT ничего не
   оставляет (`TestUpstreamFailures`). `storage_class_test.go`: запись и чтение идут в
   Storage нужного класса, `ChooseWriteClass` получает размер только при
-  `Content-Length`. `range_test.go`: разбор Range и заголовки 206/416.
+  `Content-Length`. `range_test.go`: разбор Range, If-Range и заголовки 206/416.
   `delete_test.go`: 204/404 и сохранение blob. `read_duration_test.go`: GET обрывается
   по `GATEWAY_MAX_READ_DURATION` и при зависшем Storage, и при клиенте, который не
   читает ответ; тот же срок получает Metadata, а следующий keep-alive запрос его не наследует.

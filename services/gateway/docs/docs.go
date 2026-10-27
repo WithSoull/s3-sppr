@@ -45,6 +45,12 @@ const docTemplate = `{
                         "description": "One byte range: bytes=first-last, bytes=first- or bytes=-suffix",
                         "name": "Range",
                         "in": "header"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Strong ETag; the range applies only to the version with this ETag, otherwise the whole object is returned",
+                        "name": "If-Range",
+                        "in": "header"
                     }
                 ],
                 "responses": {

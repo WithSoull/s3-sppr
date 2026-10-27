@@ -12,6 +12,11 @@ func (s *objectService) Get(ctx context.Context, bucket, key string, byteRange *
 	if err != nil {
 		return model.GetResult{}, err
 	}
+	// A client resuming a download of another version must get the whole object,
+	// or it would splice parts of two versions.
+	if byteRange != nil && byteRange.IfRangeETag != "" && byteRange.IfRangeETag != meta.ETag {
+		byteRange = nil
+	}
 	length := meta.Size
 	var contentRange *model.ContentRange
 	if byteRange != nil {

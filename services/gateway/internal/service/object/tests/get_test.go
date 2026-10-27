@@ -105,6 +105,35 @@ func TestGet(t *testing.T) {
 			},
 		},
 		{
+			name:            "If-Range with the current ETag keeps the range",
+			args:            args{ctx: input.ctx, bucket: input.bucket, key: input.key, byteRange: &model.ByteRange{First: 2, Last: 4, IfRangeETag: "etag"}},
+			wantColdCalls:   1,
+			wantAccessCalls: 1,
+			want: model.GetResult{Body: body, Size: 10, Range: &model.ContentRange{Offset: 2, Length: 3},
+				ETag: "etag", VersionID: "version", ContentType: "text/plain"},
+			buildMocks: func(mc *minimock.Controller, a args) upstreamMocks {
+				m := newUpstreamMocks(mc)
+				m.meta.GetObjectMock.Expect(a.ctx, a.bucket, a.key).Return(coldMeta, nil)
+				m.cold.RetrieveMock.Expect(a.ctx, "blob", 10, &model.ContentRange{Offset: 2, Length: 3}).Return(body, nil)
+				m.access.ProduceObjectReadMock.Expect(a.ctx, readEvent(3)).Return()
+				return m
+			},
+		},
+		{
+			name:            "If-Range with another ETag reads the whole object",
+			args:            args{ctx: input.ctx, bucket: input.bucket, key: input.key, byteRange: &model.ByteRange{First: 2, Last: 4, IfRangeETag: "old-etag"}},
+			wantColdCalls:   1,
+			wantAccessCalls: 1,
+			want:            model.GetResult{Body: body, Size: 10, ETag: "etag", VersionID: "version", ContentType: "text/plain"},
+			buildMocks: func(mc *minimock.Controller, a args) upstreamMocks {
+				m := newUpstreamMocks(mc)
+				m.meta.GetObjectMock.Expect(a.ctx, a.bucket, a.key).Return(coldMeta, nil)
+				m.cold.RetrieveMock.Expect(a.ctx, "blob", 10, nil).Return(body, nil)
+				m.access.ProduceObjectReadMock.Expect(a.ctx, readEvent(10)).Return()
+				return m
+			},
+		},
+		{
 			name:    "range past the end is not satisfiable",
 			args:    args{ctx: input.ctx, bucket: input.bucket, key: input.key, byteRange: &model.ByteRange{First: 10, Last: -1}},
 			wantErr: domainerrors.ErrRangeNotSatisfiable,

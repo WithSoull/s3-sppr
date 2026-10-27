@@ -24,6 +24,7 @@ import (
 // @Param bucket path string true "Bucket name"
 // @Param key path string true "Object key (may contain slashes)"
 // @Param Range header string false "One byte range: bytes=first-last, bytes=first- or bytes=-suffix"
+// @Param If-Range header string false "Strong ETag; the range applies only to the version with this ETag, otherwise the whole object is returned"
 // @Success 200 {file} binary
 // @Success 206 {file} binary
 // @Failure 400 {string} string
@@ -48,7 +49,7 @@ func (h *Handler) GetObject(w http.ResponseWriter, r *http.Request) {
 	// after the request, so keep-alive requests do not inherit it. Writers
 	// without deadline support (tests) return ErrNotSupported.
 	_ = http.NewResponseController(w).SetWriteDeadline(deadline)
-	result, err := h.objects.Get(ctx, bucket, key, parseRange(r.Header.Get("Range")))
+	result, err := h.objects.Get(ctx, bucket, key, requestedRange(r.Header))
 	if err != nil {
 		writeServiceError(w, r, err)
 		return
@@ -127,6 +128,22 @@ func verifyStreamEnd(src io.Reader) error {
 		return nil
 	}
 	return err
+}
+
+// requestedRange applies If-Range (RFC 9110 §13.1.5): only a strong ETag can
+// keep the range. A weak ETag or a date never matches, because Gateway sends a
+// strong ETag and no Last-Modified, so the whole object is served.
+func requestedRange(header http.Header) *model.ByteRange {
+	byteRange := parseRange(header.Get("Range"))
+	ifRange := strings.TrimSpace(header.Get("If-Range"))
+	if byteRange == nil || ifRange == "" {
+		return byteRange
+	}
+	if len(ifRange) < 3 || ifRange[0] != '"' || ifRange[len(ifRange)-1] != '"' {
+		return nil
+	}
+	byteRange.IfRangeETag = ifRange[1 : len(ifRange)-1]
+	return byteRange
 }
 
 // parseRange returns nil for a missing header, several ranges or invalid syntax:
