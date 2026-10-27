@@ -78,6 +78,22 @@ func (u StorageClassUsage) FreeBytes() int64 {
 	return u.UsableBytes - u.PlacedBytes - u.CopyBytes
 }
 
+type WriteClassReason string
+
+const (
+	WriteClassReasonNewKey       WriteClassReason = "new_key"
+	WriteClassReasonInherited    WriteClassReason = "inherited"
+	WriteClassReasonPreviousCold WriteClassReason = "previous_cold"
+	WriteClassReasonSizeUnknown  WriteClassReason = "size_unknown"
+	WriteClassReasonHotFull      WriteClassReason = "hot_full"
+)
+
+// WriteClassDecision is the class a new version is written to and why.
+type WriteClassDecision struct {
+	StorageClass StorageClass
+	Reason       WriteClassReason
+}
+
 // SwitchResult describes a completed CAS of a version placement.
 type SwitchResult struct {
 	VersionID     string

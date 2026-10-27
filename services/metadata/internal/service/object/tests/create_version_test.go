@@ -23,6 +23,7 @@ func TestCreateObjectVersion(t *testing.T) {
 		sizeBytes   int64
 		etag        string
 		contentType string
+		class       model.StorageClass
 	}
 
 	ctx := context.Background()
@@ -87,6 +88,43 @@ func TestCreateObjectVersion(t *testing.T) {
 				return m
 			},
 			buildTxMock: executingTx,
+		},
+		{
+			name: "success: HOT placement when blob was written to HOT",
+			args: args{
+				ctx:        ctx,
+				bucketName: "my-bucket",
+				key:        "photos/cat.jpg",
+				blobID:     "blob-uuid-1",
+				sizeBytes:  1024,
+				class:      model.StorageClassHot,
+			},
+			wantObjectID:  wantObjectID,
+			wantVersionID: wantVersionID,
+			buildRepoMock: func(mc *minimock.Controller) *mocks.ObjectRepositoryMock {
+				m := mocks.NewObjectRepositoryMock(mc)
+				m.UpsertObjectMock.Return(wantObjectID, nil)
+				m.InsertVersionMock.Return(wantVersionID, wantCreatedAt, nil)
+				m.SetCurrentVersionMock.Return(nil)
+				return m
+			},
+			buildPlacementMock: func(mc *minimock.Controller) *mocks.PlacementRepositoryMock {
+				m := mocks.NewPlacementRepositoryMock(mc)
+				m.CreateMock.Expect(minimock.AnyContext, wantVersionID, "blob-uuid-1", model.StorageClassHot).Return(nil)
+				return m
+			},
+			buildTxMock: executingTx,
+		},
+		{
+			name:                "validation error: unknown storage class",
+			args:                args{ctx: ctx, bucketName: "my-bucket", key: "photos/cat.jpg", blobID: "blob-uuid-1", class: "WARM"},
+			wantValidationError: true,
+			buildRepoMock: func(mc *minimock.Controller) *mocks.ObjectRepositoryMock {
+				return mocks.NewObjectRepositoryMock(mc)
+			},
+			buildTxMock: func(mc *minimock.Controller) *mocks.TxManagerMock {
+				return mocks.NewTxManagerMock(mc)
+			},
 		},
 		{
 			name:                "validation error: empty bucketName",
@@ -203,6 +241,7 @@ func TestCreateObjectVersion(t *testing.T) {
 				tt.args.sizeBytes,
 				tt.args.etag,
 				tt.args.contentType,
+				tt.args.class,
 			)
 
 			if tt.wantValidationError {

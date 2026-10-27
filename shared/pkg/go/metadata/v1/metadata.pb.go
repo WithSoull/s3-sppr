@@ -67,7 +67,7 @@ func (x HealthCheckResponse_ServingStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use HealthCheckResponse_ServingStatus.Descriptor instead.
 func (HealthCheckResponse_ServingStatus) EnumDescriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{21, 0}
+	return file_metadata_proto_rawDescGZIP(), []int{23, 0}
 }
 
 // BucketInfo — метаданные бакета.
@@ -705,21 +705,137 @@ func (x *HeadBucketResponse) GetOwnerId() string {
 	return ""
 }
 
+type ChooseWriteClassRequest struct {
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	BucketName string                 `protobuf:"bytes,1,opt,name=bucket_name,json=bucketName,proto3" json:"bucket_name,omitempty"`
+	Key        string                 `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`
+	// Размер новой версии. Не задан, если клиент не передал Content-Length.
+	SizeBytes     *int64 `protobuf:"varint,3,opt,name=size_bytes,json=sizeBytes,proto3,oneof" json:"size_bytes,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ChooseWriteClassRequest) Reset() {
+	*x = ChooseWriteClassRequest{}
+	mi := &file_metadata_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChooseWriteClassRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChooseWriteClassRequest) ProtoMessage() {}
+
+func (x *ChooseWriteClassRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_metadata_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChooseWriteClassRequest.ProtoReflect.Descriptor instead.
+func (*ChooseWriteClassRequest) Descriptor() ([]byte, []int) {
+	return file_metadata_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ChooseWriteClassRequest) GetBucketName() string {
+	if x != nil {
+		return x.BucketName
+	}
+	return ""
+}
+
+func (x *ChooseWriteClassRequest) GetKey() string {
+	if x != nil {
+		return x.Key
+	}
+	return ""
+}
+
+func (x *ChooseWriteClassRequest) GetSizeBytes() int64 {
+	if x != nil && x.SizeBytes != nil {
+		return *x.SizeBytes
+	}
+	return 0
+}
+
+type ChooseWriteClassResponse struct {
+	state        protoimpl.MessageState `protogen:"open.v1"`
+	StorageClass string                 `protobuf:"bytes,1,opt,name=storage_class,json=storageClass,proto3" json:"storage_class,omitempty"` // "HOT" или "COLD"
+	// Причина выбора: new_key, inherited, previous_cold, size_unknown, hot_full.
+	Reason        string `protobuf:"bytes,2,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ChooseWriteClassResponse) Reset() {
+	*x = ChooseWriteClassResponse{}
+	mi := &file_metadata_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ChooseWriteClassResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ChooseWriteClassResponse) ProtoMessage() {}
+
+func (x *ChooseWriteClassResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_metadata_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ChooseWriteClassResponse.ProtoReflect.Descriptor instead.
+func (*ChooseWriteClassResponse) Descriptor() ([]byte, []int) {
+	return file_metadata_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ChooseWriteClassResponse) GetStorageClass() string {
+	if x != nil {
+		return x.StorageClass
+	}
+	return ""
+}
+
+func (x *ChooseWriteClassResponse) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
 type CreateObjectVersionRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	BucketName    string                 `protobuf:"bytes,1,opt,name=bucket_name,json=bucketName,proto3" json:"bucket_name,omitempty"`    // Имя бакета
-	Key           string                 `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`                                    // S3 ключ объекта (напр. "2024/january/cat.jpg")
-	BlobId        string                 `protobuf:"bytes,3,opt,name=blob_id,json=blobId,proto3" json:"blob_id,omitempty"`                // UUID, возвращённый Storage из StoreObject / CompleteMultipartUpload
-	SizeBytes     int64                  `protobuf:"varint,4,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`      // Размер blob в байтах
-	Etag          string                 `protobuf:"bytes,5,opt,name=etag,proto3" json:"etag,omitempty"`                                  // ETag, как его нужно сохранить в metadata
-	ContentType   string                 `protobuf:"bytes,6,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"` // MIME тип (напр. "image/jpeg")
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	BucketName  string                 `protobuf:"bytes,1,opt,name=bucket_name,json=bucketName,proto3" json:"bucket_name,omitempty"`    // Имя бакета
+	Key         string                 `protobuf:"bytes,2,opt,name=key,proto3" json:"key,omitempty"`                                    // S3 ключ объекта (напр. "2024/january/cat.jpg")
+	BlobId      string                 `protobuf:"bytes,3,opt,name=blob_id,json=blobId,proto3" json:"blob_id,omitempty"`                // UUID, возвращённый Storage из StoreObject / CompleteMultipartUpload
+	SizeBytes   int64                  `protobuf:"varint,4,opt,name=size_bytes,json=sizeBytes,proto3" json:"size_bytes,omitempty"`      // Размер blob в байтах
+	Etag        string                 `protobuf:"bytes,5,opt,name=etag,proto3" json:"etag,omitempty"`                                  // ETag, как его нужно сохранить в metadata
+	ContentType string                 `protobuf:"bytes,6,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"` // MIME тип (напр. "image/jpeg")
+	// Класс, в Storage которого записан blob: "HOT" или "COLD". Пусто — COLD.
+	StorageClass  string `protobuf:"bytes,7,opt,name=storage_class,json=storageClass,proto3" json:"storage_class,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateObjectVersionRequest) Reset() {
 	*x = CreateObjectVersionRequest{}
-	mi := &file_metadata_proto_msgTypes[12]
+	mi := &file_metadata_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -731,7 +847,7 @@ func (x *CreateObjectVersionRequest) String() string {
 func (*CreateObjectVersionRequest) ProtoMessage() {}
 
 func (x *CreateObjectVersionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[12]
+	mi := &file_metadata_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -744,7 +860,7 @@ func (x *CreateObjectVersionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateObjectVersionRequest.ProtoReflect.Descriptor instead.
 func (*CreateObjectVersionRequest) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{12}
+	return file_metadata_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *CreateObjectVersionRequest) GetBucketName() string {
@@ -789,6 +905,13 @@ func (x *CreateObjectVersionRequest) GetContentType() string {
 	return ""
 }
 
+func (x *CreateObjectVersionRequest) GetStorageClass() string {
+	if x != nil {
+		return x.StorageClass
+	}
+	return ""
+}
+
 type CreateObjectVersionResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ObjectId      string                 `protobuf:"bytes,1,opt,name=object_id,json=objectId,proto3" json:"object_id,omitempty"`     // UUID объекта (создаётся при первой загрузке, повторно используется)
@@ -800,7 +923,7 @@ type CreateObjectVersionResponse struct {
 
 func (x *CreateObjectVersionResponse) Reset() {
 	*x = CreateObjectVersionResponse{}
-	mi := &file_metadata_proto_msgTypes[13]
+	mi := &file_metadata_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -812,7 +935,7 @@ func (x *CreateObjectVersionResponse) String() string {
 func (*CreateObjectVersionResponse) ProtoMessage() {}
 
 func (x *CreateObjectVersionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[13]
+	mi := &file_metadata_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -825,7 +948,7 @@ func (x *CreateObjectVersionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateObjectVersionResponse.ProtoReflect.Descriptor instead.
 func (*CreateObjectVersionResponse) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{13}
+	return file_metadata_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *CreateObjectVersionResponse) GetObjectId() string {
@@ -861,7 +984,7 @@ type GetObjectMetaRequest struct {
 
 func (x *GetObjectMetaRequest) Reset() {
 	*x = GetObjectMetaRequest{}
-	mi := &file_metadata_proto_msgTypes[14]
+	mi := &file_metadata_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -873,7 +996,7 @@ func (x *GetObjectMetaRequest) String() string {
 func (*GetObjectMetaRequest) ProtoMessage() {}
 
 func (x *GetObjectMetaRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[14]
+	mi := &file_metadata_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -886,7 +1009,7 @@ func (x *GetObjectMetaRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetObjectMetaRequest.ProtoReflect.Descriptor instead.
 func (*GetObjectMetaRequest) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{14}
+	return file_metadata_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *GetObjectMetaRequest) GetBucketName() string {
@@ -931,7 +1054,7 @@ type GetObjectMetaResponse struct {
 
 func (x *GetObjectMetaResponse) Reset() {
 	*x = GetObjectMetaResponse{}
-	mi := &file_metadata_proto_msgTypes[15]
+	mi := &file_metadata_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -943,7 +1066,7 @@ func (x *GetObjectMetaResponse) String() string {
 func (*GetObjectMetaResponse) ProtoMessage() {}
 
 func (x *GetObjectMetaResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[15]
+	mi := &file_metadata_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -956,7 +1079,7 @@ func (x *GetObjectMetaResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetObjectMetaResponse.ProtoReflect.Descriptor instead.
 func (*GetObjectMetaResponse) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{15}
+	return file_metadata_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *GetObjectMetaResponse) GetObjectId() string {
@@ -1032,7 +1155,7 @@ type DeleteObjectMetaRequest struct {
 
 func (x *DeleteObjectMetaRequest) Reset() {
 	*x = DeleteObjectMetaRequest{}
-	mi := &file_metadata_proto_msgTypes[16]
+	mi := &file_metadata_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1044,7 +1167,7 @@ func (x *DeleteObjectMetaRequest) String() string {
 func (*DeleteObjectMetaRequest) ProtoMessage() {}
 
 func (x *DeleteObjectMetaRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[16]
+	mi := &file_metadata_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1057,7 +1180,7 @@ func (x *DeleteObjectMetaRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteObjectMetaRequest.ProtoReflect.Descriptor instead.
 func (*DeleteObjectMetaRequest) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{16}
+	return file_metadata_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *DeleteObjectMetaRequest) GetBucketName() string {
@@ -1085,7 +1208,7 @@ type DeleteObjectMetaResponse struct {
 
 func (x *DeleteObjectMetaResponse) Reset() {
 	*x = DeleteObjectMetaResponse{}
-	mi := &file_metadata_proto_msgTypes[17]
+	mi := &file_metadata_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1097,7 +1220,7 @@ func (x *DeleteObjectMetaResponse) String() string {
 func (*DeleteObjectMetaResponse) ProtoMessage() {}
 
 func (x *DeleteObjectMetaResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[17]
+	mi := &file_metadata_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1110,7 +1233,7 @@ func (x *DeleteObjectMetaResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteObjectMetaResponse.ProtoReflect.Descriptor instead.
 func (*DeleteObjectMetaResponse) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{17}
+	return file_metadata_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *DeleteObjectMetaResponse) GetObjectId() string {
@@ -1150,7 +1273,7 @@ type ListObjectsRequest struct {
 
 func (x *ListObjectsRequest) Reset() {
 	*x = ListObjectsRequest{}
-	mi := &file_metadata_proto_msgTypes[18]
+	mi := &file_metadata_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1162,7 +1285,7 @@ func (x *ListObjectsRequest) String() string {
 func (*ListObjectsRequest) ProtoMessage() {}
 
 func (x *ListObjectsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[18]
+	mi := &file_metadata_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1175,7 +1298,7 @@ func (x *ListObjectsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListObjectsRequest.ProtoReflect.Descriptor instead.
 func (*ListObjectsRequest) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{18}
+	return file_metadata_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *ListObjectsRequest) GetBucketName() string {
@@ -1219,7 +1342,7 @@ type ListObjectsResponse struct {
 
 func (x *ListObjectsResponse) Reset() {
 	*x = ListObjectsResponse{}
-	mi := &file_metadata_proto_msgTypes[19]
+	mi := &file_metadata_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1231,7 +1354,7 @@ func (x *ListObjectsResponse) String() string {
 func (*ListObjectsResponse) ProtoMessage() {}
 
 func (x *ListObjectsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[19]
+	mi := &file_metadata_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1244,7 +1367,7 @@ func (x *ListObjectsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListObjectsResponse.ProtoReflect.Descriptor instead.
 func (*ListObjectsResponse) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{19}
+	return file_metadata_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ListObjectsResponse) GetObjects() []*ObjectInfo {
@@ -1278,7 +1401,7 @@ type HealthCheckRequest struct {
 
 func (x *HealthCheckRequest) Reset() {
 	*x = HealthCheckRequest{}
-	mi := &file_metadata_proto_msgTypes[20]
+	mi := &file_metadata_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1290,7 +1413,7 @@ func (x *HealthCheckRequest) String() string {
 func (*HealthCheckRequest) ProtoMessage() {}
 
 func (x *HealthCheckRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[20]
+	mi := &file_metadata_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1303,7 +1426,7 @@ func (x *HealthCheckRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthCheckRequest.ProtoReflect.Descriptor instead.
 func (*HealthCheckRequest) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{20}
+	return file_metadata_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *HealthCheckRequest) GetService() string {
@@ -1322,7 +1445,7 @@ type HealthCheckResponse struct {
 
 func (x *HealthCheckResponse) Reset() {
 	*x = HealthCheckResponse{}
-	mi := &file_metadata_proto_msgTypes[21]
+	mi := &file_metadata_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1334,7 +1457,7 @@ func (x *HealthCheckResponse) String() string {
 func (*HealthCheckResponse) ProtoMessage() {}
 
 func (x *HealthCheckResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_metadata_proto_msgTypes[21]
+	mi := &file_metadata_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1347,7 +1470,7 @@ func (x *HealthCheckResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HealthCheckResponse.ProtoReflect.Descriptor instead.
 func (*HealthCheckResponse) Descriptor() ([]byte, []int) {
-	return file_metadata_proto_rawDescGZIP(), []int{21}
+	return file_metadata_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *HealthCheckResponse) GetStatus() HealthCheckResponse_ServingStatus {
@@ -1407,7 +1530,17 @@ const file_metadata_proto_rawDesc = "" +
 	"\x12HeadBucketResponse\x12\x16\n" +
 	"\x06exists\x18\x01 \x01(\bR\x06exists\x12\x1b\n" +
 	"\tbucket_id\x18\x02 \x01(\tR\bbucketId\x12\x19\n" +
-	"\bowner_id\x18\x03 \x01(\tR\aownerId\"\xbe\x01\n" +
+	"\bowner_id\x18\x03 \x01(\tR\aownerId\"\x7f\n" +
+	"\x17ChooseWriteClassRequest\x12\x1f\n" +
+	"\vbucket_name\x18\x01 \x01(\tR\n" +
+	"bucketName\x12\x10\n" +
+	"\x03key\x18\x02 \x01(\tR\x03key\x12\"\n" +
+	"\n" +
+	"size_bytes\x18\x03 \x01(\x03H\x00R\tsizeBytes\x88\x01\x01B\r\n" +
+	"\v_size_bytes\"W\n" +
+	"\x18ChooseWriteClassResponse\x12#\n" +
+	"\rstorage_class\x18\x01 \x01(\tR\fstorageClass\x12\x16\n" +
+	"\x06reason\x18\x02 \x01(\tR\x06reason\"\xe3\x01\n" +
 	"\x1aCreateObjectVersionRequest\x12\x1f\n" +
 	"\vbucket_name\x18\x01 \x01(\tR\n" +
 	"bucketName\x12\x10\n" +
@@ -1416,7 +1549,8 @@ const file_metadata_proto_rawDesc = "" +
 	"\n" +
 	"size_bytes\x18\x04 \x01(\x03R\tsizeBytes\x12\x12\n" +
 	"\x04etag\x18\x05 \x01(\tR\x04etag\x12!\n" +
-	"\fcontent_type\x18\x06 \x01(\tR\vcontentType\"x\n" +
+	"\fcontent_type\x18\x06 \x01(\tR\vcontentType\x12#\n" +
+	"\rstorage_class\x18\a \x01(\tR\fstorageClass\"x\n" +
 	"\x1bCreateObjectVersionResponse\x12\x1b\n" +
 	"\tobject_id\x18\x01 \x01(\tR\bobjectId\x12\x1d\n" +
 	"\n" +
@@ -1466,14 +1600,15 @@ const file_metadata_proto_rawDesc = "" +
 	"\rServingStatus\x12\v\n" +
 	"\aUNKNOWN\x10\x00\x12\v\n" +
 	"\aSERVING\x10\x01\x12\x0f\n" +
-	"\vNOT_SERVING\x10\x022\xfb\a\n" +
+	"\vNOT_SERVING\x10\x022\xea\b\n" +
 	"\x0fMetadataService\x12a\n" +
 	"\fCreateBucket\x12'.opens3.metadata.v1.CreateBucketRequest\x1a(.opens3.metadata.v1.CreateBucketResponse\x12a\n" +
 	"\fDeleteBucket\x12'.opens3.metadata.v1.DeleteBucketRequest\x1a(.opens3.metadata.v1.DeleteBucketResponse\x12X\n" +
 	"\tGetBucket\x12$.opens3.metadata.v1.GetBucketRequest\x1a%.opens3.metadata.v1.GetBucketResponse\x12^\n" +
 	"\vListBuckets\x12&.opens3.metadata.v1.ListBucketsRequest\x1a'.opens3.metadata.v1.ListBucketsResponse\x12[\n" +
 	"\n" +
-	"HeadBucket\x12%.opens3.metadata.v1.HeadBucketRequest\x1a&.opens3.metadata.v1.HeadBucketResponse\x12v\n" +
+	"HeadBucket\x12%.opens3.metadata.v1.HeadBucketRequest\x1a&.opens3.metadata.v1.HeadBucketResponse\x12m\n" +
+	"\x10ChooseWriteClass\x12+.opens3.metadata.v1.ChooseWriteClassRequest\x1a,.opens3.metadata.v1.ChooseWriteClassResponse\x12v\n" +
 	"\x13CreateObjectVersion\x12..opens3.metadata.v1.CreateObjectVersionRequest\x1a/.opens3.metadata.v1.CreateObjectVersionResponse\x12d\n" +
 	"\rGetObjectMeta\x12(.opens3.metadata.v1.GetObjectMetaRequest\x1a).opens3.metadata.v1.GetObjectMetaResponse\x12m\n" +
 	"\x10DeleteObjectMeta\x12+.opens3.metadata.v1.DeleteObjectMetaRequest\x1a,.opens3.metadata.v1.DeleteObjectMetaResponse\x12^\n" +
@@ -1493,7 +1628,7 @@ func file_metadata_proto_rawDescGZIP() []byte {
 }
 
 var file_metadata_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_metadata_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_metadata_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_metadata_proto_goTypes = []any{
 	(HealthCheckResponse_ServingStatus)(0), // 0: opens3.metadata.v1.HealthCheckResponse.ServingStatus
 	(*BucketInfo)(nil),                     // 1: opens3.metadata.v1.BucketInfo
@@ -1508,16 +1643,18 @@ var file_metadata_proto_goTypes = []any{
 	(*ListBucketsResponse)(nil),            // 10: opens3.metadata.v1.ListBucketsResponse
 	(*HeadBucketRequest)(nil),              // 11: opens3.metadata.v1.HeadBucketRequest
 	(*HeadBucketResponse)(nil),             // 12: opens3.metadata.v1.HeadBucketResponse
-	(*CreateObjectVersionRequest)(nil),     // 13: opens3.metadata.v1.CreateObjectVersionRequest
-	(*CreateObjectVersionResponse)(nil),    // 14: opens3.metadata.v1.CreateObjectVersionResponse
-	(*GetObjectMetaRequest)(nil),           // 15: opens3.metadata.v1.GetObjectMetaRequest
-	(*GetObjectMetaResponse)(nil),          // 16: opens3.metadata.v1.GetObjectMetaResponse
-	(*DeleteObjectMetaRequest)(nil),        // 17: opens3.metadata.v1.DeleteObjectMetaRequest
-	(*DeleteObjectMetaResponse)(nil),       // 18: opens3.metadata.v1.DeleteObjectMetaResponse
-	(*ListObjectsRequest)(nil),             // 19: opens3.metadata.v1.ListObjectsRequest
-	(*ListObjectsResponse)(nil),            // 20: opens3.metadata.v1.ListObjectsResponse
-	(*HealthCheckRequest)(nil),             // 21: opens3.metadata.v1.HealthCheckRequest
-	(*HealthCheckResponse)(nil),            // 22: opens3.metadata.v1.HealthCheckResponse
+	(*ChooseWriteClassRequest)(nil),        // 13: opens3.metadata.v1.ChooseWriteClassRequest
+	(*ChooseWriteClassResponse)(nil),       // 14: opens3.metadata.v1.ChooseWriteClassResponse
+	(*CreateObjectVersionRequest)(nil),     // 15: opens3.metadata.v1.CreateObjectVersionRequest
+	(*CreateObjectVersionResponse)(nil),    // 16: opens3.metadata.v1.CreateObjectVersionResponse
+	(*GetObjectMetaRequest)(nil),           // 17: opens3.metadata.v1.GetObjectMetaRequest
+	(*GetObjectMetaResponse)(nil),          // 18: opens3.metadata.v1.GetObjectMetaResponse
+	(*DeleteObjectMetaRequest)(nil),        // 19: opens3.metadata.v1.DeleteObjectMetaRequest
+	(*DeleteObjectMetaResponse)(nil),       // 20: opens3.metadata.v1.DeleteObjectMetaResponse
+	(*ListObjectsRequest)(nil),             // 21: opens3.metadata.v1.ListObjectsRequest
+	(*ListObjectsResponse)(nil),            // 22: opens3.metadata.v1.ListObjectsResponse
+	(*HealthCheckRequest)(nil),             // 23: opens3.metadata.v1.HealthCheckRequest
+	(*HealthCheckResponse)(nil),            // 24: opens3.metadata.v1.HealthCheckResponse
 }
 var file_metadata_proto_depIdxs = []int32{
 	1,  // 0: opens3.metadata.v1.GetBucketResponse.bucket:type_name -> opens3.metadata.v1.BucketInfo
@@ -1529,23 +1666,25 @@ var file_metadata_proto_depIdxs = []int32{
 	7,  // 6: opens3.metadata.v1.MetadataService.GetBucket:input_type -> opens3.metadata.v1.GetBucketRequest
 	9,  // 7: opens3.metadata.v1.MetadataService.ListBuckets:input_type -> opens3.metadata.v1.ListBucketsRequest
 	11, // 8: opens3.metadata.v1.MetadataService.HeadBucket:input_type -> opens3.metadata.v1.HeadBucketRequest
-	13, // 9: opens3.metadata.v1.MetadataService.CreateObjectVersion:input_type -> opens3.metadata.v1.CreateObjectVersionRequest
-	15, // 10: opens3.metadata.v1.MetadataService.GetObjectMeta:input_type -> opens3.metadata.v1.GetObjectMetaRequest
-	17, // 11: opens3.metadata.v1.MetadataService.DeleteObjectMeta:input_type -> opens3.metadata.v1.DeleteObjectMetaRequest
-	19, // 12: opens3.metadata.v1.MetadataService.ListObjects:input_type -> opens3.metadata.v1.ListObjectsRequest
-	21, // 13: opens3.metadata.v1.MetadataService.HealthCheck:input_type -> opens3.metadata.v1.HealthCheckRequest
-	4,  // 14: opens3.metadata.v1.MetadataService.CreateBucket:output_type -> opens3.metadata.v1.CreateBucketResponse
-	6,  // 15: opens3.metadata.v1.MetadataService.DeleteBucket:output_type -> opens3.metadata.v1.DeleteBucketResponse
-	8,  // 16: opens3.metadata.v1.MetadataService.GetBucket:output_type -> opens3.metadata.v1.GetBucketResponse
-	10, // 17: opens3.metadata.v1.MetadataService.ListBuckets:output_type -> opens3.metadata.v1.ListBucketsResponse
-	12, // 18: opens3.metadata.v1.MetadataService.HeadBucket:output_type -> opens3.metadata.v1.HeadBucketResponse
-	14, // 19: opens3.metadata.v1.MetadataService.CreateObjectVersion:output_type -> opens3.metadata.v1.CreateObjectVersionResponse
-	16, // 20: opens3.metadata.v1.MetadataService.GetObjectMeta:output_type -> opens3.metadata.v1.GetObjectMetaResponse
-	18, // 21: opens3.metadata.v1.MetadataService.DeleteObjectMeta:output_type -> opens3.metadata.v1.DeleteObjectMetaResponse
-	20, // 22: opens3.metadata.v1.MetadataService.ListObjects:output_type -> opens3.metadata.v1.ListObjectsResponse
-	22, // 23: opens3.metadata.v1.MetadataService.HealthCheck:output_type -> opens3.metadata.v1.HealthCheckResponse
-	14, // [14:24] is the sub-list for method output_type
-	4,  // [4:14] is the sub-list for method input_type
+	13, // 9: opens3.metadata.v1.MetadataService.ChooseWriteClass:input_type -> opens3.metadata.v1.ChooseWriteClassRequest
+	15, // 10: opens3.metadata.v1.MetadataService.CreateObjectVersion:input_type -> opens3.metadata.v1.CreateObjectVersionRequest
+	17, // 11: opens3.metadata.v1.MetadataService.GetObjectMeta:input_type -> opens3.metadata.v1.GetObjectMetaRequest
+	19, // 12: opens3.metadata.v1.MetadataService.DeleteObjectMeta:input_type -> opens3.metadata.v1.DeleteObjectMetaRequest
+	21, // 13: opens3.metadata.v1.MetadataService.ListObjects:input_type -> opens3.metadata.v1.ListObjectsRequest
+	23, // 14: opens3.metadata.v1.MetadataService.HealthCheck:input_type -> opens3.metadata.v1.HealthCheckRequest
+	4,  // 15: opens3.metadata.v1.MetadataService.CreateBucket:output_type -> opens3.metadata.v1.CreateBucketResponse
+	6,  // 16: opens3.metadata.v1.MetadataService.DeleteBucket:output_type -> opens3.metadata.v1.DeleteBucketResponse
+	8,  // 17: opens3.metadata.v1.MetadataService.GetBucket:output_type -> opens3.metadata.v1.GetBucketResponse
+	10, // 18: opens3.metadata.v1.MetadataService.ListBuckets:output_type -> opens3.metadata.v1.ListBucketsResponse
+	12, // 19: opens3.metadata.v1.MetadataService.HeadBucket:output_type -> opens3.metadata.v1.HeadBucketResponse
+	14, // 20: opens3.metadata.v1.MetadataService.ChooseWriteClass:output_type -> opens3.metadata.v1.ChooseWriteClassResponse
+	16, // 21: opens3.metadata.v1.MetadataService.CreateObjectVersion:output_type -> opens3.metadata.v1.CreateObjectVersionResponse
+	18, // 22: opens3.metadata.v1.MetadataService.GetObjectMeta:output_type -> opens3.metadata.v1.GetObjectMetaResponse
+	20, // 23: opens3.metadata.v1.MetadataService.DeleteObjectMeta:output_type -> opens3.metadata.v1.DeleteObjectMetaResponse
+	22, // 24: opens3.metadata.v1.MetadataService.ListObjects:output_type -> opens3.metadata.v1.ListObjectsResponse
+	24, // 25: opens3.metadata.v1.MetadataService.HealthCheck:output_type -> opens3.metadata.v1.HealthCheckResponse
+	15, // [15:26] is the sub-list for method output_type
+	4,  // [4:15] is the sub-list for method input_type
 	4,  // [4:4] is the sub-list for extension type_name
 	4,  // [4:4] is the sub-list for extension extendee
 	0,  // [0:4] is the sub-list for field type_name
@@ -1556,13 +1695,14 @@ func file_metadata_proto_init() {
 	if File_metadata_proto != nil {
 		return
 	}
+	file_metadata_proto_msgTypes[12].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_metadata_proto_rawDesc), len(file_metadata_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   22,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

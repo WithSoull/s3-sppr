@@ -82,6 +82,11 @@ class MetadataServiceStub(object):
                 request_serializer=metadata__pb2.HeadBucketRequest.SerializeToString,
                 response_deserializer=metadata__pb2.HeadBucketResponse.FromString,
                 _registered_method=True)
+        self.ChooseWriteClass = channel.unary_unary(
+                '/opens3.metadata.v1.MetadataService/ChooseWriteClass',
+                request_serializer=metadata__pb2.ChooseWriteClassRequest.SerializeToString,
+                response_deserializer=metadata__pb2.ChooseWriteClassResponse.FromString,
+                _registered_method=True)
         self.CreateObjectVersion = channel.unary_unary(
                 '/opens3.metadata.v1.MetadataService/CreateObjectVersion',
                 request_serializer=metadata__pb2.CreateObjectVersionRequest.SerializeToString,
@@ -174,12 +179,25 @@ class MetadataServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
-    def CreateObjectVersion(self, request, context):
+    def ChooseWriteClass(self, request, context):
         """─── Object Management ────────────────────────────────────────────────────
 
-        CreateObjectVersion регистрирует новую committed-версию объекта после того,
+        ChooseWriteClass выбирает класс хранения для новой версии до записи байтов.
+        HOT выбирается, только если текущая версия ключа лежит в HOT, размер известен
+        и в HOT достаточно свободного места; иначе COLD. Место не резервируется:
+        одновременные записи могут превысить usable_bytes HOT, это видно в
+        PlacementService.ListStorageClasses как отрицательное free_bytes.
+        Ошибки: INVALID_ARGUMENT.
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
+    def CreateObjectVersion(self, request, context):
+        """CreateObjectVersion регистрирует новую committed-версию объекта после того,
         как Storage уже сохранил blob. Текущая реализация сразу обновляет current_version_id.
-        Новая версия получает расположение в классе COLD.
+        Версия получает расположение в классе storage_class (пусто — COLD).
+        Ёмкость класса повторно не проверяется: blob уже записан.
         Полный pending/finalize flow через pending_version_id ещё не реализован.
         Ошибки: NOT_FOUND (бакет не существует), INVALID_ARGUMENT.
         """
@@ -253,6 +271,11 @@ def add_MetadataServiceServicer_to_server(servicer, server):
                     servicer.HeadBucket,
                     request_deserializer=metadata__pb2.HeadBucketRequest.FromString,
                     response_serializer=metadata__pb2.HeadBucketResponse.SerializeToString,
+            ),
+            'ChooseWriteClass': grpc.unary_unary_rpc_method_handler(
+                    servicer.ChooseWriteClass,
+                    request_deserializer=metadata__pb2.ChooseWriteClassRequest.FromString,
+                    response_serializer=metadata__pb2.ChooseWriteClassResponse.SerializeToString,
             ),
             'CreateObjectVersion': grpc.unary_unary_rpc_method_handler(
                     servicer.CreateObjectVersion,
@@ -438,6 +461,33 @@ class MetadataService(object):
             '/opens3.metadata.v1.MetadataService/HeadBucket',
             metadata__pb2.HeadBucketRequest.SerializeToString,
             metadata__pb2.HeadBucketResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def ChooseWriteClass(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/opens3.metadata.v1.MetadataService/ChooseWriteClass',
+            metadata__pb2.ChooseWriteClassRequest.SerializeToString,
+            metadata__pb2.ChooseWriteClassResponse.FromString,
             options,
             channel_credentials,
             insecure,

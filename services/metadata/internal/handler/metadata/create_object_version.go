@@ -3,6 +3,7 @@ package metadata
 import (
 	"context"
 
+	"github.com/alesplll/opens3-rebac/services/metadata/internal/model"
 	metadatav1 "github.com/alesplll/opens3-rebac/shared/pkg/go/metadata/v1"
 )
 
@@ -15,6 +16,7 @@ func (h *handler) CreateObjectVersion(ctx context.Context, req *metadatav1.Creat
 		req.GetSizeBytes(),
 		req.GetEtag(),
 		req.GetContentType(),
+		model.StorageClass(req.GetStorageClass()),
 	)
 	if err != nil {
 		return nil, err

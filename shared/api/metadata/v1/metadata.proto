@@ -50,9 +50,18 @@ service MetadataService {
 
   // ─── Object Management ────────────────────────────────────────────────────
 
+  // ChooseWriteClass выбирает класс хранения для новой версии до записи байтов.
+  // HOT выбирается, только если текущая версия ключа лежит в HOT, размер известен
+  // и в HOT достаточно свободного места; иначе COLD. Место не резервируется:
+  // одновременные записи могут превысить usable_bytes HOT, это видно в
+  // PlacementService.ListStorageClasses как отрицательное free_bytes.
+  // Ошибки: INVALID_ARGUMENT.
+  rpc ChooseWriteClass(ChooseWriteClassRequest) returns (ChooseWriteClassResponse);
+
   // CreateObjectVersion регистрирует новую committed-версию объекта после того,
   // как Storage уже сохранил blob. Текущая реализация сразу обновляет current_version_id.
-  // Новая версия получает расположение в классе COLD.
+  // Версия получает расположение в классе storage_class (пусто — COLD).
+  // Ёмкость класса повторно не проверяется: blob уже записан.
   // Полный pending/finalize flow через pending_version_id ещё не реализован.
   // Ошибки: NOT_FOUND (бакет не существует), INVALID_ARGUMENT.
   rpc CreateObjectVersion(CreateObjectVersionRequest) returns (CreateObjectVersionResponse);
@@ -151,6 +160,19 @@ message HeadBucketResponse {
 
 // ─── Object ───────────────────────────────────────────────────────────────────
 
+message ChooseWriteClassRequest {
+  string bucket_name = 1;
+  string key         = 2;
+  // Размер новой версии. Не задан, если клиент не передал Content-Length.
+  optional int64 size_bytes = 3;
+}
+
+message ChooseWriteClassResponse {
+  string storage_class = 1; // "HOT" или "COLD"
+  // Причина выбора: new_key, inherited, previous_cold, size_unknown, hot_full.
+  string reason        = 2;
+}
+
 message CreateObjectVersionRequest {
   string bucket_name  = 1; // Имя бакета
   string key          = 2; // S3 ключ объекта (напр. "2024/january/cat.jpg")
@@ -158,6 +180,8 @@ message CreateObjectVersionRequest {
   int64  size_bytes   = 4; // Размер blob в байтах
   string etag         = 5; // ETag, как его нужно сохранить в metadata
   string content_type = 6; // MIME тип (напр. "image/jpeg")
+  // Класс, в Storage которого записан blob: "HOT" или "COLD". Пусто — COLD.
+  string storage_class = 7;
 }
 
 message CreateObjectVersionResponse {

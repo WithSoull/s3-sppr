@@ -24,6 +24,7 @@ const (
 	MetadataService_GetBucket_FullMethodName           = "/opens3.metadata.v1.MetadataService/GetBucket"
 	MetadataService_ListBuckets_FullMethodName         = "/opens3.metadata.v1.MetadataService/ListBuckets"
 	MetadataService_HeadBucket_FullMethodName          = "/opens3.metadata.v1.MetadataService/HeadBucket"
+	MetadataService_ChooseWriteClass_FullMethodName    = "/opens3.metadata.v1.MetadataService/ChooseWriteClass"
 	MetadataService_CreateObjectVersion_FullMethodName = "/opens3.metadata.v1.MetadataService/CreateObjectVersion"
 	MetadataService_GetObjectMeta_FullMethodName       = "/opens3.metadata.v1.MetadataService/GetObjectMeta"
 	MetadataService_DeleteObjectMeta_FullMethodName    = "/opens3.metadata.v1.MetadataService/DeleteObjectMeta"
@@ -74,9 +75,17 @@ type MetadataServiceClient interface {
 	ListBuckets(ctx context.Context, in *ListBucketsRequest, opts ...grpc.CallOption) (*ListBucketsResponse, error)
 	// HeadBucket проверяет, существует ли бакет (для S3 HEAD /{bucket}).
 	HeadBucket(ctx context.Context, in *HeadBucketRequest, opts ...grpc.CallOption) (*HeadBucketResponse, error)
+	// ChooseWriteClass выбирает класс хранения для новой версии до записи байтов.
+	// HOT выбирается, только если текущая версия ключа лежит в HOT, размер известен
+	// и в HOT достаточно свободного места; иначе COLD. Место не резервируется:
+	// одновременные записи могут превысить usable_bytes HOT, это видно в
+	// PlacementService.ListStorageClasses как отрицательное free_bytes.
+	// Ошибки: INVALID_ARGUMENT.
+	ChooseWriteClass(ctx context.Context, in *ChooseWriteClassRequest, opts ...grpc.CallOption) (*ChooseWriteClassResponse, error)
 	// CreateObjectVersion регистрирует новую committed-версию объекта после того,
 	// как Storage уже сохранил blob. Текущая реализация сразу обновляет current_version_id.
-	// Новая версия получает расположение в классе COLD.
+	// Версия получает расположение в классе storage_class (пусто — COLD).
+	// Ёмкость класса повторно не проверяется: blob уже записан.
 	// Полный pending/finalize flow через pending_version_id ещё не реализован.
 	// Ошибки: NOT_FOUND (бакет не существует), INVALID_ARGUMENT.
 	CreateObjectVersion(ctx context.Context, in *CreateObjectVersionRequest, opts ...grpc.CallOption) (*CreateObjectVersionResponse, error)
@@ -153,6 +162,16 @@ func (c *metadataServiceClient) HeadBucket(ctx context.Context, in *HeadBucketRe
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(HeadBucketResponse)
 	err := c.cc.Invoke(ctx, MetadataService_HeadBucket_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *metadataServiceClient) ChooseWriteClass(ctx context.Context, in *ChooseWriteClassRequest, opts ...grpc.CallOption) (*ChooseWriteClassResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ChooseWriteClassResponse)
+	err := c.cc.Invoke(ctx, MetadataService_ChooseWriteClass_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -252,9 +271,17 @@ type MetadataServiceServer interface {
 	ListBuckets(context.Context, *ListBucketsRequest) (*ListBucketsResponse, error)
 	// HeadBucket проверяет, существует ли бакет (для S3 HEAD /{bucket}).
 	HeadBucket(context.Context, *HeadBucketRequest) (*HeadBucketResponse, error)
+	// ChooseWriteClass выбирает класс хранения для новой версии до записи байтов.
+	// HOT выбирается, только если текущая версия ключа лежит в HOT, размер известен
+	// и в HOT достаточно свободного места; иначе COLD. Место не резервируется:
+	// одновременные записи могут превысить usable_bytes HOT, это видно в
+	// PlacementService.ListStorageClasses как отрицательное free_bytes.
+	// Ошибки: INVALID_ARGUMENT.
+	ChooseWriteClass(context.Context, *ChooseWriteClassRequest) (*ChooseWriteClassResponse, error)
 	// CreateObjectVersion регистрирует новую committed-версию объекта после того,
 	// как Storage уже сохранил blob. Текущая реализация сразу обновляет current_version_id.
-	// Новая версия получает расположение в классе COLD.
+	// Версия получает расположение в классе storage_class (пусто — COLD).
+	// Ёмкость класса повторно не проверяется: blob уже записан.
 	// Полный pending/finalize flow через pending_version_id ещё не реализован.
 	// Ошибки: NOT_FOUND (бакет не существует), INVALID_ARGUMENT.
 	CreateObjectVersion(context.Context, *CreateObjectVersionRequest) (*CreateObjectVersionResponse, error)
@@ -301,6 +328,9 @@ func (UnimplementedMetadataServiceServer) ListBuckets(context.Context, *ListBuck
 }
 func (UnimplementedMetadataServiceServer) HeadBucket(context.Context, *HeadBucketRequest) (*HeadBucketResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method HeadBucket not implemented")
+}
+func (UnimplementedMetadataServiceServer) ChooseWriteClass(context.Context, *ChooseWriteClassRequest) (*ChooseWriteClassResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ChooseWriteClass not implemented")
 }
 func (UnimplementedMetadataServiceServer) CreateObjectVersion(context.Context, *CreateObjectVersionRequest) (*CreateObjectVersionResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method CreateObjectVersion not implemented")
@@ -428,6 +458,24 @@ func _MetadataService_HeadBucket_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _MetadataService_ChooseWriteClass_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ChooseWriteClassRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(MetadataServiceServer).ChooseWriteClass(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: MetadataService_ChooseWriteClass_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(MetadataServiceServer).ChooseWriteClass(ctx, req.(*ChooseWriteClassRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _MetadataService_CreateObjectVersion_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CreateObjectVersionRequest)
 	if err := dec(in); err != nil {
@@ -544,6 +592,10 @@ var MetadataService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "HeadBucket",
 			Handler:    _MetadataService_HeadBucket_Handler,
+		},
+		{
+			MethodName: "ChooseWriteClass",
+			Handler:    _MetadataService_ChooseWriteClass_Handler,
 		},
 		{
 			MethodName: "CreateObjectVersion",
