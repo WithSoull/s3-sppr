@@ -7,16 +7,17 @@ import (
 
 func placementToProto(p *model.Placement) *metadatav1.PlacementInfo {
 	return &metadatav1.PlacementInfo{
-		VersionId:    p.VersionID,
-		ObjectId:     p.ObjectID,
-		BucketName:   p.BucketName,
-		Key:          p.Key,
-		IsCurrent:    p.IsCurrent,
-		StorageClass: string(p.StorageClass),
-		BlobId:       p.BlobID,
-		Generation:   p.Generation,
-		SizeBytes:    p.SizeBytes,
-		UpdatedAt:    p.UpdatedAt.UnixMilli(),
+		VersionId:        p.VersionID,
+		ObjectId:         p.ObjectID,
+		BucketName:       p.BucketName,
+		Key:              p.Key,
+		IsCurrent:        p.IsCurrent,
+		StorageClass:     string(p.StorageClass),
+		BlobId:           p.BlobID,
+		Generation:       p.Generation,
+		SizeBytes:        p.SizeBytes,
+		UpdatedAt:        p.UpdatedAt.UnixMilli(),
+		VersionCreatedAt: p.VersionCreatedAt.UnixMilli(),
 
 		MigrationInProgress: p.MigrationInProgress,
 	}

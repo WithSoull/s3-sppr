@@ -7,16 +7,18 @@ import (
 
 func PlacementToDomain(p *repoModel.Placement) *domainModel.Placement {
 	return &domainModel.Placement{
-		VersionID:    p.VersionID,
-		ObjectID:     p.ObjectID,
-		BucketName:   p.BucketName,
-		Key:          p.Key,
-		IsCurrent:    p.IsCurrent,
-		StorageClass: domainModel.StorageClass(p.StorageClass),
-		BlobID:       p.BlobID,
-		Generation:   p.Generation,
-		SizeBytes:    p.SizeBytes,
-		UpdatedAt:    p.UpdatedAt,
+		VersionID:        p.VersionID,
+		ObjectID:         p.ObjectID,
+		BucketName:       p.BucketName,
+		Key:              p.Key,
+		ObjectActive:     p.ObjectActive,
+		IsCurrent:        p.IsCurrent,
+		StorageClass:     domainModel.StorageClass(p.StorageClass),
+		BlobID:           p.BlobID,
+		Generation:       p.Generation,
+		SizeBytes:        p.SizeBytes,
+		UpdatedAt:        p.UpdatedAt,
+		VersionCreatedAt: p.VersionCreatedAt,
 
 		MigrationInProgress: p.MigrationInProgress,
 	}

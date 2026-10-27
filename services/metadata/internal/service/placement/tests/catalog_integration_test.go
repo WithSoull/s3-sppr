@@ -22,7 +22,7 @@ func (s *PlacementProtocolSuite) TestCatalogPagesCurrentVersionsAndUsageCountsAl
 	var listed []*model.Placement
 	token := ""
 	for {
-		page, next, err := s.placements.ListPlacements(s.Context(), 1, token)
+		page, next, err := s.placements.ListPlacements(s.Context(), model.ListPlacementsRequest{PageSize: 1, PageToken: token})
 		s.Require().NoError(err)
 		listed = append(listed, page...)
 		if next == "" {

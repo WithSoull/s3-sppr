@@ -17,12 +17,14 @@ SELECT vp.version_id,
        o.id AS object_id,
        b.name AS bucket_name,
        o.key,
+       o.status = 'active' AS object_active,
        COALESCE(o.current_version_id = v.id AND o.status = 'active', false) AS is_current,
        vp.storage_class,
        vp.blob_id,
        vp.generation,
        v.size_bytes,
        vp.updated_at,
+       v.created_at AS version_created_at,
        EXISTS (
            SELECT 1 FROM placement_copies pc
            WHERE pc.version_id = vp.version_id AND pc.state = 'reserved'
@@ -42,8 +44,8 @@ func (r *repo) Get(ctx context.Context, versionID string) (*model.Placement, err
 }
 
 func (r *repo) LockForChange(ctx context.Context, versionID string) (*model.Placement, error) {
-	// FOR UPDATE re-reads locked rows after a concurrent commit, so is_current and
-	// generation reflect the latest overwrite or switch.
+	// FOR UPDATE re-reads locked rows after a concurrent commit, so object status,
+	// is_current and generation reflect the latest delete, overwrite or switch.
 	return r.get(ctx, db.Query{
 		Name:     "placement_repository:LockForChange",
 		QueryRaw: selectPlacementByVersion + "\nFOR UPDATE OF o, vp",
@@ -62,20 +64,20 @@ func (r *repo) get(ctx context.Context, q db.Query, versionID string) (*model.Pl
 	return converter.PlacementToDomain(&p), nil
 }
 
-// ListCurrent pages through current versions of active objects by version_id.
-func (r *repo) ListCurrent(ctx context.Context, afterVersionID string, limit int32) ([]*model.Placement, error) {
+// List pages through the Planner catalogue of active objects by version_id.
+func (r *repo) List(ctx context.Context, req model.ListPlacementsRequest) ([]*model.Placement, error) {
 	q := db.Query{
-		Name: "placement_repository:ListCurrent",
+		Name: "placement_repository:List",
 		QueryRaw: selectPlacements + `
-WHERE o.current_version_id = v.id
-  AND o.status = 'active'
+WHERE o.status = 'active'
+  AND (o.current_version_id = v.id OR ($3 AND vp.storage_class = 'HOT'))
   AND vp.version_id > COALESCE(NULLIF($1, '')::uuid, '00000000-0000-0000-0000-000000000000')
 ORDER BY vp.version_id
 LIMIT $2`,
 	}
 
 	var rows []repoModel.Placement
-	if err := r.db.DB().ScanAllContext(ctx, &rows, q, afterVersionID, limit); err != nil {
+	if err := r.db.DB().ScanAllContext(ctx, &rows, q, req.PageToken, req.PageSize, req.IncludeNoncurrentHot); err != nil {
 		return nil, err
 	}
 

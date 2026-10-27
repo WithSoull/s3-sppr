@@ -56,7 +56,7 @@ func (s *placementService) ReserveCopy(
 		if err != nil {
 			return err
 		}
-		if !placement.IsCurrent {
+		if !placement.ObjectActive || (!placement.IsCurrent && targetClass != model.StorageClassCold) {
 			return domainerrors.ErrVersionNotCurrent
 		}
 		if placement.Generation != expectedGeneration || placement.StorageClass != sourceClass {

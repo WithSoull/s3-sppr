@@ -30,8 +30,8 @@ type ObjectService interface {
 // version is stored without exposing a way to skip copy verification or CAS.
 type PlacementService interface {
 	ListStorageClasses(ctx context.Context) ([]*model.StorageClassUsage, error)
-	// ListPlacements returns a page of current versions and the token of the next page.
-	ListPlacements(ctx context.Context, pageSize int32, pageToken string) ([]*model.Placement, string, error)
+	// ListPlacements returns the Planner catalogue, optionally including non-current HOT versions.
+	ListPlacements(ctx context.Context, req model.ListPlacementsRequest) ([]*model.Placement, string, error)
 	GetPlacement(ctx context.Context, versionID string) (*model.Placement, error)
 	ReserveCopy(ctx context.Context, migrationID, versionID string, expectedGeneration int64, sourceClass, targetClass model.StorageClass) (*model.PlacementCopy, error)
 	SwitchPlacement(ctx context.Context, migrationID string, verifiedSizeBytes int64, verifiedMD5 string, sourceCleanupDelay time.Duration) (*model.SwitchResult, error)

@@ -3,6 +3,7 @@ package placement
 import (
 	"context"
 
+	"github.com/alesplll/opens3-rebac/services/metadata/internal/model"
 	metadatav1 "github.com/alesplll/opens3-rebac/shared/pkg/go/metadata/v1"
 )
 
@@ -21,7 +22,11 @@ func (h *handler) ListStorageClasses(ctx context.Context, _ *metadatav1.ListStor
 }
 
 func (h *handler) ListPlacements(ctx context.Context, req *metadatav1.ListPlacementsRequest) (*metadatav1.ListPlacementsResponse, error) {
-	placements, nextToken, err := h.placementService.ListPlacements(ctx, req.GetPageSize(), req.GetPageToken())
+	placements, nextToken, err := h.placementService.ListPlacements(ctx, model.ListPlacementsRequest{
+		PageSize:             req.GetPageSize(),
+		PageToken:            req.GetPageToken(),
+		IncludeNoncurrentHot: req.GetIncludeNoncurrentHot(),
+	})
 	if err != nil {
 		return nil, err
 	}
