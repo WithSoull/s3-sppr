@@ -126,14 +126,17 @@ Producer Gateway уже есть в checkout; автономный Ingestor за
 `make dataset-sppr` сохраняет небольшую синтетическую выборку за семь логических суток.
 Эти команды не требуют PostgreSQL или Kafka. При `PLANNER_ENABLED=true`
 (`make up-sppr-planner`) Planner по таймеру и по команде строит план по прогнозу
-EWMA с объяснениями; администратор подтверждает его через `/api/planner`, и
+EWMA (по умолчанию) или файловой LightGBM с объяснениями; администратор
+подтверждает его через `/api/planner`, и
 исполнитель переносит версии. Панель — `http://localhost:8086/admin`:
 после `make up-sppr-planner` выполните `make seed-planner-admin`, войдите с
 напечатанными тестовыми credentials. Auth проверяет access token, AuthZ — ADMIN
 на `system:placement`; оба API и панель защищены. `make smoke-planner` проверяет
 весь цикл на выделенном стенде, `make smoke-planner-local` — с короткой очисткой.
 Подробности и известное ограничение повтора recompute — в
-[README SPPR](services/sppr/README.md#доступ-и-html-панель). ML ещё предстоит.
+[README SPPR](services/sppr/README.md#доступ-и-html-панель). Выбор предиктора,
+каталог модели и fallback описаны в [разделе Planner](services/sppr/README.md#выбор-предиктора-и-каталог-модели);
+обучение и сравнение качества ML ещё предстоят.
 Начать чтение кода можно с
 [онбординга SPPR](services/sppr/ONBOARDING.md), продолжить — с
 [разбора шага 6](docs/sppr-step6.md).

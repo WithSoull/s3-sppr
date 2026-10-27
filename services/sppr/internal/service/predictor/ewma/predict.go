@@ -29,6 +29,8 @@ func NewPredictor() service.Predictor { return predictor{} }
 
 func (predictor) MethodVersion() string { return MethodVersion }
 
+func (predictor) ModelVersion() string { return "" }
+
 func (predictor) Predict(s model.FeatureSnapshot, horizon time.Duration) (model.DemandForecast, error) {
 	return Predict(s, horizon)
 }

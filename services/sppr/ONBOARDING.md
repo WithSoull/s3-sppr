@@ -462,7 +462,7 @@ Planner строит план, а применяет его только исп�
    `build_test.go` — случаи по одному, `exact_test.go` — сравнение с перебором.
 3. `snapshot.go` — что Planner читает на момент T и как превращает это в
    `PlanInput`: каталог и занятость из Metadata, закрепления, интервал, бюджет,
-   принятые действия, минутные агрегаты → признаки → EWMA. `assumeCaughtUp` —
+   принятые действия, минутные агрегаты → признаки → выбранный предиктор. `assumeCaughtUp` —
    временное правило полноты до этапа 5.
 4. `cycle.go` — таймер и `recompute`, сохранение ревизии одной транзакцией,
    `history_incomplete` и `failed` вместо пустых планов.
@@ -529,3 +529,26 @@ HTTP ждать Kafka: событие теряется с потраченным
 
 Нет восстановления gaps, контроля потерянного хвоста, retention и DLQ. История пока растёт без ограничения. Это
 границы текущего Ingestor, которые нужно учесть до Feature Builder и эксперимента.
+
+
+### Go-предиктор LightGBM (этап 8, часть 1)
+
+Начни с `internal/service/predictor/lgbm/model.go`: признаки `model.Features`
+собираются в порядке `manifest.feature_names`, `nil` давности превращается в NaN,
+сырые выходы проходят `sigmoid`/`exp`, затем `N̂ = p·(1 + exp(raw_regressor))`.
+`load.go` проверяет контракт, хеши, горизонт и parity с относительным допуском
+`1e-9`; тесты запускаются без Python и внешней инфраструктуры:
+
+```bash
+cd services/sppr
+go test ./internal/service/predictor/... ./internal/service/planner ./internal/app -run 'Test(Load|Parity|Predict|FeatureVector|PlanML|PlannerPredictor)'
+```
+
+Дальше читай `internal/app/planner_provider.go` (выбор `PLANNER_PREDICTOR` и
+fallback), `cycle.go` (метод/модель в ревизии) и `build.go` (те же `p`, `m`, `N̂`
+и EWMA в объяснении). В `/api/planner/status` и `/admin` видны активный метод,
+версия артефакта и причина отката. [Runbook](README.md#выбор-предиктора-и-каталог-модели)
+описывает `PLANNER_MODEL_DIR` и read-only mount Compose.
+Фикстура `lgbm/testdata` взята из spike; она проверяет паритет и не является
+обученной моделью этапа 8. Обучение, метрики и Python-пакет — часть 2;
+горячая замена — этап 9.

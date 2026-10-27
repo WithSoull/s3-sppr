@@ -19,6 +19,7 @@ const (
 )
 
 type Config struct {
+	FallbackReason   string
 	Interval         time.Duration
 	KeepPlans        int
 	MaxRejectedSaved int

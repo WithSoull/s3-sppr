@@ -57,7 +57,7 @@ func (s *plannerService) Plan(ctx context.Context, trigger model.PlanTrigger) (m
 	}
 	params := paramsOf(settings, s.cfg.MaxRejectedSaved)
 	plan, err := s.plans.CreatePlan(ctx, model.Plan{
-		PlanID: s.newID(), Trigger: trigger, MethodVersion: s.predictor.MethodVersion(), Params: params,
+		PlanID: s.newID(), Trigger: trigger, MethodVersion: s.predictor.MethodVersion(), ModelVersion: s.predictor.ModelVersion(), Params: params,
 	})
 	if err != nil {
 		return model.Plan{}, fmt.Errorf("create plan: %w", err)

@@ -1,0 +1,4815 @@
+{
+ "meta": {
+  "rules_version": "features-v1",
+  "features": [
+   "log_size",
+   "age_seconds",
+   "overwrites_24h",
+   "last_read_seconds",
+   "previous_read_seconds",
+   "reads_5m",
+   "reads_1h",
+   "reads_6h",
+   "reads_24h",
+   "ewma_1h",
+   "ewma_6h",
+   "short_long_ratio",
+   "reads_day_ago",
+   "mean_read_fraction",
+   "bucket_reads_1h",
+   "bucket_active_fraction",
+   "observed_seconds"
+  ],
+  "params": {
+   "learning_rate": 0.05,
+   "num_leaves": 31,
+   "num_iterations": 50,
+   "min_data_in_leaf": 5,
+   "seed": 0,
+   "deterministic": true,
+   "force_row_wise": true,
+   "num_threads": 1,
+   "verbose": -1
+  },
+  "lightgbm": "4.7.0",
+  "numpy": "2.5.4",
+  "python": "3.14.0",
+  "slices_sha256": "8687769426bdcfb82f45ad47e891a9c7d5af7fb9b8a991e768e5e4926ca18f43",
+  "train_rows": 912,
+  "train_positive_rows": 355,
+  "classifier_sha256": "9fe2893609f5c6d0532c70db8a664e3e29f2dc387df727d79c3018cea971ae7f",
+  "regressor_sha256": "3763d3f7e5b6392b344726a77ffba0bcfd8353dd1a2f121e4f14ab7ccf7bbf22"
+ },
+ "rows": [
+  {
+   "name": "zero_never_read:v-00001@2026-10-01T00:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 0,
+    "overwrites_24h": 0,
+    "last_read_seconds": null,
+    "previous_read_seconds": null,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 0,
+    "ewma_1h": 0,
+    "ewma_6h": 0,
+    "short_long_ratio": 0,
+    "reads_day_ago": 0,
+    "mean_read_fraction": 0,
+    "bucket_reads_1h": 0,
+    "bucket_active_fraction": 0,
+    "observed_seconds": 0
+   },
+   "want": {
+    "classifier_raw": -0.6100544287712355,
+    "probability": 0.3520467820807824,
+    "regressor_raw": 1.4514254037048615,
+    "excess_reads": 4.269195507297741,
+    "conditional_reads": 5.269195507297741,
+    "expected_reads": 1.8550033224986855
+   }
+  },
+  {
+   "name": "zero_never_read:v-00003@2026-10-01T00:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 0,
+    "overwrites_24h": 0,
+    "last_read_seconds": null,
+    "previous_read_seconds": null,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 0,
+    "ewma_1h": 0,
+    "ewma_6h": 0,
+    "short_long_ratio": 0,
+    "reads_day_ago": 0,
+    "mean_read_fraction": 0,
+    "bucket_reads_1h": 0,
+    "bucket_active_fraction": 0,
+    "observed_seconds": 0
+   },
+   "want": {
+    "classifier_raw": -0.6100544287712355,
+    "probability": 0.3520467820807824,
+    "regressor_raw": 1.4514254037048615,
+    "excess_reads": 4.269195507297741,
+    "conditional_reads": 5.269195507297741,
+    "expected_reads": 1.8550033224986855
+   }
+  },
+  {
+   "name": "zero_never_read:v-00005@2026-10-01T00:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 0,
+    "overwrites_24h": 0,
+    "last_read_seconds": null,
+    "previous_read_seconds": null,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 0,
+    "ewma_1h": 0,
+    "ewma_6h": 0,
+    "short_long_ratio": 0,
+    "reads_day_ago": 0,
+    "mean_read_fraction": 0,
+    "bucket_reads_1h": 0,
+    "bucket_active_fraction": 0,
+    "observed_seconds": 0
+   },
+   "want": {
+    "classifier_raw": -0.6100544287712355,
+    "probability": 0.3520467820807824,
+    "regressor_raw": 1.4514254037048615,
+    "excess_reads": 4.269195507297741,
+    "conditional_reads": 5.269195507297741,
+    "expected_reads": 1.8550033224986855
+   }
+  },
+  {
+   "name": "zero_never_read:v-00007@2026-10-01T00:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 0,
+    "overwrites_24h": 0,
+    "last_read_seconds": null,
+    "previous_read_seconds": null,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 0,
+    "ewma_1h": 0,
+    "ewma_6h": 0,
+    "short_long_ratio": 0,
+    "reads_day_ago": 0,
+    "mean_read_fraction": 0,
+    "bucket_reads_1h": 0,
+    "bucket_active_fraction": 0,
+    "observed_seconds": 0
+   },
+   "want": {
+    "classifier_raw": -0.6100544287712355,
+    "probability": 0.3520467820807824,
+    "regressor_raw": 1.4514254037048615,
+    "excess_reads": 4.269195507297741,
+    "conditional_reads": 5.269195507297741,
+    "expected_reads": 1.8550033224986855
+   }
+  },
+  {
+   "name": "zero_never_read:v-00008@2026-10-01T00:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 0,
+    "overwrites_24h": 0,
+    "last_read_seconds": null,
+    "previous_read_seconds": null,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 0,
+    "ewma_1h": 0,
+    "ewma_6h": 0,
+    "short_long_ratio": 0,
+    "reads_day_ago": 0,
+    "mean_read_fraction": 0,
+    "bucket_reads_1h": 0,
+    "bucket_active_fraction": 0,
+    "observed_seconds": 0
+   },
+   "want": {
+    "classifier_raw": -0.6100544287712355,
+    "probability": 0.3520467820807824,
+    "regressor_raw": 1.4514254037048615,
+    "excess_reads": 4.269195507297741,
+    "conditional_reads": 5.269195507297741,
+    "expected_reads": 1.8550033224986855
+   }
+  },
+  {
+   "name": "zero_never_read:v-00011@2026-10-01T00:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 0,
+    "overwrites_24h": 0,
+    "last_read_seconds": null,
+    "previous_read_seconds": null,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 0,
+    "ewma_1h": 0,
+    "ewma_6h": 0,
+    "short_long_ratio": 0,
+    "reads_day_ago": 0,
+    "mean_read_fraction": 0,
+    "bucket_reads_1h": 0,
+    "bucket_active_fraction": 0,
+    "observed_seconds": 0
+   },
+   "want": {
+    "classifier_raw": -0.6100544287712355,
+    "probability": 0.3520467820807824,
+    "regressor_raw": 1.4514254037048615,
+    "excess_reads": 4.269195507297741,
+    "conditional_reads": 5.269195507297741,
+    "expected_reads": 1.8550033224986855
+   }
+  },
+  {
+   "name": "zero_with_history:v-00004@2026-10-04T00:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 259200,
+    "overwrites_24h": 0,
+    "last_read_seconds": 30600,
+    "previous_read_seconds": 39400,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 6,
+    "ewma_1h": 0.0023556381843252453,
+    "ewma_6h": 0.13902460077531828,
+    "short_long_ratio": 0,
+    "reads_day_ago": 0,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": 0.5215267724648054,
+    "probability": 0.6275047074183867,
+    "regressor_raw": 0.4980920771010639,
+    "excess_reads": 1.645578636538946,
+    "conditional_reads": 2.645578636538946,
+    "expected_reads": 1.6601130482737056
+   }
+  },
+  {
+   "name": "zero_with_history:v-00005@2026-10-04T00:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 259200,
+    "overwrites_24h": 0,
+    "last_read_seconds": 200,
+    "previous_read_seconds": 46400,
+    "reads_5m": 1,
+    "reads_1h": 1,
+    "reads_6h": 1,
+    "reads_24h": 9,
+    "ewma_1h": 0.6670786294018337,
+    "ewma_6h": 0.22699330840726326,
+    "short_long_ratio": 12,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 2,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -2.976584863893485,
+    "probability": 0.0484949712917246,
+    "regressor_raw": 0.12535451629136893,
+    "excess_reads": 1.1335502438704628,
+    "conditional_reads": 2.133550243870463,
+    "expected_reads": 0.10346645782595013
+   }
+  },
+  {
+   "name": "zero_with_history:v-00006@2026-10-04T00:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 259200,
+    "overwrites_24h": 0,
+    "last_read_seconds": 13800,
+    "previous_read_seconds": 27600,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 1,
+    "reads_24h": 4,
+    "ewma_1h": 0.052069383113656435,
+    "ewma_6h": 0.16012289559848292,
+    "short_long_ratio": 0,
+    "reads_day_ago": 0,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 31,
+    "bucket_active_fraction": 0.6,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.7816559936479566,
+    "probability": 0.31396309130676425,
+    "regressor_raw": 0.1328606885694959,
+    "excess_reads": 1.142090880933327,
+    "conditional_reads": 2.142090880933327,
+    "expected_reads": 0.6725374748378572
+   }
+  },
+  {
+   "name": "zero_with_history:v-00008@2026-10-04T00:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 259200,
+    "overwrites_24h": 0,
+    "last_read_seconds": 4200,
+    "previous_read_seconds": 12000,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 3,
+    "reads_24h": 13,
+    "ewma_1h": 0.3964490756086308,
+    "ewma_6h": 0.4260171888444827,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.6397452505709843,
+    "probability": 0.34530412812023653,
+    "regressor_raw": 0.46758430753103797,
+    "excess_reads": 1.5961337639766608,
+    "conditional_reads": 2.5961337639766606,
+    "expected_reads": 0.8964557058534687
+   }
+  },
+  {
+   "name": "zero_with_history:v-00010@2026-10-04T00:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 3400,
+    "previous_read_seconds": 9200,
+    "reads_5m": 0,
+    "reads_1h": 1,
+    "reads_6h": 5,
+    "reads_24h": 12,
+    "ewma_1h": 0.5336605708979055,
+    "ewma_6h": 0.6056471353950866,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 31,
+    "bucket_active_fraction": 0.6,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.4208464520878465,
+    "probability": 0.19452892090369503,
+    "regressor_raw": 0.11117235491457762,
+    "excess_reads": 1.1175875119559198,
+    "conditional_reads": 2.1175875119559198,
+    "expected_reads": 0.4119320136199255
+   }
+  },
+  {
+   "name": "zero_with_history:v-00011@2026-10-04T00:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 259200,
+    "overwrites_24h": 0,
+    "last_read_seconds": 10000,
+    "previous_read_seconds": 52000,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 1,
+    "reads_24h": 5,
+    "ewma_1h": 0.10114044222107764,
+    "ewma_6h": 0.156047528955995,
+    "short_long_ratio": 0,
+    "reads_day_ago": 0,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 0,
+    "bucket_active_fraction": 0,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -2.479841889077407,
+    "probability": 0.07728347639010694,
+    "regressor_raw": 0.12535451629136893,
+    "excess_reads": 1.1335502438704628,
+    "conditional_reads": 2.133550243870463,
+    "expected_reads": 0.16488817989926982
+   }
+  },
+  {
+   "name": "positive_top:v-00014@2026-10-07T08:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 547200,
+    "overwrites_24h": 0,
+    "last_read_seconds": 200,
+    "previous_read_seconds": 500,
+    "reads_5m": 1,
+    "reads_1h": 19,
+    "reads_6h": 90,
+    "reads_24h": 353,
+    "ewma_1h": 16.428159915588665,
+    "ewma_6h": 14.114281953558901,
+    "short_long_ratio": 0.631578947368421,
+    "reads_day_ago": 15,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 31,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": 2.965625000675139,
+    "probability": 0.9509967955781896,
+    "regressor_raw": 2.4386872935152706,
+    "excess_reads": 11.45798988865042,
+    "conditional_reads": 12.45798988865042,
+    "expected_reads": 11.847508463452037
+   }
+  },
+  {
+   "name": "positive_top:v-00002@2026-10-05T12:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 388800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 200,
+    "previous_read_seconds": 500,
+    "reads_5m": 1,
+    "reads_1h": 12,
+    "reads_6h": 86,
+    "reads_24h": 365,
+    "ewma_1h": 12.758823991744089,
+    "ewma_6h": 13.935208483766754,
+    "short_long_ratio": 1,
+    "reads_day_ago": 17,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 30,
+    "bucket_active_fraction": 0.6,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": 2.965625000675139,
+    "probability": 0.9509967955781896,
+    "regressor_raw": 2.2585774005708514,
+    "excess_reads": 9.569465962065413,
+    "conditional_reads": 10.569465962065413,
+    "expected_reads": 10.051528260896955
+   }
+  },
+  {
+   "name": "positive_top:v-00014@2026-10-05T09:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 378000,
+    "overwrites_24h": 0,
+    "last_read_seconds": 100,
+    "previous_read_seconds": 200,
+    "reads_5m": 3,
+    "reads_1h": 16,
+    "reads_6h": 83,
+    "reads_24h": 334,
+    "ewma_1h": 14.221837360375227,
+    "ewma_6h": 12.889850748784424,
+    "short_long_ratio": 2.25,
+    "reads_day_ago": 15,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 35,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": 2.965625000675139,
+    "probability": 0.9509967955781896,
+    "regressor_raw": 2.35393455880971,
+    "excess_reads": 10.526907084271135,
+    "conditional_reads": 11.526907084271135,
+    "expected_reads": 10.962051700069383
+   }
+  },
+  {
+   "name": "positive_top:v-00002@2026-10-06T03:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 442800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 100,
+    "previous_read_seconds": 300,
+    "reads_5m": 2,
+    "reads_1h": 13,
+    "reads_6h": 92,
+    "reads_24h": 379,
+    "ewma_1h": 14.944078143594549,
+    "ewma_6h": 14.731618581463303,
+    "short_long_ratio": 1.8461538461538463,
+    "reads_day_ago": 17,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 31,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": 2.965625000675139,
+    "probability": 0.9509967955781896,
+    "regressor_raw": 2.464881615792535,
+    "excess_reads": 11.762089623897067,
+    "conditional_reads": 12.762089623897067,
+    "expected_reads": 12.136706337207773
+   }
+  },
+  {
+   "name": "positive_top:v-00002@2026-10-06T13:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 478800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 100,
+    "previous_read_seconds": 500,
+    "reads_5m": 1,
+    "reads_1h": 17,
+    "reads_6h": 96,
+    "reads_24h": 376,
+    "ewma_1h": 16.40133533230151,
+    "ewma_6h": 14.73093070193401,
+    "short_long_ratio": 0.7058823529411765,
+    "reads_day_ago": 14,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 32,
+    "bucket_active_fraction": 0.6,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": 2.965625000675139,
+    "probability": 0.9509967955781896,
+    "regressor_raw": 2.406534337918122,
+    "excess_reads": 11.095441384894327,
+    "conditional_reads": 12.095441384894327,
+    "expected_reads": 11.502725998138326
+   }
+  },
+  {
+   "name": "positive_top:v-00014@2026-10-07T00:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 518400,
+    "overwrites_24h": 0,
+    "last_read_seconds": 200,
+    "previous_read_seconds": 300,
+    "reads_5m": 2,
+    "reads_1h": 11,
+    "reads_6h": 79,
+    "reads_24h": 349,
+    "ewma_1h": 12.381605249341709,
+    "ewma_6h": 12.997868821367618,
+    "short_long_ratio": 2.1818181818181817,
+    "reads_day_ago": 15,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 32,
+    "bucket_active_fraction": 0.8,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": 2.965625000675139,
+    "probability": 0.9509967955781896,
+    "regressor_raw": 2.3226454334755346,
+    "excess_reads": 10.202629013241292,
+    "conditional_reads": 11.202629013241292,
+    "expected_reads": 10.653664293643725
+   }
+  },
+  {
+   "name": "positive_top:v-00002@2026-10-05T18:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 410400,
+    "overwrites_24h": 0,
+    "last_read_seconds": 200,
+    "previous_read_seconds": 300,
+    "reads_5m": 2,
+    "reads_1h": 16,
+    "reads_6h": 95,
+    "reads_24h": 367,
+    "ewma_1h": 15.876006616229345,
+    "ewma_6h": 14.319146304726935,
+    "short_long_ratio": 1.5,
+    "reads_day_ago": 13,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 33,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": 2.965625000675139,
+    "probability": 0.9509967955781896,
+    "regressor_raw": 2.2532954340952025,
+    "excess_reads": 9.519053619022033,
+    "conditional_reads": 10.519053619022033,
+    "expected_reads": 10.003586284205111
+   }
+  },
+  {
+   "name": "positive_top:v-00002@2026-10-07T19:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 586800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 200,
+    "previous_read_seconds": 300,
+    "reads_5m": 2,
+    "reads_1h": 13,
+    "reads_6h": 95,
+    "reads_24h": 353,
+    "ewma_1h": 15.01838840987658,
+    "ewma_6h": 14.025877378771138,
+    "short_long_ratio": 1.8461538461538463,
+    "reads_day_ago": 15,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 32,
+    "bucket_active_fraction": 0.6,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": 2.965625000675139,
+    "probability": 0.9509967955781896,
+    "regressor_raw": 2.523263517470076,
+    "excess_reads": 12.469223863647771,
+    "conditional_reads": 13.469223863647771,
+    "expected_reads": 12.809188733254313
+   }
+  },
+  {
+   "name": "one_previous_read:v-00004@2026-10-01T01:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 3600,
+    "overwrites_24h": 0,
+    "last_read_seconds": 1300,
+    "previous_read_seconds": null,
+    "reads_5m": 0,
+    "reads_1h": 1,
+    "reads_6h": 1,
+    "reads_24h": 1,
+    "ewma_1h": 0.539659945082163,
+    "ewma_6h": 0.11080431280071425,
+    "short_long_ratio": 0,
+    "reads_day_ago": 0,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 2,
+    "bucket_active_fraction": 0.5,
+    "observed_seconds": 3600
+   },
+   "want": {
+    "classifier_raw": -1.4434954600338261,
+    "probability": 0.19100464009071194,
+    "regressor_raw": 0.12535451629136893,
+    "excess_reads": 1.1335502438704628,
+    "conditional_reads": 2.133550243870463,
+    "expected_reads": 0.40751799644592845
+   }
+  },
+  {
+   "name": "one_previous_read:v-00006@2026-10-01T01:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 3600,
+    "overwrites_24h": 0,
+    "last_read_seconds": 2000,
+    "previous_read_seconds": null,
+    "reads_5m": 0,
+    "reads_1h": 1,
+    "reads_6h": 1,
+    "reads_24h": 1,
+    "ewma_1h": 0.4716138759775184,
+    "ewma_6h": 0.10834305137909013,
+    "short_long_ratio": 0,
+    "reads_day_ago": 0,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 33,
+    "bucket_active_fraction": 0.75,
+    "observed_seconds": 3600
+   },
+   "want": {
+    "classifier_raw": -0.8781718849105735,
+    "probability": 0.29355675245005947,
+    "regressor_raw": 0.12535451629136893,
+    "excess_reads": 1.1335502438704628,
+    "conditional_reads": 2.133550243870463,
+    "expected_reads": 0.6263180807796455
+   }
+  },
+  {
+   "name": "one_previous_read:v-00009@2026-10-01T01:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 3600,
+    "overwrites_24h": 0,
+    "last_read_seconds": 600,
+    "previous_read_seconds": null,
+    "reads_5m": 0,
+    "reads_1h": 1,
+    "reads_6h": 1,
+    "reads_24h": 1,
+    "ewma_1h": 0.6175239346434456,
+    "ewma_6h": 0.11332148743235473,
+    "short_long_ratio": 0,
+    "reads_day_ago": 0,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 1,
+    "bucket_active_fraction": 0.2,
+    "observed_seconds": 3600
+   },
+   "want": {
+    "classifier_raw": -1.3662290108119257,
+    "probability": 0.20322978974442768,
+    "regressor_raw": 0.12535451629136893,
+    "excess_reads": 1.1335502438704628,
+    "conditional_reads": 2.133550243870463,
+    "expected_reads": 0.4336009674709666
+   }
+  },
+  {
+   "name": "one_previous_read:v-00016@2026-10-01T01:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 3600,
+    "overwrites_24h": 0,
+    "last_read_seconds": 1400,
+    "previous_read_seconds": null,
+    "reads_5m": 0,
+    "reads_1h": 1,
+    "reads_6h": 1,
+    "reads_24h": 1,
+    "ewma_1h": 0.5293686772408479,
+    "ewma_6h": 0.11044931003855418,
+    "short_long_ratio": 0,
+    "reads_day_ago": 0,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 2,
+    "bucket_active_fraction": 0.5,
+    "observed_seconds": 3600
+   },
+   "want": {
+    "classifier_raw": -1.5765414203651924,
+    "probability": 0.17128585908203245,
+    "regressor_raw": 0.12535451629136893,
+    "excess_reads": 1.1335502438704628,
+    "conditional_reads": 2.133550243870463,
+    "expected_reads": 0.36544698641603207
+   }
+  },
+  {
+   "name": "new_version:v-00002@2026-10-01T00:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 0,
+    "overwrites_24h": 0,
+    "last_read_seconds": null,
+    "previous_read_seconds": null,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 0,
+    "ewma_1h": 0,
+    "ewma_6h": 0,
+    "short_long_ratio": 0,
+    "reads_day_ago": 0,
+    "mean_read_fraction": 0,
+    "bucket_reads_1h": 0,
+    "bucket_active_fraction": 0,
+    "observed_seconds": 0
+   },
+   "want": {
+    "classifier_raw": -0.6100544287712355,
+    "probability": 0.3520467820807824,
+    "regressor_raw": 1.4514254037048615,
+    "excess_reads": 4.269195507297741,
+    "conditional_reads": 5.269195507297741,
+    "expected_reads": 1.8550033224986855
+   }
+  },
+  {
+   "name": "new_version:v-00004@2026-10-01T00:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 0,
+    "overwrites_24h": 0,
+    "last_read_seconds": null,
+    "previous_read_seconds": null,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 0,
+    "ewma_1h": 0,
+    "ewma_6h": 0,
+    "short_long_ratio": 0,
+    "reads_day_ago": 0,
+    "mean_read_fraction": 0,
+    "bucket_reads_1h": 0,
+    "bucket_active_fraction": 0,
+    "observed_seconds": 0
+   },
+   "want": {
+    "classifier_raw": -0.6100544287712355,
+    "probability": 0.3520467820807824,
+    "regressor_raw": 1.4514254037048615,
+    "excess_reads": 4.269195507297741,
+    "conditional_reads": 5.269195507297741,
+    "expected_reads": 1.8550033224986855
+   }
+  },
+  {
+   "name": "random:v-00015@2026-10-07T08:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 547200,
+    "overwrites_24h": 0,
+    "last_read_seconds": 8500,
+    "previous_read_seconds": 33900,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 1,
+    "reads_24h": 6,
+    "ewma_1h": 0.13614842184192125,
+    "ewma_6h": 0.20661909110896712,
+    "short_long_ratio": 0,
+    "reads_day_ago": 0,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 1,
+    "bucket_active_fraction": 0.25,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.4278513610939603,
+    "probability": 0.1934336878403628,
+    "regressor_raw": 0.12272233726276076,
+    "excess_reads": 1.1305704600733029,
+    "conditional_reads": 2.1305704600733026,
+    "expected_reads": 0.41212410129571736
+   }
+  },
+  {
+   "name": "random:v-00009@2026-10-04T01:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 262800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 500,
+    "previous_read_seconds": 9000,
+    "reads_5m": 0,
+    "reads_1h": 1,
+    "reads_6h": 2,
+    "reads_24h": 12,
+    "ewma_1h": 0.7601222363954268,
+    "ewma_6h": 0.45520018913342863,
+    "short_long_ratio": 0,
+    "reads_day_ago": 0,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 2,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.5408153546928032,
+    "probability": 0.17641677746028564,
+    "regressor_raw": 0.2757931882177643,
+    "excess_reads": 1.3175753457427957,
+    "conditional_reads": 2.317575345742796,
+    "expected_reads": 0.4088591740173514
+   }
+  },
+  {
+   "name": "random:v-00010@2026-10-05T23:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 342000,
+    "overwrites_24h": 0,
+    "last_read_seconds": 15300,
+    "previous_read_seconds": 32800,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 1,
+    "reads_24h": 6,
+    "ewma_1h": 0.037746014420754315,
+    "ewma_6h": 0.16885654436404018,
+    "short_long_ratio": 0,
+    "reads_day_ago": 0,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 31,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.261320701832731,
+    "probability": 0.43503907819254206,
+    "regressor_raw": 0.1328606885694959,
+    "excess_reads": 1.142090880933327,
+    "conditional_reads": 2.142090880933327,
+    "expected_reads": 0.9318932422458849
+   }
+  },
+  {
+   "name": "random:v-00016@2026-10-06T11:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 471600,
+    "overwrites_24h": 0,
+    "last_read_seconds": 15900,
+    "previous_read_seconds": 61900,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 1,
+    "reads_24h": 4,
+    "ewma_1h": 0.032463790172670794,
+    "ewma_6h": 0.11298800009152128,
+    "short_long_ratio": 0,
+    "reads_day_ago": 0,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 2,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.0948551419242243,
+    "probability": 0.25070512650094023,
+    "regressor_raw": 0.12535451629136893,
+    "excess_reads": 1.1335502438704628,
+    "conditional_reads": 2.133550243870463,
+    "expected_reads": 0.5348919837856563
+   }
+  },
+  {
+   "name": "random:v-00012@2026-10-05T03:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 356400,
+    "overwrites_24h": 0,
+    "last_read_seconds": 700,
+    "previous_read_seconds": 6400,
+    "reads_5m": 0,
+    "reads_1h": 1,
+    "reads_6h": 4,
+    "reads_24h": 8,
+    "ewma_1h": 0.8924580720061651,
+    "ewma_6h": 0.48235864379502846,
+    "short_long_ratio": 0,
+    "reads_day_ago": 0,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 2,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.6140715033389132,
+    "probability": 0.1660241059784417,
+    "regressor_raw": 0.30208368303884275,
+    "excess_reads": 1.3526744178791787,
+    "conditional_reads": 2.3526744178791787,
+    "expected_reads": 0.3906006668867414
+   }
+  },
+  {
+   "name": "random:v-00010@2026-10-04T15:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 226800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 23000,
+    "previous_read_seconds": 32500,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 13,
+    "ewma_1h": 0.010552860756723792,
+    "ewma_6h": 0.2817986456112669,
+    "short_long_ratio": 0,
+    "reads_day_ago": 0,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 29,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": 0.16357499739667172,
+    "probability": 0.5408028105771691,
+    "regressor_raw": 0.4980920771010639,
+    "excess_reads": 1.645578636538946,
+    "conditional_reads": 2.645578636538946,
+    "expected_reads": 1.4307363622431768
+   }
+  },
+  {
+   "name": "random:v-00016@2026-10-04T23:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 342000,
+    "overwrites_24h": 0,
+    "last_read_seconds": 25900,
+    "previous_read_seconds": 62300,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 3,
+    "ewma_1h": 0.004736724979499678,
+    "ewma_6h": 0.07318434348127974,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.9671765858832702,
+    "probability": 0.27544362608367956,
+    "regressor_raw": 0.12535451629136893,
+    "excess_reads": 1.1335502438704628,
+    "conditional_reads": 2.133550243870463,
+    "expected_reads": 0.5876728156033991
+   }
+  },
+  {
+   "name": "random:v-00012@2026-10-04T03:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 270000,
+    "overwrites_24h": 0,
+    "last_read_seconds": 13500,
+    "previous_read_seconds": 14300,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 3,
+    "reads_24h": 8,
+    "ewma_1h": 0.1151554773177207,
+    "ewma_6h": 0.3663841111701591,
+    "short_long_ratio": 0,
+    "reads_day_ago": 0,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 1,
+    "bucket_active_fraction": 0.2,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.24067125238238674,
+    "probability": 0.4401209377716411,
+    "regressor_raw": 0.12272233726276076,
+    "excess_reads": 1.1305704600733029,
+    "conditional_reads": 2.1305704600733026,
+    "expected_reads": 0.9377086688760188
+   }
+  },
+  {
+   "name": "random:v-00007@2026-10-06T13:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 478800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 14700,
+    "previous_read_seconds": 27100,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 1,
+    "reads_24h": 4,
+    "ewma_1h": 0.04650081219767624,
+    "ewma_6h": 0.19268612394924886,
+    "short_long_ratio": 0,
+    "reads_day_ago": 0,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 1,
+    "bucket_active_fraction": 0.25,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.2199613078534919,
+    "probability": 0.2279432597439753,
+    "regressor_raw": 0.12272233726276076,
+    "excess_reads": 1.1305704600733029,
+    "conditional_reads": 2.1305704600733026,
+    "expected_reads": 0.4856491757833298
+   }
+  },
+  {
+   "name": "random:v-00009@2026-10-07T05:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 536400,
+    "overwrites_24h": 0,
+    "last_read_seconds": 10300,
+    "previous_read_seconds": 15500,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 2,
+    "reads_24h": 5,
+    "ewma_1h": 0.13112207067706405,
+    "ewma_6h": 0.22732085759372958,
+    "short_long_ratio": 0,
+    "reads_day_ago": 0,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 2,
+    "bucket_active_fraction": 0.5,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.230864063918302,
+    "probability": 0.22603023011758136,
+    "regressor_raw": 0.12272233726276076,
+    "excess_reads": 1.1305704600733029,
+    "conditional_reads": 2.1305704600733026,
+    "expected_reads": 0.4815733313720898
+   }
+  },
+  {
+   "name": "random:v-00008@2026-10-07T15:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 572400,
+    "overwrites_24h": 0,
+    "last_read_seconds": 400,
+    "previous_read_seconds": 6700,
+    "reads_5m": 0,
+    "reads_1h": 1,
+    "reads_6h": 4,
+    "reads_24h": 7,
+    "ewma_1h": 0.8935428801299243,
+    "ewma_6h": 0.41961108495707633,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 1,
+    "bucket_active_fraction": 0.2,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.6684547592173309,
+    "probability": 0.1586303083108651,
+    "regressor_raw": 0.23374565885296866,
+    "excess_reads": 1.263323136286939,
+    "conditional_reads": 2.263323136286939,
+    "expected_reads": 0.3590316469163113
+   }
+  },
+  {
+   "name": "random:v-00013@2026-10-04T06:00:00Z",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 280800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 12900,
+    "previous_read_seconds": 28800,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 1,
+    "reads_24h": 6,
+    "ewma_1h": 0.06320336455971198,
+    "ewma_6h": 0.2095318406705817,
+    "short_long_ratio": 0,
+    "reads_day_ago": 0,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 1,
+    "bucket_active_fraction": 0.2,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.369941424648192,
+    "probability": 0.2026293103252883,
+    "regressor_raw": 0.12272233726276076,
+    "excess_reads": 1.1305704600733029,
+    "conditional_reads": 2.1305704600733026,
+    "expected_reads": 0.4317160229240855
+   }
+  },
+  {
+   "name": "synthetic:all_zero",
+   "features": {
+    "log_size": 0.0,
+    "age_seconds": 0.0,
+    "overwrites_24h": 0.0,
+    "last_read_seconds": 0.0,
+    "previous_read_seconds": 0.0,
+    "reads_5m": 0.0,
+    "reads_1h": 0.0,
+    "reads_6h": 0.0,
+    "reads_24h": 0.0,
+    "ewma_1h": 0.0,
+    "ewma_6h": 0.0,
+    "short_long_ratio": 0.0,
+    "reads_day_ago": 0.0,
+    "mean_read_fraction": 0.0,
+    "bucket_reads_1h": 0.0,
+    "bucket_active_fraction": 0.0,
+    "observed_seconds": 0.0
+   },
+   "want": {
+    "classifier_raw": -0.8419982903270805,
+    "probability": 0.30111408794257694,
+    "regressor_raw": 1.4514254037048615,
+    "excess_reads": 4.269195507297741,
+    "conditional_reads": 5.269195507297741,
+    "expected_reads": 1.5866289993710834
+   }
+  },
+  {
+   "name": "synthetic:all_nullable_missing",
+   "features": {
+    "log_size": 0.0,
+    "age_seconds": 0.0,
+    "overwrites_24h": 0.0,
+    "last_read_seconds": null,
+    "previous_read_seconds": null,
+    "reads_5m": 0.0,
+    "reads_1h": 0.0,
+    "reads_6h": 0.0,
+    "reads_24h": 0.0,
+    "ewma_1h": 0.0,
+    "ewma_6h": 0.0,
+    "short_long_ratio": 0.0,
+    "reads_day_ago": 0.0,
+    "mean_read_fraction": 0.0,
+    "bucket_reads_1h": 0.0,
+    "bucket_active_fraction": 0.0,
+    "observed_seconds": 0.0
+   },
+   "want": {
+    "classifier_raw": -0.6100544287712355,
+    "probability": 0.3520467820807824,
+    "regressor_raw": 1.4514254037048615,
+    "excess_reads": 4.269195507297741,
+    "conditional_reads": 5.269195507297741,
+    "expected_reads": 1.8550033224986855
+   }
+  },
+  {
+   "name": "synthetic:huge",
+   "features": {
+    "log_size": 1000000000000.0,
+    "age_seconds": 1000000000000.0,
+    "overwrites_24h": 1000000000000.0,
+    "last_read_seconds": 1000000000000.0,
+    "previous_read_seconds": 1000000000000.0,
+    "reads_5m": 1000000000000.0,
+    "reads_1h": 1000000000000.0,
+    "reads_6h": 1000000000000.0,
+    "reads_24h": 1000000000000.0,
+    "ewma_1h": 1000000000000.0,
+    "ewma_6h": 1000000000000.0,
+    "short_long_ratio": 1000000000000.0,
+    "reads_day_ago": 1000000000000.0,
+    "mean_read_fraction": 1000000000000.0,
+    "bucket_reads_1h": 1000000000000.0,
+    "bucket_active_fraction": 1000000000000.0,
+    "observed_seconds": 1000000000000.0
+   },
+   "want": {
+    "classifier_raw": 2.965625000675139,
+    "probability": 0.9509967955781896,
+    "regressor_raw": 2.325769283157756,
+    "excess_reads": 10.234550325374006,
+    "conditional_reads": 11.234550325374006,
+    "expected_reads": 10.684021359192586
+   }
+  },
+  {
+   "name": "synthetic:tiny",
+   "features": {
+    "log_size": 5e-324,
+    "age_seconds": 5e-324,
+    "overwrites_24h": 5e-324,
+    "last_read_seconds": 5e-324,
+    "previous_read_seconds": 5e-324,
+    "reads_5m": 5e-324,
+    "reads_1h": 5e-324,
+    "reads_6h": 5e-324,
+    "reads_24h": 5e-324,
+    "ewma_1h": 5e-324,
+    "ewma_6h": 5e-324,
+    "short_long_ratio": 5e-324,
+    "reads_day_ago": 5e-324,
+    "mean_read_fraction": 5e-324,
+    "bucket_reads_1h": 5e-324,
+    "bucket_active_fraction": 5e-324,
+    "observed_seconds": 5e-324
+   },
+   "want": {
+    "classifier_raw": -0.8419982903270805,
+    "probability": 0.30111408794257694,
+    "regressor_raw": 1.4514254037048615,
+    "excess_reads": 4.269195507297741,
+    "conditional_reads": 5.269195507297741,
+    "expected_reads": 1.5866289993710834
+   }
+  },
+  {
+   "name": "threshold:classifier:reads_1h:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 6.000000000000001,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.190367120155984,
+    "probability": 0.23319328305339376,
+    "regressor_raw": 1.1508667623609525,
+    "excess_reads": 3.160931499114178,
+    "conditional_reads": 4.160931499114178,
+    "expected_reads": 0.9703012768387146
+   }
+  },
+  {
+   "name": "threshold:classifier:reads_1h:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 6.0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.190367120155984,
+    "probability": 0.23319328305339376,
+    "regressor_raw": 1.1508667623609525,
+    "excess_reads": 3.160931499114178,
+    "conditional_reads": 4.160931499114178,
+    "expected_reads": 0.9703012768387146
+   }
+  },
+  {
+   "name": "threshold:classifier:reads_1h:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 6.000000000000002,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": 2.965625000675139,
+    "probability": 0.9509967955781896,
+    "regressor_raw": 1.1508667623609525,
+    "excess_reads": 3.160931499114178,
+    "conditional_reads": 4.160931499114178,
+    "expected_reads": 3.9570325222779363
+   }
+  },
+  {
+   "name": "threshold:classifier:bucket_reads_1h:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3.5000000000000004,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.190367120155984,
+    "probability": 0.23319328305339376,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.6207403733203058
+   }
+  },
+  {
+   "name": "threshold:classifier:bucket_reads_1h:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3.5,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.190367120155984,
+    "probability": 0.23319328305339376,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.6207403733203058
+   }
+  },
+  {
+   "name": "threshold:classifier:bucket_reads_1h:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3.500000000000001,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.440256621322415,
+    "probability": 0.1915056124253363,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.5097713956135626
+   }
+  },
+  {
+   "name": "threshold:classifier:previous_read_seconds:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 56600.00000000001,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.599164861580526,
+    "probability": 0.16809836934541916,
+    "regressor_raw": 0.12535451629136893,
+    "excess_reads": 1.1335502438704628,
+    "conditional_reads": 2.133550243870463,
+    "expected_reads": 0.35864631691114623
+   }
+  },
+  {
+   "name": "threshold:classifier:previous_read_seconds:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 56600.0,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.599164861580526,
+    "probability": 0.16809836934541916,
+    "regressor_raw": 0.12535451629136893,
+    "excess_reads": 1.1335502438704628,
+    "conditional_reads": 2.133550243870463,
+    "expected_reads": 0.35864631691114623
+   }
+  },
+  {
+   "name": "threshold:classifier:previous_read_seconds:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 56600.000000000015,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.057707442891325,
+    "probability": 0.25774780903976435,
+    "regressor_raw": 0.12535451629136893,
+    "excess_reads": 1.1335502438704628,
+    "conditional_reads": 2.133550243870463,
+    "expected_reads": 0.5499179008338667
+   }
+  },
+  {
+   "name": "threshold:classifier:previous_read_seconds:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 42200.00000000001,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.716424892885998,
+    "probability": 0.3281807311639944,
+    "regressor_raw": 0.12535451629136893,
+    "excess_reads": 1.1335502438704628,
+    "conditional_reads": 2.133550243870463,
+    "expected_reads": 0.700190079008527
+   }
+  },
+  {
+   "name": "threshold:classifier:previous_read_seconds:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 42200.0,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.716424892885998,
+    "probability": 0.3281807311639944,
+    "regressor_raw": 0.12535451629136893,
+    "excess_reads": 1.1335502438704628,
+    "conditional_reads": 2.133550243870463,
+    "expected_reads": 0.700190079008527
+   }
+  },
+  {
+   "name": "threshold:classifier:previous_read_seconds:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 42200.000000000015,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -2.3062808630461484,
+    "probability": 0.09060411680687806,
+    "regressor_raw": 0.12535451629136893,
+    "excess_reads": 1.1335502438704628,
+    "conditional_reads": 2.133550243870463,
+    "expected_reads": 0.1933084355089826
+   }
+  },
+  {
+   "name": "threshold:classifier:ewma_1h:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.6102725867016289,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.5219324454725592,
+    "probability": 0.3724004744442718,
+    "regressor_raw": 0.496756090475082,
+    "excess_reads": 1.6433816333987135,
+    "conditional_reads": 2.6433816333987137,
+    "expected_reads": 0.9843965744149552
+   }
+  },
+  {
+   "name": "threshold:classifier:ewma_1h:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.6102725867016288,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.5219324454725592,
+    "probability": 0.3724004744442718,
+    "regressor_raw": 0.496756090475082,
+    "excess_reads": 1.6433816333987135,
+    "conditional_reads": 2.6433816333987137,
+    "expected_reads": 0.9843965744149552
+   }
+  },
+  {
+   "name": "threshold:classifier:ewma_1h:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.610272586701629,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.3897978146948085,
+    "probability": 0.19944003654256406,
+    "regressor_raw": 0.496756090475082,
+    "excess_reads": 1.6433816333987135,
+    "conditional_reads": 2.6433816333987137,
+    "expected_reads": 0.5271961295609822
+   }
+  },
+  {
+   "name": "threshold:classifier:reads_24h:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 10.500000000000002,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.1047970682636457,
+    "probability": 0.24884214778182662,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.6623962992816991
+   }
+  },
+  {
+   "name": "threshold:classifier:reads_24h:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 10.5,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.1047970682636457,
+    "probability": 0.24884214778182662,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.6623962992816991
+   }
+  },
+  {
+   "name": "threshold:classifier:reads_24h:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 10.500000000000004,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.8825269997928574,
+    "probability": 0.29265439628290074,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.7790207197386629
+   }
+  },
+  {
+   "name": "threshold:classifier:ewma_1h:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.5961642880230643,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.8622624254602039,
+    "probability": 0.2968668769679803,
+    "regressor_raw": 0.496756090475082,
+    "excess_reads": 1.6433816333987135,
+    "conditional_reads": 2.6433816333987137,
+    "expected_reads": 0.7847324501415948
+   }
+  },
+  {
+   "name": "threshold:classifier:ewma_1h:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.5961642880230642,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.8622624254602039,
+    "probability": 0.2968668769679803,
+    "regressor_raw": 0.496756090475082,
+    "excess_reads": 1.6433816333987135,
+    "conditional_reads": 2.6433816333987137,
+    "expected_reads": 0.7847324501415948
+   }
+  },
+  {
+   "name": "threshold:classifier:ewma_1h:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.5961642880230644,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.5219324454725592,
+    "probability": 0.3724004744442718,
+    "regressor_raw": 0.496756090475082,
+    "excess_reads": 1.6433816333987135,
+    "conditional_reads": 2.6433816333987137,
+    "expected_reads": 0.9843965744149552
+   }
+  },
+  {
+   "name": "threshold:classifier:last_read_seconds:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 29500.000000000004,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.9451449564494689,
+    "probability": 0.27986225783513413,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.7449691523364683
+   }
+  },
+  {
+   "name": "threshold:classifier:last_read_seconds:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 29500.0,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.9451449564494689,
+    "probability": 0.27986225783513413,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.7449691523364683
+   }
+  },
+  {
+   "name": "threshold:classifier:last_read_seconds:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 29500.000000000007,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.8167050358315844,
+    "probability": 0.30646353661964754,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.8157794583079124
+   }
+  },
+  {
+   "name": "threshold:classifier:ewma_1h:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.2861577598334206,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.4595734072915714,
+    "probability": 0.3870870283863101,
+    "regressor_raw": 0.496756090475082,
+    "excess_reads": 1.6433816333987135,
+    "conditional_reads": 2.6433816333987137,
+    "expected_reads": 1.0232187413632585
+   }
+  },
+  {
+   "name": "threshold:classifier:ewma_1h:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.28615775983342057,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.4595734072915714,
+    "probability": 0.3870870283863101,
+    "regressor_raw": 0.496756090475082,
+    "excess_reads": 1.6433816333987135,
+    "conditional_reads": 2.6433816333987137,
+    "expected_reads": 1.0232187413632585
+   }
+  },
+  {
+   "name": "threshold:classifier:ewma_1h:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.2861577598334207,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.46306602999547924,
+    "probability": 0.38625872883393947,
+    "regressor_raw": 0.496756090475082,
+    "excess_reads": 1.6433816333987135,
+    "conditional_reads": 2.6433816333987137,
+    "expected_reads": 1.0210292295395698
+   }
+  },
+  {
+   "name": "threshold:classifier:reads_6h:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 3.5000000000000004,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.190367120155984,
+    "probability": 0.23319328305339376,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.6207403733203058
+   }
+  },
+  {
+   "name": "threshold:classifier:reads_6h:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 3.5,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.190367120155984,
+    "probability": 0.23319328305339376,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.6207403733203058
+   }
+  },
+  {
+   "name": "threshold:classifier:reads_6h:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 3.500000000000001,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.6676784043580256,
+    "probability": 0.3390168796529856,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.9024336450955801
+   }
+  },
+  {
+   "name": "threshold:classifier:last_read_seconds:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 8450.000000000002,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.5847915873299806,
+    "probability": 0.3578307963368663,
+    "regressor_raw": 0.14273832545951481,
+    "excess_reads": 1.1534279394468665,
+    "conditional_reads": 2.1534279394468667,
+    "expected_reads": 0.7705628344263294
+   }
+  },
+  {
+   "name": "threshold:classifier:last_read_seconds:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 8450.0,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.5847915873299806,
+    "probability": 0.3578307963368663,
+    "regressor_raw": 0.14273832545951481,
+    "excess_reads": 1.1534279394468665,
+    "conditional_reads": 2.1534279394468667,
+    "expected_reads": 0.7705628344263294
+   }
+  },
+  {
+   "name": "threshold:classifier:last_read_seconds:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 8450.000000000004,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.7628912293330564,
+    "probability": 0.31801887842885534,
+    "regressor_raw": 0.14273832545951481,
+    "excess_reads": 1.1534279394468665,
+    "conditional_reads": 2.1534279394468667,
+    "expected_reads": 0.6848307380802536
+   }
+  },
+  {
+   "name": "threshold:classifier:age_seconds:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 142200.00000000003,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.2059544819178063,
+    "probability": 0.23041764137996393,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.6133518549804627
+   }
+  },
+  {
+   "name": "threshold:classifier:age_seconds:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 142200.0,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.2059544819178063,
+    "probability": 0.23041764137996393,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.6133518549804627
+   }
+  },
+  {
+   "name": "threshold:classifier:age_seconds:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 142200.00000000006,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.2059544819178063,
+    "probability": 0.23041764137996393,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.6133518549804627
+   }
+  },
+  {
+   "name": "threshold:classifier:last_read_seconds:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 8150.000000000001,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.3376995992785438,
+    "probability": 0.4163683799004028,
+    "regressor_raw": 0.14273832545951481,
+    "excess_reads": 1.1534279394468665,
+    "conditional_reads": 2.1534279394468667,
+    "expected_reads": 0.8966193023797546
+   }
+  },
+  {
+   "name": "threshold:classifier:last_read_seconds:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 8150.0,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.3376995992785438,
+    "probability": 0.4163683799004028,
+    "regressor_raw": 0.14273832545951481,
+    "excess_reads": 1.1534279394468665,
+    "conditional_reads": 2.1534279394468667,
+    "expected_reads": 0.8966193023797546
+   }
+  },
+  {
+   "name": "threshold:classifier:last_read_seconds:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 8150.000000000002,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.3376995992785438,
+    "probability": 0.4163683799004028,
+    "regressor_raw": 0.14273832545951481,
+    "excess_reads": 1.1534279394468665,
+    "conditional_reads": 2.1534279394468667,
+    "expected_reads": 0.8966193023797546
+   }
+  },
+  {
+   "name": "threshold:classifier:ewma_6h:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.07993917950155957,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.1451635624603564,
+    "probability": 0.2413735865430226,
+    "regressor_raw": 0.4953456471805255,
+    "excess_reads": 1.6410653706561038,
+    "conditional_reads": 2.641065370656104,
+    "expected_reads": 0.6374834208098411
+   }
+  },
+  {
+   "name": "threshold:classifier:ewma_6h:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.07993917950155956,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.1451635624603564,
+    "probability": 0.2413735865430226,
+    "regressor_raw": 0.4953456471805255,
+    "excess_reads": 1.6410653706561038,
+    "conditional_reads": 2.641065370656104,
+    "expected_reads": 0.6374834208098411
+   }
+  },
+  {
+   "name": "threshold:classifier:ewma_6h:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.07993917950155958,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.2219868614017413,
+    "probability": 0.22758698888968593,
+    "regressor_raw": 0.4953456471805255,
+    "excess_reads": 1.6410653706561038,
+    "conditional_reads": 2.641065370656104,
+    "expected_reads": 0.6010721151684449
+   }
+  },
+  {
+   "name": "threshold:classifier:ewma_1h:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.6751563656415988,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.514469893859502,
+    "probability": 0.1802772996256923,
+    "regressor_raw": 0.496756090475082,
+    "excess_reads": 1.6433816333987135,
+    "conditional_reads": 2.6433816333987137,
+    "expected_reads": 0.4765417027492718
+   }
+  },
+  {
+   "name": "threshold:classifier:ewma_1h:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.6751563656415986,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.514469893859502,
+    "probability": 0.1802772996256923,
+    "regressor_raw": 0.496756090475082,
+    "excess_reads": 1.6433816333987135,
+    "conditional_reads": 2.6433816333987137,
+    "expected_reads": 0.4765417027492718
+   }
+  },
+  {
+   "name": "threshold:classifier:ewma_1h:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.6751563656415989,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.2888988436596298,
+    "probability": 0.21603925127409312,
+    "regressor_raw": 0.496756090475082,
+    "excess_reads": 1.6433816333987135,
+    "conditional_reads": 2.6433816333987137,
+    "expected_reads": 0.5710741889111475
+   }
+  },
+  {
+   "name": "threshold:classifier:ewma_6h:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.0985572844857052,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.2219868614017413,
+    "probability": 0.22758698888968593,
+    "regressor_raw": 0.4953456471805255,
+    "excess_reads": 1.6410653706561038,
+    "conditional_reads": 2.641065370656104,
+    "expected_reads": 0.6010721151684449
+   }
+  },
+  {
+   "name": "threshold:classifier:ewma_6h:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.09855728448570518,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.2219868614017413,
+    "probability": 0.22758698888968593,
+    "regressor_raw": 0.4953456471805255,
+    "excess_reads": 1.6410653706561038,
+    "conditional_reads": 2.641065370656104,
+    "expected_reads": 0.6010721151684449
+   }
+  },
+  {
+   "name": "threshold:classifier:ewma_6h:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.09855728448570521,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.2219868614017413,
+    "probability": 0.22758698888968593,
+    "regressor_raw": 0.4953456471805255,
+    "excess_reads": 1.6410653706561038,
+    "conditional_reads": 2.641065370656104,
+    "expected_reads": 0.6010721151684449
+   }
+  },
+  {
+   "name": "threshold:classifier:previous_read_seconds:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 15850.000000000002,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.018954106789911662,
+    "probability": 0.49526161516029255,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 1.3183436326312468
+   }
+  },
+  {
+   "name": "threshold:classifier:previous_read_seconds:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 15850.0,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.018954106789911662,
+    "probability": 0.49526161516029255,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 1.3183436326312468
+   }
+  },
+  {
+   "name": "threshold:classifier:previous_read_seconds:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 15850.000000000004,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.1711286201295488,
+    "probability": 0.2366510414702028,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.6299446275012036
+   }
+  },
+  {
+   "name": "threshold:classifier:ewma_1h:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.3514654198681432,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.2289751759537249,
+    "probability": 0.22636084423959976,
+    "regressor_raw": 0.496756090475082,
+    "excess_reads": 1.6433816333987135,
+    "conditional_reads": 2.6433816333987137,
+    "expected_reads": 0.598358098183585
+   }
+  },
+  {
+   "name": "threshold:classifier:ewma_1h:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.35146541986814317,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.2289751759537249,
+    "probability": 0.22636084423959976,
+    "regressor_raw": 0.496756090475082,
+    "excess_reads": 1.6433816333987135,
+    "conditional_reads": 2.6433816333987137,
+    "expected_reads": 0.598358098183585
+   }
+  },
+  {
+   "name": "threshold:classifier:ewma_1h:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.3514654198681433,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.2289751759537249,
+    "probability": 0.22636084423959976,
+    "regressor_raw": 0.496756090475082,
+    "excess_reads": 1.6433816333987135,
+    "conditional_reads": 2.6433816333987137,
+    "expected_reads": 0.598358098183585
+   }
+  },
+  {
+   "name": "threshold:classifier:age_seconds:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 88200.00000000001,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.4063736234360824,
+    "probability": 0.19680666128440927,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.523882329705162
+   }
+  },
+  {
+   "name": "threshold:classifier:age_seconds:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 88200.0,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.4063736234360824,
+    "probability": 0.19680666128440927,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.523882329705162
+   }
+  },
+  {
+   "name": "threshold:classifier:age_seconds:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 88200.00000000003,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.4063736234360824,
+    "probability": 0.19680666128440927,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.523882329705162
+   }
+  },
+  {
+   "name": "threshold:classifier:previous_read_seconds:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 12950.000000000002,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.2187916184563694,
+    "probability": 0.44551925393206215,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 1.185933764412292
+   }
+  },
+  {
+   "name": "threshold:classifier:previous_read_seconds:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 12950.0,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.2187916184563694,
+    "probability": 0.44551925393206215,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 1.185933764412292
+   }
+  },
+  {
+   "name": "threshold:classifier:previous_read_seconds:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 12950.000000000004,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.2187916184563694,
+    "probability": 0.44551925393206215,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 1.185933764412292
+   }
+  },
+  {
+   "name": "threshold:regressor:reads_1h:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 2.5000000000000004,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.190367120155984,
+    "probability": 0.23319328305339376,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.6207403733203058
+   }
+  },
+  {
+   "name": "threshold:regressor:reads_1h:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 2.5,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.190367120155984,
+    "probability": 0.23319328305339376,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.6207403733203058
+   }
+  },
+  {
+   "name": "threshold:regressor:reads_1h:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 2.500000000000001,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.190367120155984,
+    "probability": 0.23319328305339376,
+    "regressor_raw": 1.1508667623609525,
+    "excess_reads": 3.160931499114178,
+    "conditional_reads": 4.160931499114178,
+    "expected_reads": 0.9703012768387146
+   }
+  },
+  {
+   "name": "threshold:regressor:age_seconds:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 1.0000000180025095e-35,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.8704232332005652,
+    "probability": 0.1334927585209212,
+    "regressor_raw": 1.4514254037048615,
+    "excess_reads": 4.269195507297741,
+    "conditional_reads": 5.269195507297741,
+    "expected_reads": 0.7033994434552203
+   }
+  },
+  {
+   "name": "threshold:regressor:age_seconds:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 1.0000000180025093e-35,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.8704232332005652,
+    "probability": 0.1334927585209212,
+    "regressor_raw": 1.4514254037048615,
+    "excess_reads": 4.269195507297741,
+    "conditional_reads": 5.269195507297741,
+    "expected_reads": 0.7033994434552203
+   }
+  },
+  {
+   "name": "threshold:regressor:age_seconds:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 1.0000000180025096e-35,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.8704232332005652,
+    "probability": 0.1334927585209212,
+    "regressor_raw": 0.5153369629129815,
+    "excess_reads": 1.6742025509288554,
+    "conditional_reads": 2.6742025509288556,
+    "expected_reads": 0.3569866753671772
+   }
+  },
+  {
+   "name": "threshold:regressor:previous_read_seconds:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 40550.00000000001,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.716424892885998,
+    "probability": 0.3281807311639944,
+    "regressor_raw": 0.5193597491604628,
+    "excess_reads": 1.680951074759822,
+    "conditional_reads": 2.6809510747598218,
+    "expected_reads": 0.8798364839295748
+   }
+  },
+  {
+   "name": "threshold:regressor:previous_read_seconds:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 40550.0,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.716424892885998,
+    "probability": 0.3281807311639944,
+    "regressor_raw": 0.5193597491604628,
+    "excess_reads": 1.680951074759822,
+    "conditional_reads": 2.6809510747598218,
+    "expected_reads": 0.8798364839295748
+   }
+  },
+  {
+   "name": "threshold:regressor:previous_read_seconds:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 40550.000000000015,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.716424892885998,
+    "probability": 0.3281807311639944,
+    "regressor_raw": 0.12535451629136893,
+    "excess_reads": 1.1335502438704628,
+    "conditional_reads": 2.133550243870463,
+    "expected_reads": 0.700190079008527
+   }
+  },
+  {
+   "name": "threshold:regressor:ewma_6h:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.1262295362516864,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.2971927395632827,
+    "probability": 0.21463785339165603,
+    "regressor_raw": 0.4953456471805255,
+    "excess_reads": 1.6410653706561038,
+    "conditional_reads": 2.641065370656104,
+    "expected_reads": 0.5668726018246645
+   }
+  },
+  {
+   "name": "threshold:regressor:ewma_6h:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.12622953625168637,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.2971927395632827,
+    "probability": 0.21463785339165603,
+    "regressor_raw": 0.4953456471805255,
+    "excess_reads": 1.6410653706561038,
+    "conditional_reads": 2.641065370656104,
+    "expected_reads": 0.5668726018246645
+   }
+  },
+  {
+   "name": "threshold:regressor:ewma_6h:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.12622953625168642,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.2971927395632827,
+    "probability": 0.21463785339165603,
+    "regressor_raw": 0.5156123559074185,
+    "excess_reads": 1.6746636780753281,
+    "conditional_reads": 2.674663678075328,
+    "expected_reads": 0.5740840704067197
+   }
+  },
+  {
+   "name": "threshold:regressor:last_read_seconds:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 7050.000000000001,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.3376995992785438,
+    "probability": 0.4163683799004028,
+    "regressor_raw": 0.4986491234509729,
+    "excess_reads": 1.6464955554713805,
+    "conditional_reads": 2.6464955554713807,
+    "expected_reads": 1.1019170668452354
+   }
+  },
+  {
+   "name": "threshold:regressor:last_read_seconds:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 7050.0,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.3376995992785438,
+    "probability": 0.4163683799004028,
+    "regressor_raw": 0.4986491234509729,
+    "excess_reads": 1.6464955554713805,
+    "conditional_reads": 2.6464955554713807,
+    "expected_reads": 1.1019170668452354
+   }
+  },
+  {
+   "name": "threshold:regressor:last_read_seconds:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 7050.000000000002,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.3376995992785438,
+    "probability": 0.4163683799004028,
+    "regressor_raw": 0.14273832545951481,
+    "excess_reads": 1.1534279394468665,
+    "conditional_reads": 2.1534279394468667,
+    "expected_reads": 0.8966193023797546
+   }
+  },
+  {
+   "name": "threshold:regressor:last_read_seconds:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 6500.000000000001,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.3376995992785438,
+    "probability": 0.4163683799004028,
+    "regressor_raw": 0.24770829681675233,
+    "excess_reads": 1.2810861807674865,
+    "conditional_reads": 2.2810861807674865,
+    "expected_reads": 0.9497721574993557
+   }
+  },
+  {
+   "name": "threshold:regressor:last_read_seconds:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 6500.0,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.3376995992785438,
+    "probability": 0.4163683799004028,
+    "regressor_raw": 0.24770829681675233,
+    "excess_reads": 1.2810861807674865,
+    "conditional_reads": 2.2810861807674865,
+    "expected_reads": 0.9497721574993557
+   }
+  },
+  {
+   "name": "threshold:regressor:last_read_seconds:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 6500.000000000002,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.3376995992785438,
+    "probability": 0.4163683799004028,
+    "regressor_raw": 0.4986491234509729,
+    "excess_reads": 1.6464955554713805,
+    "conditional_reads": 2.6464955554713807,
+    "expected_reads": 1.1019170668452354
+   }
+  },
+  {
+   "name": "threshold:regressor:previous_read_seconds:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 13050.000000000002,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.2187916184563694,
+    "probability": 0.44551925393206215,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 1.185933764412292
+   }
+  },
+  {
+   "name": "threshold:regressor:previous_read_seconds:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 13050.0,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.2187916184563694,
+    "probability": 0.44551925393206215,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 1.185933764412292
+   }
+  },
+  {
+   "name": "threshold:regressor:previous_read_seconds:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 13050.000000000004,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.2187916184563694,
+    "probability": 0.44551925393206215,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 1.185933764412292
+   }
+  },
+  {
+   "name": "threshold:regressor:bucket_reads_1h:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 4.500000000000001,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.440256621322415,
+    "probability": 0.1915056124253363,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.5097713956135626
+   }
+  },
+  {
+   "name": "threshold:regressor:bucket_reads_1h:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 4.5,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.440256621322415,
+    "probability": 0.1915056124253363,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.5097713956135626
+   }
+  },
+  {
+   "name": "threshold:regressor:bucket_reads_1h:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 4.500000000000002,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.440256621322415,
+    "probability": 0.1915056124253363,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.5097713956135626
+   }
+  },
+  {
+   "name": "threshold:regressor:bucket_reads_1h:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 2.5000000000000004,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.7294429679200434,
+    "probability": 0.15065884412288358,
+    "regressor_raw": 0.1325999741527797,
+    "excess_reads": 1.1417931601871991,
+    "conditional_reads": 2.1417931601871993,
+    "expected_reads": 0.32268008186410146
+   }
+  },
+  {
+   "name": "threshold:regressor:bucket_reads_1h:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 2.5,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.7294429679200434,
+    "probability": 0.15065884412288358,
+    "regressor_raw": 0.1325999741527797,
+    "excess_reads": 1.1417931601871991,
+    "conditional_reads": 2.1417931601871993,
+    "expected_reads": 0.32268008186410146
+   }
+  },
+  {
+   "name": "threshold:regressor:bucket_reads_1h:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 2.500000000000001,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.190367120155984,
+    "probability": 0.23319328305339376,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.6207403733203058
+   }
+  },
+  {
+   "name": "threshold:regressor:reads_24h:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 7.500000000000001,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.190367120155984,
+    "probability": 0.23319328305339376,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.6207403733203058
+   }
+  },
+  {
+   "name": "threshold:regressor:reads_24h:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 7.5,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.190367120155984,
+    "probability": 0.23319328305339376,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.6207403733203058
+   }
+  },
+  {
+   "name": "threshold:regressor:reads_24h:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 7.500000000000002,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.190367120155984,
+    "probability": 0.23319328305339376,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.6207403733203058
+   }
+  },
+  {
+   "name": "threshold:regressor:ewma_6h:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.4484370765595213,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.7670608858159357,
+    "probability": 0.31711523834833316,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.8441333680817499
+   }
+  },
+  {
+   "name": "threshold:regressor:ewma_6h:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.44843707655952125,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.7670608858159357,
+    "probability": 0.31711523834833316,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.8441333680817499
+   }
+  },
+  {
+   "name": "threshold:regressor:ewma_6h:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.44843707655952136,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.7670608858159357,
+    "probability": 0.31711523834833316,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.8441333680817499
+   }
+  },
+  {
+   "name": "threshold:regressor:age_seconds:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 113400.00000000001,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.4570175617523515,
+    "probability": 0.1889239052495958,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.5028991141520681
+   }
+  },
+  {
+   "name": "threshold:regressor:age_seconds:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 113400.0,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.4570175617523515,
+    "probability": 0.1889239052495958,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.5028991141520681
+   }
+  },
+  {
+   "name": "threshold:regressor:age_seconds:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 113400.00000000003,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.4570175617523515,
+    "probability": 0.1889239052495958,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.5028991141520681
+   }
+  },
+  {
+   "name": "threshold:regressor:reads_6h:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 2.5000000000000004,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.190367120155984,
+    "probability": 0.23319328305339376,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.6207403733203058
+   }
+  },
+  {
+   "name": "threshold:regressor:reads_6h:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 2.5,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.190367120155984,
+    "probability": 0.23319328305339376,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.6207403733203058
+   }
+  },
+  {
+   "name": "threshold:regressor:reads_6h:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 2.500000000000001,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.190367120155984,
+    "probability": 0.23319328305339376,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.6207403733203058
+   }
+  },
+  {
+   "name": "threshold:regressor:last_read_seconds:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 15500.000000000002,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.0301445737087862,
+    "probability": 0.26305607649761675,
+    "regressor_raw": 0.14273832545951481,
+    "excess_reads": 1.1534279394468665,
+    "conditional_reads": 2.1534279394468667,
+    "expected_reads": 0.5664723047712402
+   }
+  },
+  {
+   "name": "threshold:regressor:last_read_seconds:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 15500.0,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.0301445737087862,
+    "probability": 0.26305607649761675,
+    "regressor_raw": 0.14273832545951481,
+    "excess_reads": 1.1534279394468665,
+    "conditional_reads": 2.1534279394468667,
+    "expected_reads": 0.5664723047712402
+   }
+  },
+  {
+   "name": "threshold:regressor:last_read_seconds:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 15500.000000000004,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.0301445737087862,
+    "probability": 0.26305607649761675,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.7002325495452522
+   }
+  },
+  {
+   "name": "threshold:regressor:previous_read_seconds:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 850.0000000000001,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.3355067765050585,
+    "probability": 0.4169013459744623,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 1.109755365803876
+   }
+  },
+  {
+   "name": "threshold:regressor:previous_read_seconds:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 850.0,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.3355067765050585,
+    "probability": 0.4169013459744623,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 1.109755365803876
+   }
+  },
+  {
+   "name": "threshold:regressor:previous_read_seconds:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 850.0000000000002,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.3355067765050585,
+    "probability": 0.4169013459744623,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 1.109755365803876
+   }
+  },
+  {
+   "name": "threshold:regressor:last_read_seconds:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 150.00000000000003,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.6285525133046908,
+    "probability": 0.3478388234247373,
+    "regressor_raw": 0.24770829681675233,
+    "excess_reads": 1.2810861807674865,
+    "conditional_reads": 2.2810861807674865,
+    "expected_reads": 0.7934503332485902
+   }
+  },
+  {
+   "name": "threshold:regressor:last_read_seconds:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 150.0,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.6285525133046908,
+    "probability": 0.3478388234247373,
+    "regressor_raw": 0.24770829681675233,
+    "excess_reads": 1.2810861807674865,
+    "conditional_reads": 2.2810861807674865,
+    "expected_reads": 0.7934503332485902
+   }
+  },
+  {
+   "name": "threshold:regressor:last_read_seconds:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 150.00000000000006,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.6285525133046908,
+    "probability": 0.3478388234247373,
+    "regressor_raw": 0.24770829681675233,
+    "excess_reads": 1.2810861807674865,
+    "conditional_reads": 2.2810861807674865,
+    "expected_reads": 0.7934503332485902
+   }
+  },
+  {
+   "name": "threshold:regressor:bucket_reads_1h:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 30.500000000000004,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.3432421106573063,
+    "probability": 0.206977400226502,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.550955958092702
+   }
+  },
+  {
+   "name": "threshold:regressor:bucket_reads_1h:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 30.5,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.3432421106573063,
+    "probability": 0.206977400226502,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.550955958092702
+   }
+  },
+  {
+   "name": "threshold:regressor:bucket_reads_1h:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 30.500000000000007,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.4056251696970563,
+    "probability": 0.19692499905899705,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.5241973346376098
+   }
+  },
+  {
+   "name": "threshold:regressor:bucket_active_fraction:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.7750000000000001,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.1214288152941154,
+    "probability": 0.24574634917573002,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.6541555508462783
+   }
+  },
+  {
+   "name": "threshold:regressor:bucket_active_fraction:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.775,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -1.1214288152941154,
+    "probability": 0.24574634917573002,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 0.6541555508462783
+   }
+  },
+  {
+   "name": "threshold:regressor:bucket_active_fraction:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 23700,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.7750000000000002,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.5005650919827457,
+    "probability": 0.37740787927713776,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 1.0046271693978193
+   }
+  },
+  {
+   "name": "threshold:regressor:previous_read_seconds:at",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 350.00000000000006,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.3355067765050585,
+    "probability": 0.4169013459744623,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 1.109755365803876
+   }
+  },
+  {
+   "name": "threshold:regressor:previous_read_seconds:below",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 350.0,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.3355067765050585,
+    "probability": 0.4169013459744623,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 1.109755365803876
+   }
+  },
+  {
+   "name": "threshold:regressor:previous_read_seconds:above",
+   "features": {
+    "log_size": 13.862944564872768,
+    "age_seconds": 172800,
+    "overwrites_24h": 0,
+    "last_read_seconds": 21800,
+    "previous_read_seconds": 350.0000000000001,
+    "reads_5m": 0,
+    "reads_1h": 0,
+    "reads_6h": 0,
+    "reads_24h": 8,
+    "ewma_1h": 0.02590992132969924,
+    "ewma_6h": 0.29337496200627994,
+    "short_long_ratio": 0,
+    "reads_day_ago": 1,
+    "mean_read_fraction": 1,
+    "bucket_reads_1h": 3,
+    "bucket_active_fraction": 0.4,
+    "observed_seconds": 86400
+   },
+   "want": {
+    "classifier_raw": -0.3355067765050585,
+    "probability": 0.4169013459744623,
+    "regressor_raw": 0.5079697139910828,
+    "excess_reads": 1.6619136074265755,
+    "conditional_reads": 2.6619136074265755,
+    "expected_reads": 1.109755365803876
+   }
+  }
+ ]
+}

@@ -11,7 +11,7 @@
 <dt>Триггер</dt>
 <dd>{{template "enum" .Trigger}}</dd>
 <dt>Метод / статус</dt>
-<dd>{{text .MethodVersion}} / {{template "enum" .Status}}</dd>
+<dd>{{text .MethodVersion}}{{if .ModelVersion}} · {{.ModelVersion}}{{end}} / {{template "enum" .Status}}</dd>
 <dt>Причина</dt>
 <dd>{{template "enum" .Reason}}{{if eq .Status "history_incomplete"}}<p>{{help "HISTORY_INCOMPLETE"}}</p>{{end}}</dd>
 </dl>

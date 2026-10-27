@@ -81,15 +81,23 @@ type FeatureRequest struct {
 	Coverage Coverage
 }
 
-// DemandForecast is shared by EWMA and the future ML predictor.
+type HurdleForecast struct {
+	Probability       float64 `json:"probability"`
+	ConditionalReads  float64 `json:"conditional_reads"`
+	EWMAExpectedReads float64 `json:"ewma_expected_reads"`
+}
+
+// DemandForecast is shared by EWMA and the ML predictor.
 type DemandForecast struct {
 	VersionRef
-	At                  time.Time   `json:"at"`
-	HorizonSeconds      int64       `json:"horizon_seconds"`
-	ExpectedReads       float64     `json:"expected_reads"`
-	Quality             DataQuality `json:"quality"`
-	MethodVersion       string      `json:"method_version"`
-	FeatureRulesVersion string      `json:"feature_rules_version"`
+	At                  time.Time       `json:"at"`
+	HorizonSeconds      int64           `json:"horizon_seconds"`
+	ExpectedReads       float64         `json:"expected_reads"`
+	Quality             DataQuality     `json:"quality"`
+	MethodVersion       string          `json:"method_version"`
+	ModelVersion        string          `json:"model_version,omitempty"`
+	Hurdle              *HurdleForecast `json:"hurdle,omitempty"`
+	FeatureRulesVersion string          `json:"feature_rules_version"`
 }
 
 // MinuteReads is one row of the Ingestor's per-minute demand aggregate.

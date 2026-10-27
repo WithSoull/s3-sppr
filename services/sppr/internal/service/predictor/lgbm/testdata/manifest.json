@@ -1,0 +1,52 @@
+{
+  "model_version": "spike-fixture-v1",
+  "method_version": "lgbm-hurdle-v1",
+  "feature_rules_version": "features-v1",
+  "feature_names": [
+    "log_size",
+    "age_seconds",
+    "overwrites_24h",
+    "last_read_seconds",
+    "previous_read_seconds",
+    "reads_5m",
+    "reads_1h",
+    "reads_6h",
+    "reads_24h",
+    "ewma_1h",
+    "ewma_6h",
+    "short_long_ratio",
+    "reads_day_ago",
+    "mean_read_fraction",
+    "bucket_reads_1h",
+    "bucket_active_fraction",
+    "observed_seconds"
+  ],
+  "horizon_seconds": 3600,
+  "lightgbm_version": "4.7.0",
+  "python_version": "3.14.0",
+  "numpy_version": "2.5.4",
+  "hyperparameters": {
+    "learning_rate": 0.05,
+    "num_leaves": 31,
+    "num_iterations": 50,
+    "min_data_in_leaf": 5,
+    "seed": 0,
+    "deterministic": true,
+    "force_row_wise": true,
+    "num_threads": 1,
+    "verbose": -1
+  },
+  "train_interval": {
+    "start": null,
+    "end": null
+  },
+  "validation_interval": {
+    "start": null,
+    "end": null
+  },
+  "source": "spike fixture from claude/wonderful-proskuriakova-bbe2b4; training interval not recorded; validation not performed",
+  "data_sha256": "8687769426bdcfb82f45ad47e891a9c7d5af7fb9b8a991e768e5e4926ca18f43",
+  "validation_metrics": {},
+  "classifier_sha256": "9fe2893609f5c6d0532c70db8a664e3e29f2dc387df727d79c3018cea971ae7f",
+  "regressor_sha256": "3763d3f7e5b6392b344726a77ffba0bcfd8353dd1a2f121e4f14ab7ccf7bbf22"
+}

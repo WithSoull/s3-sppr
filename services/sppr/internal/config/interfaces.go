@@ -75,6 +75,8 @@ type MigrationConfig interface {
 }
 
 type PlannerConfig interface {
+	Predictor() string
+	ModelDir() string
 	Enabled() bool
 	Interval() time.Duration
 	KeepPlans() int

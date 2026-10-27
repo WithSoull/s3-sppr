@@ -27,7 +27,7 @@ func requireTx(ctx context.Context, op string) error {
 }
 
 const selectPlans = `
-SELECT plan_id::text, revision, trigger, status, method_version, params, summary, reason, created_at, finished_at
+SELECT plan_id::text, revision, trigger, status, method_version, model_version, params, summary, reason, created_at, finished_at
 FROM plans`
 
 type planRow struct {
@@ -36,6 +36,7 @@ type planRow struct {
 	Trigger       string     `db:"trigger"`
 	Status        string     `db:"status"`
 	MethodVersion string     `db:"method_version"`
+	ModelVersion  string     `db:"model_version"`
 	Params        []byte     `db:"params"`
 	Summary       []byte     `db:"summary"`
 	Reason        string     `db:"reason"`
@@ -46,7 +47,7 @@ type planRow struct {
 func (r planRow) toModel() (model.Plan, error) {
 	p := model.Plan{
 		PlanID: r.PlanID, Revision: r.Revision, Trigger: model.PlanTrigger(r.Trigger), Status: model.PlanStatus(r.Status),
-		MethodVersion: r.MethodVersion, Reason: r.Reason, CreatedAt: r.CreatedAt.UTC(),
+		MethodVersion: r.MethodVersion, ModelVersion: r.ModelVersion, Reason: r.Reason, CreatedAt: r.CreatedAt.UTC(),
 	}
 	if r.FinishedAt != nil {
 		t := r.FinishedAt.UTC()
@@ -80,10 +81,10 @@ func (r *repo) CreatePlan(ctx context.Context, p model.Plan) (model.Plan, error)
 	}
 	var rows []planRow
 	if err := r.db.DB().ScanAllContext(ctx, &rows, db.Query{Name: "plan:create", QueryRaw: `
-		INSERT INTO plans (plan_id, trigger, status, method_version, params)
-		VALUES ($1::uuid, $2, 'computing', $3, $4)
-		RETURNING plan_id::text, revision, trigger, status, method_version, params, summary, reason, created_at, finished_at`},
-		p.PlanID, string(p.Trigger), p.MethodVersion, params); err != nil {
+		INSERT INTO plans (plan_id, trigger, status, method_version, model_version, params)
+		VALUES ($1::uuid, $2, 'computing', $3, $4, $5)
+		RETURNING plan_id::text, revision, trigger, status, method_version, model_version, params, summary, reason, created_at, finished_at`},
+		p.PlanID, string(p.Trigger), p.MethodVersion, p.ModelVersion, params); err != nil {
 		return model.Plan{}, err
 	}
 	return rows[0].toModel()
@@ -98,9 +99,9 @@ func (r *repo) FinishPlan(ctx context.Context, p model.Plan, recs []model.Recomm
 		return err
 	}
 	tag, err := r.db.DB().ExecContext(ctx, db.Query{Name: "plan:finish", QueryRaw: `
-		UPDATE plans SET status = $2, summary = $3, reason = $4, method_version = $5, finished_at = now()
+		UPDATE plans SET status = $2, summary = $3, reason = $4, method_version = $5, model_version = $6, finished_at = now()
 		WHERE plan_id = $1::uuid AND status = 'computing'`},
-		p.PlanID, string(p.Status), summary, p.Reason, p.MethodVersion)
+		p.PlanID, string(p.Status), summary, p.Reason, p.MethodVersion, p.ModelVersion)
 	if err != nil {
 		return err
 	}

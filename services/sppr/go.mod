@@ -6,6 +6,7 @@ require (
 	github.com/IBM/sarama v1.46.2
 	github.com/alesplll/opens3-rebac/shared v0.0.0-20260401221801-a711779ac92c
 	github.com/caarlos0/env/v11 v11.3.1
+	github.com/dmitryikh/leaves v0.0.0-20230708180554-25d19a787328
 	github.com/gojuno/minimock/v3 v3.4.7
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgconn v1.14.3

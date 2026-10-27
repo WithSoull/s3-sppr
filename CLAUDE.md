@@ -24,7 +24,7 @@ Repo: https://github.com/alesplll/opens3-rebac
 | Service | Lang | Port | Owner | Status |
 |---|---|---|---|---|
 | **Gateway** | Go | `:8080` HTTP | Max | 🟡 Local PUT/GET/DELETE with Range and HOT/COLD routing; Auth/AuthZ/Quota pending |
-| **SPPR** | Go | `:8086` health + migration/planner APIs + /admin (127.0.0.1) | — | Kafka Ingestor; HOT/COLD migration executor (`MIGRATION_ENABLED`); Planner on EWMA (`PLANNER_ENABLED`); profile `sppr` |
+| **SPPR** | Go | `:8086` health + migration/planner APIs + /admin (127.0.0.1) | — | Kafka Ingestor; HOT/COLD migration executor (`MIGRATION_ENABLED`); Planner on EWMA/LightGBM (`PLANNER_ENABLED`); profile `sppr` |
 | **Auth** | Go | `:50050` gRPC | — | ✅ Complete |
 | **AuthZ (ReBAC)** | Python | `:50051` gRPC | Alexa | ✅ Complete |
 | **Metadata** | Go | `:50052` gRPC | Anya | ✅ Complete; HOT/COLD placements + PlacementService |
