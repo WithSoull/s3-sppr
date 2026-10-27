@@ -37,7 +37,10 @@ warning. Panel templates are embedded; preserve Origin/Referer checks, HttpOnly
 SameSite cookies and command_id replay. Executor settings/pins from panel use
 `admin_form_commands` atomically with their effects. See the service README for
 login, seed and smoke instructions.
-Run `make test-sppr`; database/Kafka checks use `make test-sppr-integration` with
+The ML training package lives in `services/sppr/ml` (`make ml-sppr-venv`,
+`make test-sppr-ml`; see its README): never load the test split in stage 8, and
+export models only in the "Схема файлов экспорта v1" of `docs/ml-spec.md`, which
+the Go predictor validates. Run `make test-sppr`; database/Kafka checks use `make test-sppr-integration` with
 documented test environment variables. Real-service failure tests additionally
 require `SPPR_TEST_MIGRATION_STAND=1`; their executor owns the run, so do not run a
 competing SPPR executor/cleanup. See the SPPR README for endpoint overrides.

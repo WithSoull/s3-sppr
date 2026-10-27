@@ -101,3 +101,20 @@ jobs:
       - name: Stop combined test stack
         if: always() && steps.producer.outputs.available == 'true'
         run: docker compose --profile services --profile sppr down -v
+
+  ml:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: services/sppr/ml
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      # Notebook tooling is not needed for the tests.
+      - name: Install pinned training dependencies
+        run: pip install $(grep -E '^(lightgbm|numpy|scipy|pytest)==' requirements.txt)
+      - name: Python tests
+        run: python -m pytest -q tests
