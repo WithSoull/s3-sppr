@@ -24,7 +24,7 @@ Repo: https://github.com/alesplll/opens3-rebac
 | Service | Lang | Port | Owner | Status |
 |---|---|---|---|---|
 | **Gateway** | Go | `:8080` HTTP | Max | 🟡 Local PUT/GET/DELETE with Range and HOT/COLD routing; Auth/AuthZ/Quota pending |
-| **SPPR** | Go | `:8086` health + migration API (127.0.0.1) | — | Kafka Ingestor; HOT/COLD migration executor (`MIGRATION_ENABLED`); offline Feature Builder/EWMA; profile `sppr` |
+| **SPPR** | Go | `:8086` health + migration and planner APIs (127.0.0.1) | — | Kafka Ingestor; HOT/COLD migration executor (`MIGRATION_ENABLED`); Planner on EWMA (`PLANNER_ENABLED`); profile `sppr` |
 | **Auth** | Go | `:50050` gRPC | — | ✅ Complete |
 | **AuthZ (ReBAC)** | Python | `:50051` gRPC | Alexa | ✅ Complete |
 | **Metadata** | Go | `:50052` gRPC | Anya | ✅ Complete; HOT/COLD placements + PlacementService |
@@ -53,7 +53,8 @@ Auth AuthZ Meta Storage
   │  Redis  Kafka
 Users :50054 ── PostgreSQL
 Quota :50055 ── Redis ── Kafka
-Kafka object-read, object-written → SPPR :8086 (health, /api/migration) → PostgreSQL SPPR
+Kafka object-read, object-written → SPPR :8086 (health, /api/migration, /api/planner) → PostgreSQL SPPR
+SPPR planner → Metadata catalogue (ListPlacements, ListStorageClasses) → plan → administrator confirm → executor
 SPPR migration executor → Metadata PlacementService + Storage HOT/COLD (direct, not via Gateway)
 ```
 

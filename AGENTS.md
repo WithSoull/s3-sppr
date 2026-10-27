@@ -8,7 +8,8 @@ Go services follow the same layout: `cmd/server` for server entrypoints and `int
 
 `services/sppr` is the Go decision-support foundation: Kafka Ingestor, the
 HOT/COLD migration executor (`/api/migration`, workers behind `MIGRATION_ENABLED`),
-and an offline Feature Builder/EWMA dataset pipeline. `make demo-sppr-data` prints
+the Planner (`/api/planner`, behind `PLANNER_ENABLED`, which needs the executor) and
+the Feature Builder/EWMA used both by the planner and by an offline dataset pipeline. `make demo-sppr-data` prints
 the hand-checkable example; `make dataset-sppr` generates a small seven-day
 dataset without external infrastructure. See the service README for profiles.
 Use its service provider and shared go-kit clients. Preserve commit-before-ack,
@@ -23,6 +24,12 @@ after restart share one path; record the failure reason (`aborting`) before
 Cleanup runs independently of migration pause and handles due copies of every
 role, including `orphan` without a migration ID. Only successful Storage deletion
 may release Metadata's class charge; retry deletion safely if confirmation fails.
+A dependent action starts only after its predecessor succeeded and Metadata reports
+its source copy deleted (`source_cleaned_at`, set by the cleanup loop): before
+that the source still holds the space the dependent needs. The planner's greedy
+`planner.Build` is pure and tested against exhaustive search; keep explanations
+computed from the same values as the plan. Administrator commands are applied
+once per `command_id` and journaled, refused ones included.
 Run `make test-sppr`; database/Kafka checks use `make test-sppr-integration` with
 documented test environment variables. Real-service failure tests additionally
 require `SPPR_TEST_MIGRATION_STAND=1`; their executor owns the run, so do not run a
@@ -41,6 +48,7 @@ competing SPPR executor/cleanup. See the SPPR README for endpoint overrides.
 - `make smoke-migration`: check COLD → HOT → COLD through the running SPPR API, source deletion and HOT occupancy; `SMOKE_MIGRATION_ARGS` forwards CLI flags.
 - `make smoke-migration-local`: start the dedicated Compose demo with coordinated short read/cleanup limits and run the migration smoke.
 - `make up-sppr-migration`: start SPPR with the migration executor enabled, plus Gateway, Metadata and both Storage instances.
+- `make up-sppr-planner`: the same stack with the Planner enabled (`/api/planner`).
 - `make up-gateway`: start Gateway, Metadata, the HOT and COLD Storage instances, and their local Compose dependencies.
 - `make test-metadata-integration`: run Metadata integration tests sequentially (`-p 1`) against the dedicated e2e PostgreSQL profile; the suites reset a shared schema.
 - `make test-metadata-integration-local`: start the dedicated e2e PostgreSQL container and then run Metadata integration tests.

@@ -82,10 +82,16 @@ services:
       MIGRATION_BUDGET_BYTES: "${MIGRATION_BUDGET_BYTES:-1GiB}"
       MIGRATION_BUDGET_WINDOW: "${MIGRATION_BUDGET_WINDOW:-1h}"
       MIGRATION_MIN_INTERVAL: "${MIGRATION_MIN_INTERVAL:-1h}"
+      PLANNER_ENABLED: "${PLANNER_ENABLED:-false}"
+      PLANNER_INTERVAL: "${PLANNER_INTERVAL:-300s}"
+      PLANNER_HORIZON: "${PLANNER_HORIZON:-1h}"
+      PLANNER_MIN_GAIN_MS: "${PLANNER_MIN_GAIN_MS:-100}"
+      PLANNER_PENALTY_MS_PER_MIB: "${PLANNER_PENALTY_MS_PER_MIB:-2}"
+      PLANNER_HOT_UTILIZATION: "${PLANNER_HOT_UTILIZATION:-0.9}"
       METADATA_GRPC_ADDR: metadata:50052
       STORAGE_HOT_GRPC_ADDR: storage-hot:50053
       STORAGE_COLD_GRPC_ADDR: storage-cold:50053
-    # The migration API has no authentication yet, so it stays on the host loopback.
+    # The migration and planner APIs have no authentication yet, so they stay on the host loopback.
     ports:
       - "127.0.0.1:${SPPR_HTTP_PORT:-8086}:8086"
     networks: [opens3-network]
