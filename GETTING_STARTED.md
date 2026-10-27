@@ -1,7 +1,7 @@
 # Getting Started
 
 Эта инструкция поднимает текущие сервисы проекта, включая минимальный HTTP
-Gateway для PUT/GET. Полный S3 HTTP API и SigV4 ещё не реализованы.
+Gateway для PUT/GET/HEAD/DELETE. Полный S3 HTTP API и SigV4 ещё не реализованы.
 Gateway опубликован только на `127.0.0.1` и не должен открываться наружу до
 добавления аутентификации и авторизации.
 
@@ -33,7 +33,7 @@ docker compose ps
 Для минимального стенда с Gateway и двумя Storage (HOT и COLD на разных томах)
 используйте `make up-gateway`. Команда также поднимет зависимости Metadata.
 Kafka ожидает успешной проверки готовности ZooKeeper перед запуском.
-Автоматическая проверка PUT/GET, классов HOT/COLD, Range и DELETE: `make smoke-gateway` (создаёт свой тестовый bucket). Перед ручным PUT
+Автоматическая проверка PUT/GET/HEAD, классов HOT/COLD, Range и DELETE: `make smoke-gateway` (создаёт свой тестовый bucket). Перед ручным PUT
 создайте тестовый bucket по [инструкции Gateway](services/gateway/README.md#примеры-использования).
 Объекты доступны по `/objects/{bucket}/{key}`; Swagger расположен отдельно под `/swagger/`.
 

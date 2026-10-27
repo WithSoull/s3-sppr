@@ -138,6 +138,25 @@ func roundTrip(ctx context.Context, client *http.Client, url string, size int64,
 	if version == "" {
 		return fmt.Errorf("PUT missing version id")
 	}
+	head, err := http.NewRequestWithContext(ctx, http.MethodHead, url, nil)
+	if err != nil {
+		return err
+	}
+	response, err = client.Do(head)
+	if err != nil {
+		return err
+	}
+	n, readErr := io.Copy(io.Discard, response.Body)
+	response.Body.Close()
+	if readErr != nil || n != 0 {
+		return fmt.Errorf("HEAD body: %d bytes, error %v", n, readErr)
+	}
+	if response.StatusCode != http.StatusOK {
+		return fmt.Errorf("HEAD status %s", response.Status)
+	}
+	if response.ContentLength != size || response.Header.Get("ETag") != etag || response.Header.Get("X-Object-Version-Id") != version || response.Header.Get("Content-Type") != "application/octet-stream" || response.Header.Get("Accept-Ranges") != "bytes" || response.Header.Get("X-Content-Type-Options") != "nosniff" {
+		return fmt.Errorf("HEAD metadata mismatch: headers=%v", response.Header)
+	}
 	// No retry or delay: a successful PUT must already be immediately readable.
 	get, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
 	if err != nil {
@@ -155,7 +174,7 @@ func roundTrip(ctx context.Context, client *http.Client, url string, size int64,
 		return fmt.Errorf("GET metadata mismatch: headers=%v", response.Header)
 	}
 	actual := sha256.New()
-	n, err := io.Copy(actual, response.Body)
+	n, err = io.Copy(actual, response.Body)
 	if err != nil {
 		return fmt.Errorf("read GET: %w", err)
 	}

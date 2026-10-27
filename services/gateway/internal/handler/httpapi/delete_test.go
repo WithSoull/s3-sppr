@@ -21,9 +21,9 @@ func TestDeleteRemovesObjectFromCatalogOnly(t *testing.T) {
 	require.Contains(t, upstream.Blobs, blobID, "blob cleanup is not part of DELETE yet")
 }
 
-func TestUnsupportedMethodListsDelete(t *testing.T) {
+func TestUnsupportedMethodListsObjectMethods(t *testing.T) {
 	server, _ := newGateway(t)
 	response := do(t, server, http.MethodPost, "/objects/"+testkit.Bucket+"/key", nil)
 	require.Equal(t, http.StatusMethodNotAllowed, response.StatusCode)
-	require.Equal(t, "GET, PUT, DELETE", response.Header.Get("Allow"))
+	require.Equal(t, "GET, HEAD, PUT, DELETE", response.Header.Get("Allow"))
 }

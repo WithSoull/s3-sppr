@@ -53,6 +53,21 @@ func TestUpstreamFailures(t *testing.T) {
 			wantBlobs:  1,
 		},
 		{name: "get: missing object", method: http.MethodGet, wantStatus: http.StatusNotFound},
+		{name: "head: missing object", method: http.MethodHead, wantStatus: http.StatusNotFound},
+		{
+			name:       "head: metadata throttled",
+			method:     http.MethodHead,
+			prepare:    func(u *testkit.Upstream) { u.FailMetadata(throttled, testkit.OpGetObjectMeta) },
+			wantStatus: http.StatusServiceUnavailable,
+		},
+		{
+			name:   "head: metadata fails",
+			method: http.MethodHead,
+			prepare: func(u *testkit.Upstream) {
+				u.FailMetadata(status.Error(codes.Internal, "boom"), testkit.OpGetObjectMeta)
+			},
+			wantStatus: http.StatusBadGateway,
+		},
 		{
 			name:       "get: metadata throttled",
 			method:     http.MethodGet,
@@ -84,6 +99,11 @@ func TestUpstreamFailures(t *testing.T) {
 			}
 			response := do(t, server, tt.method, "/objects/"+bucket+"/key", body)
 			require.Equal(t, tt.wantStatus, response.StatusCode)
+			if tt.method == http.MethodHead {
+				data, err := io.ReadAll(response.Body)
+				require.NoError(t, err)
+				require.Empty(t, data)
+			}
 			if tt.method == http.MethodPut {
 				blobs, versions := upstream.Stats()
 				require.Equal(t, tt.wantBlobs, blobs, "stored blobs")

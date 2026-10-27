@@ -32,6 +32,13 @@ type ObjectServiceMock struct {
 	beforeGetCounter uint64
 	GetMock          mObjectServiceMockGet
 
+	funcHead          func(ctx context.Context, bucket string, key string) (o1 model.ObjectMeta, err error)
+	funcHeadOrigin    string
+	inspectFuncHead   func(ctx context.Context, bucket string, key string)
+	afterHeadCounter  uint64
+	beforeHeadCounter uint64
+	HeadMock          mObjectServiceMockHead
+
 	funcPut          func(ctx context.Context, bucket string, key string, body io.Reader, size *int64, contentType string) (p1 model.PutResult, err error)
 	funcPutOrigin    string
 	inspectFuncPut   func(ctx context.Context, bucket string, key string, body io.Reader, size *int64, contentType string)
@@ -53,6 +60,9 @@ func NewObjectServiceMock(t minimock.Tester) *ObjectServiceMock {
 
 	m.GetMock = mObjectServiceMockGet{mock: m}
 	m.GetMock.callArgs = []*ObjectServiceMockGetParams{}
+
+	m.HeadMock = mObjectServiceMockHead{mock: m}
+	m.HeadMock.callArgs = []*ObjectServiceMockHeadParams{}
 
 	m.PutMock = mObjectServiceMockPut{mock: m}
 	m.PutMock.callArgs = []*ObjectServiceMockPutParams{}
@@ -840,6 +850,380 @@ func (m *ObjectServiceMock) MinimockGetInspect() {
 	}
 }
 
+type mObjectServiceMockHead struct {
+	optional           bool
+	mock               *ObjectServiceMock
+	defaultExpectation *ObjectServiceMockHeadExpectation
+	expectations       []*ObjectServiceMockHeadExpectation
+
+	callArgs []*ObjectServiceMockHeadParams
+	mutex    sync.RWMutex
+
+	expectedInvocations       uint64
+	expectedInvocationsOrigin string
+}
+
+// ObjectServiceMockHeadExpectation specifies expectation struct of the ObjectService.Head
+type ObjectServiceMockHeadExpectation struct {
+	mock               *ObjectServiceMock
+	params             *ObjectServiceMockHeadParams
+	paramPtrs          *ObjectServiceMockHeadParamPtrs
+	expectationOrigins ObjectServiceMockHeadExpectationOrigins
+	results            *ObjectServiceMockHeadResults
+	returnOrigin       string
+	Counter            uint64
+}
+
+// ObjectServiceMockHeadParams contains parameters of the ObjectService.Head
+type ObjectServiceMockHeadParams struct {
+	ctx    context.Context
+	bucket string
+	key    string
+}
+
+// ObjectServiceMockHeadParamPtrs contains pointers to parameters of the ObjectService.Head
+type ObjectServiceMockHeadParamPtrs struct {
+	ctx    *context.Context
+	bucket *string
+	key    *string
+}
+
+// ObjectServiceMockHeadResults contains results of the ObjectService.Head
+type ObjectServiceMockHeadResults struct {
+	o1  model.ObjectMeta
+	err error
+}
+
+// ObjectServiceMockHeadOrigins contains origins of expectations of the ObjectService.Head
+type ObjectServiceMockHeadExpectationOrigins struct {
+	origin       string
+	originCtx    string
+	originBucket string
+	originKey    string
+}
+
+// Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
+// the test will fail minimock's automatic final call check if the mocked method was not called at least once.
+// Optional() makes method check to work in '0 or more' mode.
+// It is NOT RECOMMENDED to use this option unless you really need it, as default behaviour helps to
+// catch the problems when the expected method call is totally skipped during test run.
+func (mmHead *mObjectServiceMockHead) Optional() *mObjectServiceMockHead {
+	mmHead.optional = true
+	return mmHead
+}
+
+// Expect sets up expected params for ObjectService.Head
+func (mmHead *mObjectServiceMockHead) Expect(ctx context.Context, bucket string, key string) *mObjectServiceMockHead {
+	if mmHead.mock.funcHead != nil {
+		mmHead.mock.t.Fatalf("ObjectServiceMock.Head mock is already set by Set")
+	}
+
+	if mmHead.defaultExpectation == nil {
+		mmHead.defaultExpectation = &ObjectServiceMockHeadExpectation{}
+	}
+
+	if mmHead.defaultExpectation.paramPtrs != nil {
+		mmHead.mock.t.Fatalf("ObjectServiceMock.Head mock is already set by ExpectParams functions")
+	}
+
+	mmHead.defaultExpectation.params = &ObjectServiceMockHeadParams{ctx, bucket, key}
+	mmHead.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
+	for _, e := range mmHead.expectations {
+		if minimock.Equal(e.params, mmHead.defaultExpectation.params) {
+			mmHead.mock.t.Fatalf("Expectation set by When has same params: %#v", *mmHead.defaultExpectation.params)
+		}
+	}
+
+	return mmHead
+}
+
+// ExpectCtxParam1 sets up expected param ctx for ObjectService.Head
+func (mmHead *mObjectServiceMockHead) ExpectCtxParam1(ctx context.Context) *mObjectServiceMockHead {
+	if mmHead.mock.funcHead != nil {
+		mmHead.mock.t.Fatalf("ObjectServiceMock.Head mock is already set by Set")
+	}
+
+	if mmHead.defaultExpectation == nil {
+		mmHead.defaultExpectation = &ObjectServiceMockHeadExpectation{}
+	}
+
+	if mmHead.defaultExpectation.params != nil {
+		mmHead.mock.t.Fatalf("ObjectServiceMock.Head mock is already set by Expect")
+	}
+
+	if mmHead.defaultExpectation.paramPtrs == nil {
+		mmHead.defaultExpectation.paramPtrs = &ObjectServiceMockHeadParamPtrs{}
+	}
+	mmHead.defaultExpectation.paramPtrs.ctx = &ctx
+	mmHead.defaultExpectation.expectationOrigins.originCtx = minimock.CallerInfo(1)
+
+	return mmHead
+}
+
+// ExpectBucketParam2 sets up expected param bucket for ObjectService.Head
+func (mmHead *mObjectServiceMockHead) ExpectBucketParam2(bucket string) *mObjectServiceMockHead {
+	if mmHead.mock.funcHead != nil {
+		mmHead.mock.t.Fatalf("ObjectServiceMock.Head mock is already set by Set")
+	}
+
+	if mmHead.defaultExpectation == nil {
+		mmHead.defaultExpectation = &ObjectServiceMockHeadExpectation{}
+	}
+
+	if mmHead.defaultExpectation.params != nil {
+		mmHead.mock.t.Fatalf("ObjectServiceMock.Head mock is already set by Expect")
+	}
+
+	if mmHead.defaultExpectation.paramPtrs == nil {
+		mmHead.defaultExpectation.paramPtrs = &ObjectServiceMockHeadParamPtrs{}
+	}
+	mmHead.defaultExpectation.paramPtrs.bucket = &bucket
+	mmHead.defaultExpectation.expectationOrigins.originBucket = minimock.CallerInfo(1)
+
+	return mmHead
+}
+
+// ExpectKeyParam3 sets up expected param key for ObjectService.Head
+func (mmHead *mObjectServiceMockHead) ExpectKeyParam3(key string) *mObjectServiceMockHead {
+	if mmHead.mock.funcHead != nil {
+		mmHead.mock.t.Fatalf("ObjectServiceMock.Head mock is already set by Set")
+	}
+
+	if mmHead.defaultExpectation == nil {
+		mmHead.defaultExpectation = &ObjectServiceMockHeadExpectation{}
+	}
+
+	if mmHead.defaultExpectation.params != nil {
+		mmHead.mock.t.Fatalf("ObjectServiceMock.Head mock is already set by Expect")
+	}
+
+	if mmHead.defaultExpectation.paramPtrs == nil {
+		mmHead.defaultExpectation.paramPtrs = &ObjectServiceMockHeadParamPtrs{}
+	}
+	mmHead.defaultExpectation.paramPtrs.key = &key
+	mmHead.defaultExpectation.expectationOrigins.originKey = minimock.CallerInfo(1)
+
+	return mmHead
+}
+
+// Inspect accepts an inspector function that has same arguments as the ObjectService.Head
+func (mmHead *mObjectServiceMockHead) Inspect(f func(ctx context.Context, bucket string, key string)) *mObjectServiceMockHead {
+	if mmHead.mock.inspectFuncHead != nil {
+		mmHead.mock.t.Fatalf("Inspect function is already set for ObjectServiceMock.Head")
+	}
+
+	mmHead.mock.inspectFuncHead = f
+
+	return mmHead
+}
+
+// Return sets up results that will be returned by ObjectService.Head
+func (mmHead *mObjectServiceMockHead) Return(o1 model.ObjectMeta, err error) *ObjectServiceMock {
+	if mmHead.mock.funcHead != nil {
+		mmHead.mock.t.Fatalf("ObjectServiceMock.Head mock is already set by Set")
+	}
+
+	if mmHead.defaultExpectation == nil {
+		mmHead.defaultExpectation = &ObjectServiceMockHeadExpectation{mock: mmHead.mock}
+	}
+	mmHead.defaultExpectation.results = &ObjectServiceMockHeadResults{o1, err}
+	mmHead.defaultExpectation.returnOrigin = minimock.CallerInfo(1)
+	return mmHead.mock
+}
+
+// Set uses given function f to mock the ObjectService.Head method
+func (mmHead *mObjectServiceMockHead) Set(f func(ctx context.Context, bucket string, key string) (o1 model.ObjectMeta, err error)) *ObjectServiceMock {
+	if mmHead.defaultExpectation != nil {
+		mmHead.mock.t.Fatalf("Default expectation is already set for the ObjectService.Head method")
+	}
+
+	if len(mmHead.expectations) > 0 {
+		mmHead.mock.t.Fatalf("Some expectations are already set for the ObjectService.Head method")
+	}
+
+	mmHead.mock.funcHead = f
+	mmHead.mock.funcHeadOrigin = minimock.CallerInfo(1)
+	return mmHead.mock
+}
+
+// When sets expectation for the ObjectService.Head which will trigger the result defined by the following
+// Then helper
+func (mmHead *mObjectServiceMockHead) When(ctx context.Context, bucket string, key string) *ObjectServiceMockHeadExpectation {
+	if mmHead.mock.funcHead != nil {
+		mmHead.mock.t.Fatalf("ObjectServiceMock.Head mock is already set by Set")
+	}
+
+	expectation := &ObjectServiceMockHeadExpectation{
+		mock:               mmHead.mock,
+		params:             &ObjectServiceMockHeadParams{ctx, bucket, key},
+		expectationOrigins: ObjectServiceMockHeadExpectationOrigins{origin: minimock.CallerInfo(1)},
+	}
+	mmHead.expectations = append(mmHead.expectations, expectation)
+	return expectation
+}
+
+// Then sets up ObjectService.Head return parameters for the expectation previously defined by the When method
+func (e *ObjectServiceMockHeadExpectation) Then(o1 model.ObjectMeta, err error) *ObjectServiceMock {
+	e.results = &ObjectServiceMockHeadResults{o1, err}
+	return e.mock
+}
+
+// Times sets number of times ObjectService.Head should be invoked
+func (mmHead *mObjectServiceMockHead) Times(n uint64) *mObjectServiceMockHead {
+	if n == 0 {
+		mmHead.mock.t.Fatalf("Times of ObjectServiceMock.Head mock can not be zero")
+	}
+	mm_atomic.StoreUint64(&mmHead.expectedInvocations, n)
+	mmHead.expectedInvocationsOrigin = minimock.CallerInfo(1)
+	return mmHead
+}
+
+func (mmHead *mObjectServiceMockHead) invocationsDone() bool {
+	if len(mmHead.expectations) == 0 && mmHead.defaultExpectation == nil && mmHead.mock.funcHead == nil {
+		return true
+	}
+
+	totalInvocations := mm_atomic.LoadUint64(&mmHead.mock.afterHeadCounter)
+	expectedInvocations := mm_atomic.LoadUint64(&mmHead.expectedInvocations)
+
+	return totalInvocations > 0 && (expectedInvocations == 0 || expectedInvocations == totalInvocations)
+}
+
+// Head implements mm_service.ObjectService
+func (mmHead *ObjectServiceMock) Head(ctx context.Context, bucket string, key string) (o1 model.ObjectMeta, err error) {
+	mm_atomic.AddUint64(&mmHead.beforeHeadCounter, 1)
+	defer mm_atomic.AddUint64(&mmHead.afterHeadCounter, 1)
+
+	mmHead.t.Helper()
+
+	if mmHead.inspectFuncHead != nil {
+		mmHead.inspectFuncHead(ctx, bucket, key)
+	}
+
+	mm_params := ObjectServiceMockHeadParams{ctx, bucket, key}
+
+	// Record call args
+	mmHead.HeadMock.mutex.Lock()
+	mmHead.HeadMock.callArgs = append(mmHead.HeadMock.callArgs, &mm_params)
+	mmHead.HeadMock.mutex.Unlock()
+
+	for _, e := range mmHead.HeadMock.expectations {
+		if minimock.Equal(*e.params, mm_params) {
+			mm_atomic.AddUint64(&e.Counter, 1)
+			return e.results.o1, e.results.err
+		}
+	}
+
+	if mmHead.HeadMock.defaultExpectation != nil {
+		mm_atomic.AddUint64(&mmHead.HeadMock.defaultExpectation.Counter, 1)
+		mm_want := mmHead.HeadMock.defaultExpectation.params
+		mm_want_ptrs := mmHead.HeadMock.defaultExpectation.paramPtrs
+
+		mm_got := ObjectServiceMockHeadParams{ctx, bucket, key}
+
+		if mm_want_ptrs != nil {
+
+			if mm_want_ptrs.ctx != nil && !minimock.Equal(*mm_want_ptrs.ctx, mm_got.ctx) {
+				mmHead.t.Errorf("ObjectServiceMock.Head got unexpected parameter ctx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmHead.HeadMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
+			}
+
+			if mm_want_ptrs.bucket != nil && !minimock.Equal(*mm_want_ptrs.bucket, mm_got.bucket) {
+				mmHead.t.Errorf("ObjectServiceMock.Head got unexpected parameter bucket, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmHead.HeadMock.defaultExpectation.expectationOrigins.originBucket, *mm_want_ptrs.bucket, mm_got.bucket, minimock.Diff(*mm_want_ptrs.bucket, mm_got.bucket))
+			}
+
+			if mm_want_ptrs.key != nil && !minimock.Equal(*mm_want_ptrs.key, mm_got.key) {
+				mmHead.t.Errorf("ObjectServiceMock.Head got unexpected parameter key, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmHead.HeadMock.defaultExpectation.expectationOrigins.originKey, *mm_want_ptrs.key, mm_got.key, minimock.Diff(*mm_want_ptrs.key, mm_got.key))
+			}
+
+		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
+			mmHead.t.Errorf("ObjectServiceMock.Head got unexpected parameters, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+				mmHead.HeadMock.defaultExpectation.expectationOrigins.origin, *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
+		}
+
+		mm_results := mmHead.HeadMock.defaultExpectation.results
+		if mm_results == nil {
+			mmHead.t.Fatal("No results are set for the ObjectServiceMock.Head")
+		}
+		return (*mm_results).o1, (*mm_results).err
+	}
+	if mmHead.funcHead != nil {
+		return mmHead.funcHead(ctx, bucket, key)
+	}
+	mmHead.t.Fatalf("Unexpected call to ObjectServiceMock.Head. %v %v %v", ctx, bucket, key)
+	return
+}
+
+// HeadAfterCounter returns a count of finished ObjectServiceMock.Head invocations
+func (mmHead *ObjectServiceMock) HeadAfterCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmHead.afterHeadCounter)
+}
+
+// HeadBeforeCounter returns a count of ObjectServiceMock.Head invocations
+func (mmHead *ObjectServiceMock) HeadBeforeCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmHead.beforeHeadCounter)
+}
+
+// Calls returns a list of arguments used in each call to ObjectServiceMock.Head.
+// The list is in the same order as the calls were made (i.e. recent calls have a higher index)
+func (mmHead *mObjectServiceMockHead) Calls() []*ObjectServiceMockHeadParams {
+	mmHead.mutex.RLock()
+
+	argCopy := make([]*ObjectServiceMockHeadParams, len(mmHead.callArgs))
+	copy(argCopy, mmHead.callArgs)
+
+	mmHead.mutex.RUnlock()
+
+	return argCopy
+}
+
+// MinimockHeadDone returns true if the count of the Head invocations corresponds
+// the number of defined expectations
+func (m *ObjectServiceMock) MinimockHeadDone() bool {
+	if m.HeadMock.optional {
+		// Optional methods provide '0 or more' call count restriction.
+		return true
+	}
+
+	for _, e := range m.HeadMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			return false
+		}
+	}
+
+	return m.HeadMock.invocationsDone()
+}
+
+// MinimockHeadInspect logs each unmet expectation
+func (m *ObjectServiceMock) MinimockHeadInspect() {
+	for _, e := range m.HeadMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			m.t.Errorf("Expected call to ObjectServiceMock.Head at\n%s with params: %#v", e.expectationOrigins.origin, *e.params)
+		}
+	}
+
+	afterHeadCounter := mm_atomic.LoadUint64(&m.afterHeadCounter)
+	// if default expectation was set then invocations count should be greater than zero
+	if m.HeadMock.defaultExpectation != nil && afterHeadCounter < 1 {
+		if m.HeadMock.defaultExpectation.params == nil {
+			m.t.Errorf("Expected call to ObjectServiceMock.Head at\n%s", m.HeadMock.defaultExpectation.returnOrigin)
+		} else {
+			m.t.Errorf("Expected call to ObjectServiceMock.Head at\n%s with params: %#v", m.HeadMock.defaultExpectation.expectationOrigins.origin, *m.HeadMock.defaultExpectation.params)
+		}
+	}
+	// if func was set then invocations count should be greater than zero
+	if m.funcHead != nil && afterHeadCounter < 1 {
+		m.t.Errorf("Expected call to ObjectServiceMock.Head at\n%s", m.funcHeadOrigin)
+	}
+
+	if !m.HeadMock.invocationsDone() && afterHeadCounter > 0 {
+		m.t.Errorf("Expected %d calls to ObjectServiceMock.Head at\n%s but found %d calls",
+			mm_atomic.LoadUint64(&m.HeadMock.expectedInvocations), m.HeadMock.expectedInvocationsOrigin, afterHeadCounter)
+	}
+}
+
 type mObjectServiceMockPut struct {
 	optional           bool
 	mock               *ObjectServiceMock
@@ -1315,6 +1699,8 @@ func (m *ObjectServiceMock) MinimockFinish() {
 
 			m.MinimockGetInspect()
 
+			m.MinimockHeadInspect()
+
 			m.MinimockPutInspect()
 		}
 	})
@@ -1341,5 +1727,6 @@ func (m *ObjectServiceMock) minimockDone() bool {
 	return done &&
 		m.MinimockDeleteDone() &&
 		m.MinimockGetDone() &&
+		m.MinimockHeadDone() &&
 		m.MinimockPutDone()
 }

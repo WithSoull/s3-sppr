@@ -24,7 +24,7 @@ checks use `make test-sppr-integration` with documented test environment variabl
 - `make generate`: regenerate shared Go and Python protobuf bindings from `shared/api`.
 - `go test ./...` from `services/auth`, `services/users`, `services/metadata`, or `services/storage`: run tests for one Go service module.
 - `make test-gateway`: run the Gateway Go tests.
-- `make smoke-gateway-local`: build/start the Gateway stack and run the real-service smoke (PUT/GET, HOT/COLD routing, Range, DELETE); `make smoke-gateway` checks an already running stack.
+- `make smoke-gateway-local`: build/start the Gateway stack and run the real-service smoke (PUT/GET/HEAD, HOT/COLD routing, Range, DELETE); `make smoke-gateway` checks an already running stack.
 - `make up-gateway`: start Gateway, Metadata, the HOT and COLD Storage instances, and their local Compose dependencies.
 - `make test-metadata-integration`: run Metadata integration tests sequentially (`-p 1`) against the dedicated e2e PostgreSQL profile; the suites reset a shared schema.
 - `make test-metadata-integration-local`: start the dedicated e2e PostgreSQL container and then run Metadata integration tests.

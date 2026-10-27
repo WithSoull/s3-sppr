@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -20,6 +21,7 @@ func TestMetadataTimeoutThroughHTTP(t *testing.T) {
 		{name: "ChooseWriteClass", operation: testkit.OpChooseWriteClass, method: http.MethodPut},
 		{name: "CreateObjectVersion", operation: testkit.OpCreateObjectVersion, method: http.MethodPut},
 		{name: "GetObjectMeta", operation: testkit.OpGetObjectMeta, method: http.MethodGet},
+		{name: "HEAD GetObjectMeta", operation: testkit.OpGetObjectMeta, method: http.MethodHead},
 		{name: "DeleteObjectMeta", operation: testkit.OpDeleteObjectMeta, method: http.MethodDelete},
 	}
 	for _, tt := range tests {
@@ -53,6 +55,11 @@ func TestMetadataTimeoutThroughHTTP(t *testing.T) {
 			require.NoError(t, err)
 			defer response.Body.Close()
 			require.Equal(t, http.StatusGatewayTimeout, response.StatusCode)
+			if tt.method == http.MethodHead {
+				body, err := io.ReadAll(response.Body)
+				require.NoError(t, err)
+				require.Empty(t, body)
+			}
 			require.Less(t, time.Since(start), 2*time.Second)
 			select {
 			case <-released:
