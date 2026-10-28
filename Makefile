@@ -211,7 +211,7 @@ ml-sppr-notebook:
 	cd $(SPPR_ML)/notebooks && PYTHONPATH=$(CURDIR)/$(SPPR_ML) ../.venv/bin/jupyter nbconvert --to notebook --execute --inplace stage8.ipynb
 
 test-sppr-ml:
-	cd $(SPPR_ML) && .venv/bin/python -m pytest -q tests
+	cd $(SPPR_ML) && $(abspath $(SPPR_ML_PY)) -m pytest -q tests
 
 test-sppr:
 	go test -race ./services/sppr/... -count=1
@@ -313,3 +313,20 @@ smoke-planner:
 smoke-planner-local:
 	GATEWAY_MAX_READ_DURATION=2s MIGRATION_SOURCE_CLEANUP_DELAY=5s METADATA_DELETE_CLEANUP_DELAY=5s MIGRATION_CLEANUP_INTERVAL=250ms MIGRATION_MIN_INTERVAL=0s $(MAKE) up-sppr-planner
 	$(MAKE) smoke-planner
+
+# Logical-time experiments (stage 10a); each output directory is a new series.
+CONFIG ?= services/sppr/experiments/main.json
+EXPERIMENT_OUT ?= build/experiment-main
+SIM_SMOKE_OUT ?= build/sim-smoke
+.PHONY: sim-smoke experiment experiment-report
+build/bin/experiment: FORCE
+	mkdir -p build/bin
+	go build -o $@ ./services/sppr/cmd/experiment
+sim-smoke: build/bin/experiment
+	GOMAXPROCS=2 build/bin/experiment -config services/sppr/experiments/smoke.json -out $(SIM_SMOKE_OUT) -python $(abspath $(SPPR_ML_PY))
+experiment: build/bin/experiment
+	GOMAXPROCS=2 build/bin/experiment -config $(CONFIG) -out $(EXPERIMENT_OUT) -python $(abspath $(SPPR_ML_PY)) $(EXPERIMENT_ARGS)
+experiment-report:
+	PYTHONPATH=$(SPPR_ML) $(SPPR_ML_PY) -m sppr_ml experiment $(EXPERIMENT_OUT)
+.PHONY: FORCE
+FORCE:

@@ -55,6 +55,11 @@ PostgreSQL и мигратор, Kafka и ZooKeeper без остальных п�
 CSV.gz и прореживание train. Перед работой с реальными данными прочтите
 [аудит трасс](docs/traces.md).
 
+Для проверки размещения без сервисов: `make ml-sppr-venv`, `make sim-smoke`,
+`make experiment-report EXPERIMENT_OUT=build/sim-smoke`. Повтор smoke требует
+новый `SIM_SMOKE_OUT`; существующая серия защищена от перезаписи.
+[Конфиги и resume](services/sppr/README.md#эксперимент-по-логическому-времени-этап-10a).
+
 Gateway producer из отдельного [PR #1](https://github.com/WithSoull/s3-sppr/pull/1) уже есть в checkout.
 Для автономной проверки Ingestor используйте integration tests из README; порядок чтения
 кода — в [онбординге SPPR](services/sppr/ONBOARDING.md).

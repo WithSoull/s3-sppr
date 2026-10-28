@@ -119,6 +119,17 @@ Migration pause does not stop cleanup; both run only with `MIGRATION_ENABLED=tru
 используйте `HAS_PERMISSION` с уровнем `ADMIN`; `OWNER_OF` — только legacy-чтение
 в store и не принимается публичным enum.
 
+## Автономный эксперимент СППР
+
+Этап 10a: `services/sppr/internal/experiment/sim` использует рабочие
+`features.Build` и `planner.Build`, кэширует спрос/признаки/прогнозы для пары,
+а очереди и размещение разделяет по политике и бюджету. `cmd/experiment`
+запускает матрицу из `experiments/*.json`; контрольные точки пар атомарны,
+resume проверяет хеши. Обновления ML — только логическое время симулятора;
+ModelManager, статус Planner и полнота истории остаются отдельными этапами.
+Runbook, соглашения о записи/очистке и обучение с `--params --fit-only` —
+[README СППР](services/sppr/README.md#эксперимент-по-логическому-времени-этап-10a).
+
 ## Service boundaries
 
 SPPR самостоятельно читает Kafka и сохраняет историю, gaps и минутный спрос.

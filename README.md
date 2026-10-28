@@ -62,6 +62,11 @@ make down-volumes  # удаляет локальные данные volumes
 make generate
 ```
 
+Автономный эксперимент размещения СППР: `make ml-sppr-venv`, затем
+`make sim-smoke` и `make experiment-report EXPERIMENT_OUT=build/sim-smoke`.
+Для него нужны Go/Python; сервисы и Docker не требуются. Матрица, resume и
+параметры модели времени — [в README СППР](services/sppr/README.md#эксперимент-по-логическому-времени-этап-10a).
+
 ## Реализованные границы сервисов
 
 ### Auth

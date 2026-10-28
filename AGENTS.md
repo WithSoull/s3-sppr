@@ -46,6 +46,19 @@ warning. Panel templates are embedded; preserve Origin/Referer checks, HttpOnly
 SameSite cookies and command_id replay. Executor settings/pins from panel use
 `admin_form_commands` atomically with their effects. See the service README for
 login, seed and smoke instructions.
+The logical-time experiment tools (`internal/experiment/sim`, `cmd/simulate`,
+`cmd/experiment`, `experiments/*.json`) call the production `features.Build` and
+`planner.Build`; never add a separate placement heuristic. Demand/features and
+forecasts are shared per (scenario, seed), placement/queues are isolated per
+policy/budget. Preserve causal labels, measured training activation delays,
+capacity including temporary copies, FIFO reads, per-cycle budget and checkpoint
+hash verification. `make sim-smoke`, `make experiment CONFIG=...`, and
+`make experiment-report` need the ML venv but no services. New result directories
+are mandatory; `-resume` requires the same binary/config/revision. `stand` is
+reserved for stage 10b. See the SPPR README for model assumptions and overrides.
+Baseline predictors register through `PLANNER_PREDICTOR=age|recency|frequency`;
+age/recency need `PLANNER_BASELINE_MAP` (one matching map, trained on train only).
+
 The ML training package lives in `services/sppr/ml` (`make ml-sppr-venv`,
 `make test-sppr-ml`; see its README): never load the test split in stage 8, and
 export models only in the "Схема файлов экспорта v1" of `docs/ml-spec.md`, which
