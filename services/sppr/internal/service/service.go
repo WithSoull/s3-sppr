@@ -88,3 +88,16 @@ type PlannerService interface {
 	GetSettings(ctx context.Context) (model.PlannerSettings, error)
 	Status(ctx context.Context) (model.PlannerStatus, error)
 }
+
+// ModelLifecycle is optional for standalone planner tests. Reserve is paired with
+// Start only after the administrator command commits, or Release on rollback.
+type ModelLifecycle interface {
+	Run(context.Context) error
+	Capture(context.Context, time.Duration) Predictor
+	Status(context.Context) model.ModelLifecycleStatus
+	Versions(context.Context, time.Time) ([]model.ModelVersion, error)
+	Reserve(context.Context) (string, error)
+	Queue(context.Context, string) error
+	Release()
+	Start(string)
+}

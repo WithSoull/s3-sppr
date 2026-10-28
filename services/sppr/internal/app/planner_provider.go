@@ -8,13 +8,13 @@ import (
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/config"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/model"
 	historyRepository "github.com/alesplll/opens3-rebac/services/sppr/internal/repository/history"
+	"github.com/alesplll/opens3-rebac/services/sppr/internal/repository/modelversion"
 	planRepository "github.com/alesplll/opens3-rebac/services/sppr/internal/repository/plan"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/service"
+	"github.com/alesplll/opens3-rebac/services/sppr/internal/service/modelmanager"
 	plannerService "github.com/alesplll/opens3-rebac/services/sppr/internal/service/planner"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/service/predictor/ewma"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/service/predictor/lgbm"
-	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/logger"
-	"go.uber.org/zap"
 )
 
 // PlannerService also stores the env defaults of the planner settings on the
@@ -58,12 +58,21 @@ func (s *serviceProvider) PlannerService(ctx context.Context) (service.PlannerSe
 	if err != nil {
 		return nil, fmt.Errorf("read planner horizon: %w", err)
 	}
-	predictor, fallback := plannerPredictor(cfg, settings.Horizon)
-	if fallback != "" {
-		logger.Warn(ctx, "planner model load failed; using EWMA", zap.String("fallback_reason", fallback))
+	manager := modelmanager.New(modelmanager.Config{
+		CurrentHorizon: func(ctx context.Context) (time.Duration, error) {
+			settings, err := plans.GetSettings(ctx)
+			return settings.Horizon, err
+		},
+		Registry: cfg.ModelRegistry(), Bootstrap: cfg.ModelDir(), Horizon: settings.Horizon,
+		MaxAge: cfg.ModelMaxAge(), Every: cfg.ModelUpdateEvery(), MinHistory: cfg.ModelMinHistory(),
+		Window: cfg.ModelTrainWindow(), Timeout: cfg.ModelTrainTimeout(), Command: cfg.TrainCommand(),
+	}, modelversion.New(pgClient, tx), historyRepository.NewRepository(pgClient), placements)
+	if err := manager.Restore(ctx); err != nil {
+		return nil, fmt.Errorf("restore model registry: %w", err)
 	}
+	predictor := ewma.NewPredictor()
 	s.plannerService = plannerService.NewService(plannerService.Config{
-		FallbackReason: fallback, Interval: cfg.Interval(), KeepPlans: cfg.KeepPlans(), MaxRejectedSaved: cfg.MaxRejectedSaved(),
+		Models: manager, Interval: cfg.Interval(), KeepPlans: cfg.KeepPlans(), MaxRejectedSaved: cfg.MaxRejectedSaved(),
 	}, plans, historyRepository.NewRepository(pgClient), actions, tx, placements, migrations, s.FeatureBuilder(), predictor)
 	return s.plannerService, nil
 }

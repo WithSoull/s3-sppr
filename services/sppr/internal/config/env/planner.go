@@ -10,21 +10,28 @@ import (
 // The latency coefficients are placeholders until stage 10 measures the stand;
 // the administrator can change them, and the stored values win over env.
 type plannerEnvConfig struct {
-	Predictor        string        `env:"PLANNER_PREDICTOR" envDefault:"ewma"`
-	ModelDir         string        `env:"PLANNER_MODEL_DIR"`
-	Enabled          bool          `env:"PLANNER_ENABLED" envDefault:"false"`
-	Interval         time.Duration `env:"PLANNER_INTERVAL" envDefault:"300s"`
-	KeepPlans        int           `env:"PLANNER_KEEP_PLANS" envDefault:"200"`
-	MaxRejectedSaved int           `env:"PLANNER_MAX_REJECTED" envDefault:"1000"`
-	Horizon          time.Duration `env:"PLANNER_HORIZON" envDefault:"1h"`
-	HotFixedMs       float64       `env:"PLANNER_HOT_C_MS" envDefault:"1"`
-	HotMiBPerMs      float64       `env:"PLANNER_HOT_V_MIB_PER_MS" envDefault:"0.5"`
-	ColdFixedMs      float64       `env:"PLANNER_COLD_C_MS" envDefault:"20"`
-	ColdMiBPerMs     float64       `env:"PLANNER_COLD_V_MIB_PER_MS" envDefault:"0.05"`
-	PenaltyMsPerMiB  float64       `env:"PLANNER_PENALTY_MS_PER_MIB" envDefault:"2"`
-	MinGainMs        float64       `env:"PLANNER_MIN_GAIN_MS" envDefault:"100"`
-	HotUtilization   float64       `env:"PLANNER_HOT_UTILIZATION" envDefault:"0.9"`
-	ColdUtilization  float64       `env:"PLANNER_COLD_UTILIZATION" envDefault:"0.9"`
+	Predictor         string        `env:"PLANNER_PREDICTOR" envDefault:"ewma"`
+	ModelRegistry     string        `env:"PLANNER_MODEL_REGISTRY" envDefault:"/models/registry"`
+	ModelMaxAge       time.Duration `env:"PLANNER_MODEL_MAX_AGE" envDefault:"72h"`
+	ModelUpdateEvery  time.Duration `env:"PLANNER_MODEL_UPDATE_EVERY" envDefault:"24h"`
+	ModelMinHistory   time.Duration `env:"PLANNER_MODEL_MIN_HISTORY" envDefault:"26h"`
+	ModelTrainWindow  time.Duration `env:"PLANNER_MODEL_TRAIN_WINDOW" envDefault:"168h"`
+	ModelTrainTimeout time.Duration `env:"PLANNER_MODEL_TRAIN_TIMEOUT" envDefault:"30m"`
+	TrainCommand      string        `env:"PLANNER_TRAIN_COMMAND" envDefault:"python -m sppr_ml train --data {data} --out {out} --params {params}"`
+	ModelDir          string        `env:"PLANNER_MODEL_DIR"`
+	Enabled           bool          `env:"PLANNER_ENABLED" envDefault:"false"`
+	Interval          time.Duration `env:"PLANNER_INTERVAL" envDefault:"300s"`
+	KeepPlans         int           `env:"PLANNER_KEEP_PLANS" envDefault:"200"`
+	MaxRejectedSaved  int           `env:"PLANNER_MAX_REJECTED" envDefault:"1000"`
+	Horizon           time.Duration `env:"PLANNER_HORIZON" envDefault:"1h"`
+	HotFixedMs        float64       `env:"PLANNER_HOT_C_MS" envDefault:"1"`
+	HotMiBPerMs       float64       `env:"PLANNER_HOT_V_MIB_PER_MS" envDefault:"0.5"`
+	ColdFixedMs       float64       `env:"PLANNER_COLD_C_MS" envDefault:"20"`
+	ColdMiBPerMs      float64       `env:"PLANNER_COLD_V_MIB_PER_MS" envDefault:"0.05"`
+	PenaltyMsPerMiB   float64       `env:"PLANNER_PENALTY_MS_PER_MIB" envDefault:"2"`
+	MinGainMs         float64       `env:"PLANNER_MIN_GAIN_MS" envDefault:"100"`
+	HotUtilization    float64       `env:"PLANNER_HOT_UTILIZATION" envDefault:"0.9"`
+	ColdUtilization   float64       `env:"PLANNER_COLD_UTILIZATION" envDefault:"0.9"`
 }
 
 type plannerConfig struct {
@@ -37,6 +44,10 @@ func NewPlannerConfig() (*plannerConfig, error) {
 		return nil, err
 	}
 	switch {
+	case raw.ModelRegistry == "" || raw.TrainCommand == "":
+		return nil, fmt.Errorf("PLANNER_MODEL_REGISTRY and PLANNER_TRAIN_COMMAND must not be empty")
+	case raw.ModelMaxAge <= 0 || raw.ModelUpdateEvery < time.Second || raw.ModelMinHistory <= 0 || raw.ModelTrainWindow <= 0 || raw.ModelTrainTimeout <= 0:
+		return nil, fmt.Errorf("model lifecycle durations must be positive (update interval >= 1s)")
 	case raw.Predictor != "ewma" && raw.Predictor != "lgbm":
 		return nil, fmt.Errorf("PLANNER_PREDICTOR must be ewma or lgbm")
 	case raw.Interval < time.Second:
@@ -73,3 +84,11 @@ func (c *plannerConfig) ColdUtilization() float64 { return c.raw.ColdUtilization
 
 func (c *plannerConfig) Predictor() string { return c.raw.Predictor }
 func (c *plannerConfig) ModelDir() string  { return c.raw.ModelDir }
+
+func (c *plannerConfig) ModelRegistry() string            { return c.raw.ModelRegistry }
+func (c *plannerConfig) ModelMaxAge() time.Duration       { return c.raw.ModelMaxAge }
+func (c *plannerConfig) ModelUpdateEvery() time.Duration  { return c.raw.ModelUpdateEvery }
+func (c *plannerConfig) ModelMinHistory() time.Duration   { return c.raw.ModelMinHistory }
+func (c *plannerConfig) ModelTrainWindow() time.Duration  { return c.raw.ModelTrainWindow }
+func (c *plannerConfig) ModelTrainTimeout() time.Duration { return c.raw.ModelTrainTimeout }
+func (c *plannerConfig) TrainCommand() string             { return c.raw.TrainCommand }

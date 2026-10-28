@@ -266,6 +266,7 @@ const (
 	CommandResume        CommandType = "resume"
 	CommandSettings      CommandType = "settings"
 	CommandRecompute     CommandType = "recompute"
+	CommandRetrain       CommandType = "retrain"
 )
 
 type CommandStatus string
@@ -326,6 +327,7 @@ type PlannerSettings struct {
 
 // PlannerStatus is the "Состояние" page: what the next plan will be based on.
 type PlannerStatus struct {
+	ModelLifecycle *ModelLifecycleStatus
 	Hot, Cold      ClassState
 	HistoryQuality DataQuality
 	MethodVersion  string

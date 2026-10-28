@@ -71,6 +71,18 @@ func (s *plannerService) GetSettings(ctx context.Context) (model.PlannerSettings
 
 func (s *plannerService) Status(ctx context.Context) (model.PlannerStatus, error) {
 	st := model.PlannerStatus{MethodVersion: s.predictor.MethodVersion(), ModelVersion: s.predictor.ModelVersion(), FallbackReason: s.cfg.FallbackReason}
+	if s.cfg.Models != nil {
+		settings, err := s.plans.GetSettings(ctx)
+		if err != nil {
+			return st, err
+		}
+		predictor := s.cfg.Models.Capture(ctx, settings.Horizon)
+		lifecycle := s.cfg.Models.Status(ctx)
+		st.ModelLifecycle = &lifecycle
+		st.MethodVersion = predictor.MethodVersion()
+		st.ModelVersion = predictor.ModelVersion()
+		st.FallbackReason = lifecycle.FallbackReason
+	}
 	usage, err := s.placements.ListStorageClasses(ctx)
 	if err != nil {
 		return st, fmt.Errorf("read storage classes: %w", err)
@@ -111,4 +123,11 @@ func (s *plannerService) Status(ctx context.Context) (model.PlannerStatus, error
 		}
 	}
 	return st, nil
+}
+
+func (s *plannerService) ModelVersions(ctx context.Context, before time.Time) ([]model.ModelVersion, error) {
+	if s.cfg.Models == nil {
+		return nil, nil
+	}
+	return s.cfg.Models.Versions(ctx, before)
 }
