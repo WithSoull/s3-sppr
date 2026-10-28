@@ -918,7 +918,7 @@ Down удаляет heartbeat receipts и новые поля. Если суще
 
 #### Восстановление потерянного потока
 
-Миграция `20261102000000_lost_stream_resume` добавляет `resumed_count` и
+Миграция `20261103000000_lost_stream_resume` добавляет `resumed_count` и
 `last_resumed_at` в `ingestion_streams`, маркер `is_lost` в gaps (включая
 существующие gaps неизвестного размера) и расширяет их ключ этим маркером.
 Обычный gap и lost gap могут иметь один `first_sequence`. Down отказывается

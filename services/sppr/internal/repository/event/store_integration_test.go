@@ -68,7 +68,7 @@ func database(t *testing.T) (db.Client, service.Ingestor) {
 	require.NoError(t, err)
 	_, err = client.DB().ExecContext(ctx, db.Query{Name: "test:history_migrate", QueryRaw: string(sql)})
 	require.NoError(t, err)
-	sql, err = os.ReadFile("../../../migrations/20261102000000_lost_stream_resume.up.sql")
+	sql, err = os.ReadFile("../../../migrations/20261103000000_lost_stream_resume.up.sql")
 	require.NoError(t, err)
 	_, err = client.DB().ExecContext(ctx, db.Query{Name: "test:resume_migrate", QueryRaw: string(sql)})
 	require.NoError(t, err)

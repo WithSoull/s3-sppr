@@ -140,7 +140,7 @@ func TestResumeRollsBackWithNormalProcessing(t *testing.T) {
 		name, constraint string
 		heartbeat        bool
 	}{
-		{name: "event demand fails", constraint: `ALTER TABLE read_aggregates ADD CONSTRAINT test_fail CHECK(reads<=1)`},
+		{name: "event demand fails", constraint: `ALTER TABLE read_aggregates ADD CONSTRAINT test_fail CHECK(false) NOT VALID`},
 		{name: "heartbeat receipt fails", heartbeat: true, constraint: `ALTER TABLE ingestion_heartbeats ADD CONSTRAINT test_fail CHECK(false) NOT VALID`},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -189,7 +189,7 @@ func TestResumeMigrationDownPreservesConflictingGaps(t *testing.T) {
 	deliver(t, s, accessEvent(1), 0)
 	require.NoError(t, s.CheckLostStreams(ctx, time.Now().Add(time.Hour), 30*time.Second))
 	deliver(t, s, accessEvent(3), 1)
-	down, err := os.ReadFile("../../../migrations/20261102000000_lost_stream_resume.down.sql")
+	down, err := os.ReadFile("../../../migrations/20261103000000_lost_stream_resume.down.sql")
 	require.NoError(t, err)
 	_, err = client.DB().ExecContext(ctx, db.Query{Name: "test:downgrade", QueryRaw: string(down)})
 	require.ErrorContains(t, err, "cannot downgrade")
@@ -269,7 +269,7 @@ func TestResumeMigrationBackfillsExistingLostGap(t *testing.T) {
 	require.NoError(t, s.CheckLostStreams(ctx, time.Now().Add(time.Hour), 30*time.Second))
 	// Downgrade leaves the pre-existing unknown-size gap in the previous schema.
 	for _, direction := range []string{"down", "up"} {
-		sql, err := os.ReadFile("../../../migrations/20261102000000_lost_stream_resume." + direction + ".sql")
+		sql, err := os.ReadFile("../../../migrations/20261103000000_lost_stream_resume." + direction + ".sql")
 		require.NoError(t, err)
 		_, err = client.DB().ExecContext(ctx, db.Query{Name: "test:migrate_resume", QueryRaw: string(sql)})
 		require.NoError(t, err)
