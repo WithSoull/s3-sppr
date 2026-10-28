@@ -113,7 +113,7 @@ $\\log\\frac{p}{1-p}$, для регрессора — $\\log \\hat y$. Перв
     cls_c = classifier.predict(x, pred_contrib=True)[0]
     reg_c = regressor.predict(x, pred_contrib=True)[0]
     p_i, y_i = p[i], excess[i]
-    print(f"=== {title}: {validation.version[i]} в {np.datetime64(int(validation.at[i]), 's')}")
+    print(f"=== {title}: {validation.version_id(i)} в {np.datetime64(int(validation.at[i]), 's')}")
     print(f"факт: {validation.reads[i]:.0f} чтений | p = {p_i:.3f}, m = 1 + {y_i:.2f} = {1 + y_i:.2f}, "
           f"N̂ = {p_i * (1 + y_i):.2f} | EWMA = {validation.ewma[i]:.2f}")
     print(f"логит p = {cls_c.sum():+.3f} (sigmoid → {1 / (1 + math.exp(-cls_c.sum())):.3f}); "

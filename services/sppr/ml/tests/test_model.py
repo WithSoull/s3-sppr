@@ -28,8 +28,9 @@ def synthetic(seed=0, objects=200, hours=72):
     periods = Periods((0, 48 * HOUR), (48 * HOUR, 72 * HOUR), (72 * HOUR, 96 * HOUR))
     manifest = {"sha256": {"slices.jsonl": "0" * 64}, "config": {"scenario": "test"}}
     return Slices("test", np.vstack(xs), np.concatenate(reads).astype(float), np.concatenate(at),
-                  np.concatenate(split).astype(np.int8), np.array([f"v{i}" for i in range(objects)] * hours),
-                  np.zeros(objects * hours), np.full(objects * hours, 1 << 20), periods, manifest)
+                  np.concatenate(split).astype(np.int8), np.tile(np.arange(objects, dtype=np.int32), hours),
+                  np.zeros(objects * hours), np.full(objects * hours, 1 << 20), periods, manifest, "0" * 64,
+                  np.array([f"v{i}" for i in range(objects)]))
 
 
 PARAMS = {"num_leaves": 7, "learning_rate": 0.1, "min_data_in_leaf": 20, "lambda_l2": 0.0}

@@ -32,8 +32,12 @@ def _clean(value):
 def train(args: argparse.Namespace) -> None:
     started = time.perf_counter()
     rows = data.load(args.data, train_every=args.train_every)
+    source = rows.source
     train_rows, validation = rows.of("train"), rows.of("validation")
+    del rows
     candidates = evaluate.grid()[:1] if args.quick else None
+    if args.params:
+        candidates = [json.loads(args.params)]
     hurdle, trials = evaluate.tune(train_rows, validation, candidates, log=lambda m: print(m, file=sys.stderr))
     compared = evaluate.compare(hurdle, train_rows, validation)
     difference = evaluate.versus_best_baseline(hurdle, train_rows, validation, compared)
@@ -41,7 +45,7 @@ def train(args: argparse.Namespace) -> None:
     manifest = export.write(Path(args.out), hurdle, train_rows, validation, scores, trials)
     peak_mib = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / (1 << 20 if sys.platform == "darwin" else 1 << 10)
     report = {
-        "source": rows.source,
+        "source": source,
         "model_version": manifest["model_version"],
         "train_every": args.train_every,
         "labels": {"train": evaluate.label_summary(train_rows), "validation": evaluate.label_summary(validation)},
@@ -56,7 +60,7 @@ def train(args: argparse.Namespace) -> None:
     with open(Path(args.out) / "report.json", "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2, allow_nan=False)
         f.write("\n")
-    print(f"{rows.source}: {manifest['model_version']} in {report['seconds']:.0f} s, peak {peak_mib:.0f} MiB")
+    print(f"{source}: {manifest['model_version']} in {report['seconds']:.0f} s, peak {peak_mib:.0f} MiB")
 
 
 def report(args: argparse.Namespace) -> None:
@@ -92,6 +96,7 @@ def main() -> None:
     t.add_argument("--out", required=True, help="new model directory")
     t.add_argument("--train-every", type=int, default=900, help="keep a train snapshot every N seconds (0: all)")
     t.add_argument("--quick", action="store_true", help="one grid point; for smoke checks only")
+    t.add_argument("--params", help="JSON hyperparameters chosen earlier: retrain without the grid search")
     t.set_defaults(func=train)
     r = sub.add_parser("report", help="Markdown table of report.json files")
     r.add_argument("reports", nargs="+")
