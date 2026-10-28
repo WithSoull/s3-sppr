@@ -76,6 +76,13 @@ type MigrationConfig interface {
 }
 
 type PlannerConfig interface {
+	ModelRegistry() string
+	ModelMaxAge() time.Duration
+	ModelUpdateEvery() time.Duration
+	ModelMinHistory() time.Duration
+	ModelTrainWindow() time.Duration
+	ModelTrainTimeout() time.Duration
+	TrainCommand() string
 	MaxHistoryLag() time.Duration
 	Predictor() string
 	ModelDir() string

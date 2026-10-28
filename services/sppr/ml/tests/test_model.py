@@ -26,7 +26,7 @@ def synthetic(seed=0, objects=200, hours=72):
         split.append(np.full(objects, 0 if h < 48 else 1))
         last = now
     periods = Periods((0, 48 * HOUR), (48 * HOUR, 72 * HOUR), (72 * HOUR, 96 * HOUR))
-    manifest = {"sha256": {"slices.jsonl": "0" * 64}, "config": {"scenario": "test"}}
+    manifest = {"horizon_seconds": 3600, "sha256": {"slices.jsonl": "0" * 64}, "config": {"scenario": "test"}}
     return Slices("test", np.vstack(xs), np.concatenate(reads).astype(float), np.concatenate(at),
                   np.concatenate(split).astype(np.int8), np.tile(np.arange(objects, dtype=np.int32), hours),
                   np.zeros(objects * hours), np.full(objects * hours, 1 << 20), periods, manifest, "0" * 64,
@@ -116,3 +116,14 @@ def test_never_read_check_zeroes_rows_without_history():
     never = np.isnan(va.feature("last_read_seconds"))
     assert check.read_share == pytest.approx(va.reads[never].sum() / va.reads.sum())
     assert check.without.low <= check.without.coverage <= check.without.high
+
+
+def test_export_uses_dataset_horizon(tmp_path):
+    rows = synthetic(objects=50, hours=72)
+    rows.manifest["horizon_seconds"] = 120
+    train, validation = rows.of("train"), rows.of("validation")
+    hurdle = model.fit(train, PARAMS)
+    manifest = export.write(tmp_path / "short", hurdle, train, validation, {}, [])
+    assert manifest["horizon_seconds"] == 120
+    from sppr_ml import baselines
+    np.testing.assert_allclose(baselines.frequency(validation), validation.feature("reads_24h") / 24 * (120 / 3600))

@@ -11,6 +11,12 @@ import (
 )
 
 func (s *plannerService) Run(ctx context.Context) error {
+	if s.cfg.Models != nil {
+		lifecycleCtx, cancel := context.WithCancel(ctx)
+		done := make(chan struct{})
+		go func() { defer close(done); _ = s.cfg.Models.Run(lifecycleCtx) }()
+		defer func() { cancel(); <-done }()
+	}
 	if err := s.plans.FailInterrupted(ctx); err != nil {
 		return fmt.Errorf("fail interrupted plans: %w", err)
 	}
@@ -55,15 +61,19 @@ func (s *plannerService) Plan(ctx context.Context, trigger model.PlanTrigger) (m
 	if err != nil {
 		return model.Plan{}, fmt.Errorf("read planner settings: %w", err)
 	}
+	predictor := s.predictor
+	if s.cfg.Models != nil {
+		predictor = s.cfg.Models.Capture(ctx, settings.Horizon)
+	}
 	params := paramsOf(settings, s.cfg.MaxRejectedSaved)
 	plan, err := s.plans.CreatePlan(ctx, model.Plan{
-		PlanID: s.newID(), Trigger: trigger, MethodVersion: s.predictor.MethodVersion(), ModelVersion: s.predictor.ModelVersion(), Params: params,
+		PlanID: s.newID(), Trigger: trigger, MethodVersion: predictor.MethodVersion(), ModelVersion: predictor.ModelVersion(), Params: params,
 	})
 	if err != nil {
 		return model.Plan{}, fmt.Errorf("create plan: %w", err)
 	}
 	var recs []model.Recommendation
-	snap, planErr := s.snapshot(ctx, s.now().UTC(), params)
+	snap, planErr := s.snapshotWithPredictor(ctx, s.now().UTC().Truncate(time.Minute), params, predictor)
 	switch {
 	case planErr != nil:
 		plan.Status, plan.Reason = model.PlanFailed, planErr.Error()

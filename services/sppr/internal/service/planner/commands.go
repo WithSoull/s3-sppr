@@ -19,6 +19,8 @@ func invalid(format string, args ...any) error {
 }
 
 func (s *plannerService) Execute(ctx context.Context, req model.CommandRequest) (model.Command, error) {
+	s.commandMu.Lock()
+	defer s.commandMu.Unlock()
 	req, err := normalize(req)
 	if err != nil {
 		return model.Command{}, err
@@ -44,6 +46,36 @@ func (s *plannerService) Execute(ctx context.Context, req model.CommandRequest) 
 		cmd, err = s.record(ctx, req, func(ctx context.Context, cmd *model.Command) error {
 			return s.plans.UpdateSettings(ctx, *req.Settings)
 		})
+	case model.CommandRetrain:
+		if s.cfg.Models == nil {
+			cmd, err = s.record(ctx, req, func(_ context.Context, c *model.Command) error {
+				c.Status = model.CommandRejected
+				c.Code = "MODEL_UNAVAILABLE"
+				return nil
+			})
+			break
+		}
+		reason, reserveErr := s.cfg.Models.Reserve(ctx)
+		if reserveErr != nil {
+			return model.Command{}, reserveErr
+		}
+		reserved := reason == ""
+		cmd, err = s.record(ctx, req, func(ctx context.Context, c *model.Command) error {
+			if reason != "" {
+				c.Status = model.CommandRejected
+				c.Code = reason
+				c.Message = reason
+				return nil
+			}
+			return s.cfg.Models.Queue(ctx, "manual")
+		})
+		if reserved {
+			if err != nil {
+				s.cfg.Models.Release()
+			} else {
+				s.cfg.Models.Start("manual")
+			}
+		}
 	case model.CommandRecompute:
 		cmd, err = s.record(ctx, req, func(context.Context, *model.Command) error { return nil })
 		if err == nil {
@@ -88,6 +120,10 @@ func normalize(req model.CommandRequest) (model.CommandRequest, error) {
 		}
 		if err := validateSettings(*req.Settings); err != nil {
 			return req, err
+		}
+	case model.CommandRetrain:
+		if req.PlanID != "" || req.Settings != nil {
+			return req, invalid("retrain takes only command_id")
 		}
 	case model.CommandPause, model.CommandResume, model.CommandRecompute:
 	default:

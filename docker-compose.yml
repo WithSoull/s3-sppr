@@ -3,6 +3,7 @@ networks:
     driver: bridge
 
 volumes:
+  sppr-model-registry:
   pgdata-sppr:
   pgdata-users:
   pgdata-metadata:
@@ -93,7 +94,14 @@ services:
       PLANNER_MAX_HISTORY_LAG: "${PLANNER_MAX_HISTORY_LAG:-60s}"
       PLANNER_HORIZON: "${PLANNER_HORIZON:-1h}"
       PLANNER_PREDICTOR: "${PLANNER_PREDICTOR:-ewma}"
-      PLANNER_MODEL_DIR: "${PLANNER_MODEL_DIR:-/models/current}"
+      PLANNER_MODEL_DIR: "${PLANNER_MODEL_DIR:-}"
+      PLANNER_MODEL_REGISTRY: /var/lib/sppr/models
+      PLANNER_MODEL_MAX_AGE: "${PLANNER_MODEL_MAX_AGE:-72h}"
+      PLANNER_MODEL_UPDATE_EVERY: "${PLANNER_MODEL_UPDATE_EVERY:-24h}"
+      PLANNER_MODEL_MIN_HISTORY: "${PLANNER_MODEL_MIN_HISTORY:-26h}"
+      PLANNER_MODEL_TRAIN_WINDOW: "${PLANNER_MODEL_TRAIN_WINDOW:-168h}"
+      PLANNER_MODEL_TRAIN_TIMEOUT: "${PLANNER_MODEL_TRAIN_TIMEOUT:-30m}"
+      PLANNER_TRAIN_COMMAND: "${PLANNER_TRAIN_COMMAND:-python -m sppr_ml train --data {data} --out {out} --params {params}}"
       PLANNER_MIN_GAIN_MS: "${PLANNER_MIN_GAIN_MS:-100}"
       PLANNER_PENALTY_MS_PER_MIB: "${PLANNER_PENALTY_MS_PER_MIB:-2}"
       PLANNER_HOT_UTILIZATION: "${PLANNER_HOT_UTILIZATION:-0.9}"
@@ -102,6 +110,9 @@ services:
       STORAGE_COLD_GRPC_ADDR: storage-cold:50053
     volumes:
       - ./build/models:/models:ro
+      - sppr-model-registry:/var/lib/sppr/models
+    cpus: 2
+    mem_limit: 2g
     # Keep the administrator interface on loopback for the local stand.
     ports:
       - "127.0.0.1:${SPPR_HTTP_PORT:-8086}:8086"

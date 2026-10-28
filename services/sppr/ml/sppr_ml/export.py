@@ -11,6 +11,7 @@ import hashlib
 import json
 import math
 import platform
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -121,19 +122,19 @@ def write(out: Path, hurdle: Hurdle, train: Slices, validation: Slices, scores: 
     files = {name: _sha256(out / name) for name in ("classifier.txt", "regressor.txt", "parity.json")}
     # Field names follow "Схема файлов экспорта v1" in docs/ml-spec.md; Go validates them.
     manifest = {
-        "model_version": f"{METHOD_VERSION}-{train.source}-{files['classifier.txt'][:8]}{files['regressor.txt'][:8]}",
+        "model_version": f"{METHOD_VERSION}-{train.source}-{files['classifier.txt'][:8]}{files['regressor.txt'][:8]}-{uuid.uuid4().hex[:12]}",
         "method_version": METHOD_VERSION,
         "feature_rules_version": data.RULES_VERSION,
         "feature_names": FEATURES,
-        "horizon_seconds": data.HORIZON_SECONDS,
+        "horizon_seconds": train.manifest["horizon_seconds"],
         "lightgbm_version": lgb.__version__,
         "python_version": platform.python_version(),
         "numpy_version": np.__version__,
         "scipy_version": scipy.__version__,
-        "hyperparameters": {**BASE_PARAMS, **hurdle.params, "rounds": hurdle.rounds},
+        "hyperparameters": {**BASE_PARAMS, **hurdle.params, "num_threads": 2, "rounds": hurdle.rounds},
         "train_interval": {"start": _iso(train.periods.train[0]), "end": _iso(train.periods.train[1]), "rows": len(train)},
         "validation_interval": {"start": _iso(validation.periods.validation[0]),
-                                "end": _iso(validation.periods.validation[1]), "rows": len(validation)},
+                                "end": train.manifest.get("last_label_available_at", _iso(validation.periods.validation[1])), "rows": len(validation)},
         "source": train.source,
         "source_config": train.manifest.get("config"),
         "source_provenance": train.manifest.get("provenance"),

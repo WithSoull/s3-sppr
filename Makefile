@@ -320,6 +320,16 @@ smoke-planner-local:
 	GATEWAY_MAX_READ_DURATION=2s MIGRATION_SOURCE_CLEANUP_DELAY=5s METADATA_DELETE_CLEANUP_DELAY=5s MIGRATION_CLEANUP_INTERVAL=250ms MIGRATION_MIN_INTERVAL=0s $(MAKE) up-sppr-planner
 	$(MAKE) smoke-planner
 
+.PHONY: smoke-ml-update smoke-ml-update-local
+# Dedicated stand, short horizon, strict Coverage; the CLI collects 40m of reads.
+# Failure phase recreates SPPR with PLANNER_TRAIN_COMMAND=false, then restores it.
+smoke-ml-update:
+	PLANNER_ENABLED=true MIGRATION_ENABLED=true PLANNER_HORIZON=2m PLANNER_MODEL_MIN_HISTORY=1m PLANNER_MODEL_TRAIN_WINDOW=140m PLANNER_MODEL_UPDATE_EVERY=24h go run ./services/sppr/cmd/smoke-ml-update $(SMOKE_ML_UPDATE_ARGS)
+
+smoke-ml-update-local:
+	PLANNER_HORIZON=2m PLANNER_MODEL_MIN_HISTORY=1m PLANNER_MODEL_TRAIN_WINDOW=140m PLANNER_MODEL_DIR= GATEWAY_MAX_READ_DURATION=2s MIGRATION_SOURCE_CLEANUP_DELAY=5s METADATA_DELETE_CLEANUP_DELAY=5s MIGRATION_CLEANUP_INTERVAL=250ms MIGRATION_MIN_INTERVAL=0s $(MAKE) up-sppr-planner
+	GATEWAY_MAX_READ_DURATION=2s MIGRATION_SOURCE_CLEANUP_DELAY=5s METADATA_DELETE_CLEANUP_DELAY=5s MIGRATION_CLEANUP_INTERVAL=250ms MIGRATION_MIN_INTERVAL=0s $(MAKE) smoke-ml-update
+
 .PHONY: smoke-history smoke-history-local
 # Disruptive: dedicated stand only; stops Kafka and kills/stops Gateway.
 smoke-history:

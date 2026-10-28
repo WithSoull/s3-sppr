@@ -27,7 +27,6 @@ from pathlib import Path
 import numpy as np
 
 RULES_VERSION = "features-v1"
-HORIZON_SECONDS = 3600
 
 # Column order is part of the model contract: Go reads feature_names from the manifest.
 FEATURES = [
@@ -124,8 +123,9 @@ def read_manifest(source: Path) -> dict:
         manifest = json.load(f)
     if manifest.get("feature_rules_version") != RULES_VERSION:
         raise ValueError(f"{source}: feature rules {manifest.get('feature_rules_version')}, want {RULES_VERSION}")
-    if manifest.get("horizon_seconds") != HORIZON_SECONDS:
-        raise ValueError(f"{source}: horizon {manifest.get('horizon_seconds')} s, want {HORIZON_SECONDS}")
+    horizon = manifest.get("horizon_seconds")
+    if type(horizon) is not int or horizon <= 0:
+        raise ValueError(f"{source}: horizon_seconds must be a positive integer")
     return manifest
 
 

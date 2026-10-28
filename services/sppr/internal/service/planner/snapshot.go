@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/model"
+	"github.com/alesplll/opens3-rebac/services/sppr/internal/service"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/service/features"
 )
 
@@ -27,6 +28,9 @@ func paramsOf(s model.PlannerSettings, maxRejected int) model.PlannerParams {
 }
 
 func (s *plannerService) snapshot(ctx context.Context, at time.Time, params model.PlannerParams) (snapshot, error) {
+	return s.snapshotWithPredictor(ctx, at, params, s.predictor)
+}
+func (s *plannerService) snapshotWithPredictor(ctx context.Context, at time.Time, params model.PlannerParams, predictor service.Predictor) (snapshot, error) {
 	catalog, err := s.placements.ListCatalog(ctx)
 	if err != nil {
 		return snapshot{}, fmt.Errorf("read catalogue: %w", err)
@@ -68,7 +72,7 @@ func (s *plannerService) snapshot(ctx context.Context, at time.Time, params mode
 	if err != nil {
 		return snapshot{}, err
 	}
-	in := model.PlanInput{At: at, Params: params, MethodVersion: s.predictor.MethodVersion()}
+	in := model.PlanInput{At: at, Params: params, MethodVersion: predictor.MethodVersion()}
 	for _, u := range usage {
 		state := model.ClassState{CapacityBytes: u.CapacityBytes, MaxUtilization: u.MaxUtilization, UsedBytes: u.PlacedBytes + u.CopyBytes}
 		switch u.Class {
@@ -123,7 +127,7 @@ func (s *plannerService) snapshot(ctx context.Context, at time.Time, params mode
 			if f.Reads24h > 0 {
 				it.ReadFraction = f.MeanReadFraction
 			}
-			if forecast, err := s.predictor.Predict(fs, params.Horizon); err == nil {
+			if forecast, err := predictor.Predict(fs, params.Horizon); err == nil {
 				it.Forecast = &forecast
 			}
 		}
