@@ -63,7 +63,7 @@ func InputHashes(c Config, sc sim.Config, scenario string, seed uint64) (map[str
 	}
 	out := map[string]string{}
 	paths["compose"] = c.ComposeFile
-	paths["stand-dockerfile"] = "services/sppr/Dockerfile.stand"
+	paths["sppr-dockerfile"] = "services/sppr/Dockerfile"
 	// Compose reads these tracked files even when ambient environment overrides
 	// some settings. Record them as inputs rather than relying on git SHA alone.
 	for _, service := range []string{"metadata", "storage", "users", "auth", "authz", "quota"} {
