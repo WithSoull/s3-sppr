@@ -12,8 +12,15 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 go build -trimpath -o /out/sppr ./cmd/server
 
-FROM alpine:3.21
-RUN apk add --no-cache ca-certificates && adduser -D -u 10001 sppr
+FROM python:3.12-slim-bookworm
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates libgomp1 wget \
+    && rm -rf /var/lib/apt/lists/* \
+    && useradd --uid 10001 --create-home sppr \
+    && mkdir -p /models/registry && chown sppr:sppr /models/registry
+COPY services/sppr/ml/requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt
+COPY services/sppr/ml/sppr_ml /opt/sppr-ml/sppr_ml
+ENV PYTHONPATH=/opt/sppr-ml PYTHONDONTWRITEBYTECODE=1 OMP_NUM_THREADS=2
 USER sppr
 WORKDIR /app
 COPY --from=builder /out/sppr /app/sppr
