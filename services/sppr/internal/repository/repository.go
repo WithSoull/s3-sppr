@@ -8,6 +8,8 @@ import (
 )
 
 type EventRepository interface {
+	StoreHeartbeat(context.Context, model.StreamHeartbeat, model.Delivery) (model.IngestResult, error)
+	CloseLostStreams(context.Context, time.Time, time.Duration) error
 	// Store requires a transaction; identical redelivery is a no-op.
 	Store(context.Context, model.AccessEvent, model.Delivery) (model.IngestResult, error)
 }
@@ -112,8 +114,8 @@ type ActiveAction struct {
 
 // HistoryRepository reads what the Ingestor stored for planning.
 type HistoryRepository interface {
-	// ReadsSince returns per-minute client reads of every version since from.
-	ReadsSince(ctx context.Context, from time.Time) ([]model.MinuteReads, error)
+	// ReadsSince returns per-minute client reads in [from, until), excluding future data.
+	ReadsSince(ctx context.Context, from, until time.Time) ([]model.MinuteReads, error)
 	// Coverage reports what the Ingestor knows about the completeness of history.
 	Coverage(ctx context.Context, since time.Time) (model.Coverage, error)
 }

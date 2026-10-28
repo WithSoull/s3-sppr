@@ -8,6 +8,7 @@ import (
 	"context"
 	"sync"
 	mm_atomic "sync/atomic"
+	"time"
 	mm_time "time"
 
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/model"
@@ -19,12 +20,26 @@ type EventRepositoryMock struct {
 	t          minimock.Tester
 	finishOnce sync.Once
 
+	funcCloseLostStreams          func(ctx context.Context, t1 time.Time, d1 time.Duration) (err error)
+	funcCloseLostStreamsOrigin    string
+	inspectFuncCloseLostStreams   func(ctx context.Context, t1 time.Time, d1 time.Duration)
+	afterCloseLostStreamsCounter  uint64
+	beforeCloseLostStreamsCounter uint64
+	CloseLostStreamsMock          mEventRepositoryMockCloseLostStreams
+
 	funcStore          func(ctx context.Context, a1 model.AccessEvent, d1 model.Delivery) (i1 model.IngestResult, err error)
 	funcStoreOrigin    string
 	inspectFuncStore   func(ctx context.Context, a1 model.AccessEvent, d1 model.Delivery)
 	afterStoreCounter  uint64
 	beforeStoreCounter uint64
 	StoreMock          mEventRepositoryMockStore
+
+	funcStoreHeartbeat          func(ctx context.Context, s1 model.StreamHeartbeat, d1 model.Delivery) (i1 model.IngestResult, err error)
+	funcStoreHeartbeatOrigin    string
+	inspectFuncStoreHeartbeat   func(ctx context.Context, s1 model.StreamHeartbeat, d1 model.Delivery)
+	afterStoreHeartbeatCounter  uint64
+	beforeStoreHeartbeatCounter uint64
+	StoreHeartbeatMock          mEventRepositoryMockStoreHeartbeat
 }
 
 // NewEventRepositoryMock returns a mock for mm_repository.EventRepository
@@ -35,12 +50,391 @@ func NewEventRepositoryMock(t minimock.Tester) *EventRepositoryMock {
 		controller.RegisterMocker(m)
 	}
 
+	m.CloseLostStreamsMock = mEventRepositoryMockCloseLostStreams{mock: m}
+	m.CloseLostStreamsMock.callArgs = []*EventRepositoryMockCloseLostStreamsParams{}
+
 	m.StoreMock = mEventRepositoryMockStore{mock: m}
 	m.StoreMock.callArgs = []*EventRepositoryMockStoreParams{}
+
+	m.StoreHeartbeatMock = mEventRepositoryMockStoreHeartbeat{mock: m}
+	m.StoreHeartbeatMock.callArgs = []*EventRepositoryMockStoreHeartbeatParams{}
 
 	t.Cleanup(m.MinimockFinish)
 
 	return m
+}
+
+type mEventRepositoryMockCloseLostStreams struct {
+	optional           bool
+	mock               *EventRepositoryMock
+	defaultExpectation *EventRepositoryMockCloseLostStreamsExpectation
+	expectations       []*EventRepositoryMockCloseLostStreamsExpectation
+
+	callArgs []*EventRepositoryMockCloseLostStreamsParams
+	mutex    sync.RWMutex
+
+	expectedInvocations       uint64
+	expectedInvocationsOrigin string
+}
+
+// EventRepositoryMockCloseLostStreamsExpectation specifies expectation struct of the EventRepository.CloseLostStreams
+type EventRepositoryMockCloseLostStreamsExpectation struct {
+	mock               *EventRepositoryMock
+	params             *EventRepositoryMockCloseLostStreamsParams
+	paramPtrs          *EventRepositoryMockCloseLostStreamsParamPtrs
+	expectationOrigins EventRepositoryMockCloseLostStreamsExpectationOrigins
+	results            *EventRepositoryMockCloseLostStreamsResults
+	returnOrigin       string
+	Counter            uint64
+}
+
+// EventRepositoryMockCloseLostStreamsParams contains parameters of the EventRepository.CloseLostStreams
+type EventRepositoryMockCloseLostStreamsParams struct {
+	ctx context.Context
+	t1  time.Time
+	d1  time.Duration
+}
+
+// EventRepositoryMockCloseLostStreamsParamPtrs contains pointers to parameters of the EventRepository.CloseLostStreams
+type EventRepositoryMockCloseLostStreamsParamPtrs struct {
+	ctx *context.Context
+	t1  *time.Time
+	d1  *time.Duration
+}
+
+// EventRepositoryMockCloseLostStreamsResults contains results of the EventRepository.CloseLostStreams
+type EventRepositoryMockCloseLostStreamsResults struct {
+	err error
+}
+
+// EventRepositoryMockCloseLostStreamsOrigins contains origins of expectations of the EventRepository.CloseLostStreams
+type EventRepositoryMockCloseLostStreamsExpectationOrigins struct {
+	origin    string
+	originCtx string
+	originT1  string
+	originD1  string
+}
+
+// Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
+// the test will fail minimock's automatic final call check if the mocked method was not called at least once.
+// Optional() makes method check to work in '0 or more' mode.
+// It is NOT RECOMMENDED to use this option unless you really need it, as default behaviour helps to
+// catch the problems when the expected method call is totally skipped during test run.
+func (mmCloseLostStreams *mEventRepositoryMockCloseLostStreams) Optional() *mEventRepositoryMockCloseLostStreams {
+	mmCloseLostStreams.optional = true
+	return mmCloseLostStreams
+}
+
+// Expect sets up expected params for EventRepository.CloseLostStreams
+func (mmCloseLostStreams *mEventRepositoryMockCloseLostStreams) Expect(ctx context.Context, t1 time.Time, d1 time.Duration) *mEventRepositoryMockCloseLostStreams {
+	if mmCloseLostStreams.mock.funcCloseLostStreams != nil {
+		mmCloseLostStreams.mock.t.Fatalf("EventRepositoryMock.CloseLostStreams mock is already set by Set")
+	}
+
+	if mmCloseLostStreams.defaultExpectation == nil {
+		mmCloseLostStreams.defaultExpectation = &EventRepositoryMockCloseLostStreamsExpectation{}
+	}
+
+	if mmCloseLostStreams.defaultExpectation.paramPtrs != nil {
+		mmCloseLostStreams.mock.t.Fatalf("EventRepositoryMock.CloseLostStreams mock is already set by ExpectParams functions")
+	}
+
+	mmCloseLostStreams.defaultExpectation.params = &EventRepositoryMockCloseLostStreamsParams{ctx, t1, d1}
+	mmCloseLostStreams.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
+	for _, e := range mmCloseLostStreams.expectations {
+		if minimock.Equal(e.params, mmCloseLostStreams.defaultExpectation.params) {
+			mmCloseLostStreams.mock.t.Fatalf("Expectation set by When has same params: %#v", *mmCloseLostStreams.defaultExpectation.params)
+		}
+	}
+
+	return mmCloseLostStreams
+}
+
+// ExpectCtxParam1 sets up expected param ctx for EventRepository.CloseLostStreams
+func (mmCloseLostStreams *mEventRepositoryMockCloseLostStreams) ExpectCtxParam1(ctx context.Context) *mEventRepositoryMockCloseLostStreams {
+	if mmCloseLostStreams.mock.funcCloseLostStreams != nil {
+		mmCloseLostStreams.mock.t.Fatalf("EventRepositoryMock.CloseLostStreams mock is already set by Set")
+	}
+
+	if mmCloseLostStreams.defaultExpectation == nil {
+		mmCloseLostStreams.defaultExpectation = &EventRepositoryMockCloseLostStreamsExpectation{}
+	}
+
+	if mmCloseLostStreams.defaultExpectation.params != nil {
+		mmCloseLostStreams.mock.t.Fatalf("EventRepositoryMock.CloseLostStreams mock is already set by Expect")
+	}
+
+	if mmCloseLostStreams.defaultExpectation.paramPtrs == nil {
+		mmCloseLostStreams.defaultExpectation.paramPtrs = &EventRepositoryMockCloseLostStreamsParamPtrs{}
+	}
+	mmCloseLostStreams.defaultExpectation.paramPtrs.ctx = &ctx
+	mmCloseLostStreams.defaultExpectation.expectationOrigins.originCtx = minimock.CallerInfo(1)
+
+	return mmCloseLostStreams
+}
+
+// ExpectT1Param2 sets up expected param t1 for EventRepository.CloseLostStreams
+func (mmCloseLostStreams *mEventRepositoryMockCloseLostStreams) ExpectT1Param2(t1 time.Time) *mEventRepositoryMockCloseLostStreams {
+	if mmCloseLostStreams.mock.funcCloseLostStreams != nil {
+		mmCloseLostStreams.mock.t.Fatalf("EventRepositoryMock.CloseLostStreams mock is already set by Set")
+	}
+
+	if mmCloseLostStreams.defaultExpectation == nil {
+		mmCloseLostStreams.defaultExpectation = &EventRepositoryMockCloseLostStreamsExpectation{}
+	}
+
+	if mmCloseLostStreams.defaultExpectation.params != nil {
+		mmCloseLostStreams.mock.t.Fatalf("EventRepositoryMock.CloseLostStreams mock is already set by Expect")
+	}
+
+	if mmCloseLostStreams.defaultExpectation.paramPtrs == nil {
+		mmCloseLostStreams.defaultExpectation.paramPtrs = &EventRepositoryMockCloseLostStreamsParamPtrs{}
+	}
+	mmCloseLostStreams.defaultExpectation.paramPtrs.t1 = &t1
+	mmCloseLostStreams.defaultExpectation.expectationOrigins.originT1 = minimock.CallerInfo(1)
+
+	return mmCloseLostStreams
+}
+
+// ExpectD1Param3 sets up expected param d1 for EventRepository.CloseLostStreams
+func (mmCloseLostStreams *mEventRepositoryMockCloseLostStreams) ExpectD1Param3(d1 time.Duration) *mEventRepositoryMockCloseLostStreams {
+	if mmCloseLostStreams.mock.funcCloseLostStreams != nil {
+		mmCloseLostStreams.mock.t.Fatalf("EventRepositoryMock.CloseLostStreams mock is already set by Set")
+	}
+
+	if mmCloseLostStreams.defaultExpectation == nil {
+		mmCloseLostStreams.defaultExpectation = &EventRepositoryMockCloseLostStreamsExpectation{}
+	}
+
+	if mmCloseLostStreams.defaultExpectation.params != nil {
+		mmCloseLostStreams.mock.t.Fatalf("EventRepositoryMock.CloseLostStreams mock is already set by Expect")
+	}
+
+	if mmCloseLostStreams.defaultExpectation.paramPtrs == nil {
+		mmCloseLostStreams.defaultExpectation.paramPtrs = &EventRepositoryMockCloseLostStreamsParamPtrs{}
+	}
+	mmCloseLostStreams.defaultExpectation.paramPtrs.d1 = &d1
+	mmCloseLostStreams.defaultExpectation.expectationOrigins.originD1 = minimock.CallerInfo(1)
+
+	return mmCloseLostStreams
+}
+
+// Inspect accepts an inspector function that has same arguments as the EventRepository.CloseLostStreams
+func (mmCloseLostStreams *mEventRepositoryMockCloseLostStreams) Inspect(f func(ctx context.Context, t1 time.Time, d1 time.Duration)) *mEventRepositoryMockCloseLostStreams {
+	if mmCloseLostStreams.mock.inspectFuncCloseLostStreams != nil {
+		mmCloseLostStreams.mock.t.Fatalf("Inspect function is already set for EventRepositoryMock.CloseLostStreams")
+	}
+
+	mmCloseLostStreams.mock.inspectFuncCloseLostStreams = f
+
+	return mmCloseLostStreams
+}
+
+// Return sets up results that will be returned by EventRepository.CloseLostStreams
+func (mmCloseLostStreams *mEventRepositoryMockCloseLostStreams) Return(err error) *EventRepositoryMock {
+	if mmCloseLostStreams.mock.funcCloseLostStreams != nil {
+		mmCloseLostStreams.mock.t.Fatalf("EventRepositoryMock.CloseLostStreams mock is already set by Set")
+	}
+
+	if mmCloseLostStreams.defaultExpectation == nil {
+		mmCloseLostStreams.defaultExpectation = &EventRepositoryMockCloseLostStreamsExpectation{mock: mmCloseLostStreams.mock}
+	}
+	mmCloseLostStreams.defaultExpectation.results = &EventRepositoryMockCloseLostStreamsResults{err}
+	mmCloseLostStreams.defaultExpectation.returnOrigin = minimock.CallerInfo(1)
+	return mmCloseLostStreams.mock
+}
+
+// Set uses given function f to mock the EventRepository.CloseLostStreams method
+func (mmCloseLostStreams *mEventRepositoryMockCloseLostStreams) Set(f func(ctx context.Context, t1 time.Time, d1 time.Duration) (err error)) *EventRepositoryMock {
+	if mmCloseLostStreams.defaultExpectation != nil {
+		mmCloseLostStreams.mock.t.Fatalf("Default expectation is already set for the EventRepository.CloseLostStreams method")
+	}
+
+	if len(mmCloseLostStreams.expectations) > 0 {
+		mmCloseLostStreams.mock.t.Fatalf("Some expectations are already set for the EventRepository.CloseLostStreams method")
+	}
+
+	mmCloseLostStreams.mock.funcCloseLostStreams = f
+	mmCloseLostStreams.mock.funcCloseLostStreamsOrigin = minimock.CallerInfo(1)
+	return mmCloseLostStreams.mock
+}
+
+// When sets expectation for the EventRepository.CloseLostStreams which will trigger the result defined by the following
+// Then helper
+func (mmCloseLostStreams *mEventRepositoryMockCloseLostStreams) When(ctx context.Context, t1 time.Time, d1 time.Duration) *EventRepositoryMockCloseLostStreamsExpectation {
+	if mmCloseLostStreams.mock.funcCloseLostStreams != nil {
+		mmCloseLostStreams.mock.t.Fatalf("EventRepositoryMock.CloseLostStreams mock is already set by Set")
+	}
+
+	expectation := &EventRepositoryMockCloseLostStreamsExpectation{
+		mock:               mmCloseLostStreams.mock,
+		params:             &EventRepositoryMockCloseLostStreamsParams{ctx, t1, d1},
+		expectationOrigins: EventRepositoryMockCloseLostStreamsExpectationOrigins{origin: minimock.CallerInfo(1)},
+	}
+	mmCloseLostStreams.expectations = append(mmCloseLostStreams.expectations, expectation)
+	return expectation
+}
+
+// Then sets up EventRepository.CloseLostStreams return parameters for the expectation previously defined by the When method
+func (e *EventRepositoryMockCloseLostStreamsExpectation) Then(err error) *EventRepositoryMock {
+	e.results = &EventRepositoryMockCloseLostStreamsResults{err}
+	return e.mock
+}
+
+// Times sets number of times EventRepository.CloseLostStreams should be invoked
+func (mmCloseLostStreams *mEventRepositoryMockCloseLostStreams) Times(n uint64) *mEventRepositoryMockCloseLostStreams {
+	if n == 0 {
+		mmCloseLostStreams.mock.t.Fatalf("Times of EventRepositoryMock.CloseLostStreams mock can not be zero")
+	}
+	mm_atomic.StoreUint64(&mmCloseLostStreams.expectedInvocations, n)
+	mmCloseLostStreams.expectedInvocationsOrigin = minimock.CallerInfo(1)
+	return mmCloseLostStreams
+}
+
+func (mmCloseLostStreams *mEventRepositoryMockCloseLostStreams) invocationsDone() bool {
+	if len(mmCloseLostStreams.expectations) == 0 && mmCloseLostStreams.defaultExpectation == nil && mmCloseLostStreams.mock.funcCloseLostStreams == nil {
+		return true
+	}
+
+	totalInvocations := mm_atomic.LoadUint64(&mmCloseLostStreams.mock.afterCloseLostStreamsCounter)
+	expectedInvocations := mm_atomic.LoadUint64(&mmCloseLostStreams.expectedInvocations)
+
+	return totalInvocations > 0 && (expectedInvocations == 0 || expectedInvocations == totalInvocations)
+}
+
+// CloseLostStreams implements mm_repository.EventRepository
+func (mmCloseLostStreams *EventRepositoryMock) CloseLostStreams(ctx context.Context, t1 time.Time, d1 time.Duration) (err error) {
+	mm_atomic.AddUint64(&mmCloseLostStreams.beforeCloseLostStreamsCounter, 1)
+	defer mm_atomic.AddUint64(&mmCloseLostStreams.afterCloseLostStreamsCounter, 1)
+
+	mmCloseLostStreams.t.Helper()
+
+	if mmCloseLostStreams.inspectFuncCloseLostStreams != nil {
+		mmCloseLostStreams.inspectFuncCloseLostStreams(ctx, t1, d1)
+	}
+
+	mm_params := EventRepositoryMockCloseLostStreamsParams{ctx, t1, d1}
+
+	// Record call args
+	mmCloseLostStreams.CloseLostStreamsMock.mutex.Lock()
+	mmCloseLostStreams.CloseLostStreamsMock.callArgs = append(mmCloseLostStreams.CloseLostStreamsMock.callArgs, &mm_params)
+	mmCloseLostStreams.CloseLostStreamsMock.mutex.Unlock()
+
+	for _, e := range mmCloseLostStreams.CloseLostStreamsMock.expectations {
+		if minimock.Equal(*e.params, mm_params) {
+			mm_atomic.AddUint64(&e.Counter, 1)
+			return e.results.err
+		}
+	}
+
+	if mmCloseLostStreams.CloseLostStreamsMock.defaultExpectation != nil {
+		mm_atomic.AddUint64(&mmCloseLostStreams.CloseLostStreamsMock.defaultExpectation.Counter, 1)
+		mm_want := mmCloseLostStreams.CloseLostStreamsMock.defaultExpectation.params
+		mm_want_ptrs := mmCloseLostStreams.CloseLostStreamsMock.defaultExpectation.paramPtrs
+
+		mm_got := EventRepositoryMockCloseLostStreamsParams{ctx, t1, d1}
+
+		if mm_want_ptrs != nil {
+
+			if mm_want_ptrs.ctx != nil && !minimock.Equal(*mm_want_ptrs.ctx, mm_got.ctx) {
+				mmCloseLostStreams.t.Errorf("EventRepositoryMock.CloseLostStreams got unexpected parameter ctx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmCloseLostStreams.CloseLostStreamsMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
+			}
+
+			if mm_want_ptrs.t1 != nil && !minimock.Equal(*mm_want_ptrs.t1, mm_got.t1) {
+				mmCloseLostStreams.t.Errorf("EventRepositoryMock.CloseLostStreams got unexpected parameter t1, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmCloseLostStreams.CloseLostStreamsMock.defaultExpectation.expectationOrigins.originT1, *mm_want_ptrs.t1, mm_got.t1, minimock.Diff(*mm_want_ptrs.t1, mm_got.t1))
+			}
+
+			if mm_want_ptrs.d1 != nil && !minimock.Equal(*mm_want_ptrs.d1, mm_got.d1) {
+				mmCloseLostStreams.t.Errorf("EventRepositoryMock.CloseLostStreams got unexpected parameter d1, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmCloseLostStreams.CloseLostStreamsMock.defaultExpectation.expectationOrigins.originD1, *mm_want_ptrs.d1, mm_got.d1, minimock.Diff(*mm_want_ptrs.d1, mm_got.d1))
+			}
+
+		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
+			mmCloseLostStreams.t.Errorf("EventRepositoryMock.CloseLostStreams got unexpected parameters, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+				mmCloseLostStreams.CloseLostStreamsMock.defaultExpectation.expectationOrigins.origin, *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
+		}
+
+		mm_results := mmCloseLostStreams.CloseLostStreamsMock.defaultExpectation.results
+		if mm_results == nil {
+			mmCloseLostStreams.t.Fatal("No results are set for the EventRepositoryMock.CloseLostStreams")
+		}
+		return (*mm_results).err
+	}
+	if mmCloseLostStreams.funcCloseLostStreams != nil {
+		return mmCloseLostStreams.funcCloseLostStreams(ctx, t1, d1)
+	}
+	mmCloseLostStreams.t.Fatalf("Unexpected call to EventRepositoryMock.CloseLostStreams. %v %v %v", ctx, t1, d1)
+	return
+}
+
+// CloseLostStreamsAfterCounter returns a count of finished EventRepositoryMock.CloseLostStreams invocations
+func (mmCloseLostStreams *EventRepositoryMock) CloseLostStreamsAfterCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmCloseLostStreams.afterCloseLostStreamsCounter)
+}
+
+// CloseLostStreamsBeforeCounter returns a count of EventRepositoryMock.CloseLostStreams invocations
+func (mmCloseLostStreams *EventRepositoryMock) CloseLostStreamsBeforeCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmCloseLostStreams.beforeCloseLostStreamsCounter)
+}
+
+// Calls returns a list of arguments used in each call to EventRepositoryMock.CloseLostStreams.
+// The list is in the same order as the calls were made (i.e. recent calls have a higher index)
+func (mmCloseLostStreams *mEventRepositoryMockCloseLostStreams) Calls() []*EventRepositoryMockCloseLostStreamsParams {
+	mmCloseLostStreams.mutex.RLock()
+
+	argCopy := make([]*EventRepositoryMockCloseLostStreamsParams, len(mmCloseLostStreams.callArgs))
+	copy(argCopy, mmCloseLostStreams.callArgs)
+
+	mmCloseLostStreams.mutex.RUnlock()
+
+	return argCopy
+}
+
+// MinimockCloseLostStreamsDone returns true if the count of the CloseLostStreams invocations corresponds
+// the number of defined expectations
+func (m *EventRepositoryMock) MinimockCloseLostStreamsDone() bool {
+	if m.CloseLostStreamsMock.optional {
+		// Optional methods provide '0 or more' call count restriction.
+		return true
+	}
+
+	for _, e := range m.CloseLostStreamsMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			return false
+		}
+	}
+
+	return m.CloseLostStreamsMock.invocationsDone()
+}
+
+// MinimockCloseLostStreamsInspect logs each unmet expectation
+func (m *EventRepositoryMock) MinimockCloseLostStreamsInspect() {
+	for _, e := range m.CloseLostStreamsMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			m.t.Errorf("Expected call to EventRepositoryMock.CloseLostStreams at\n%s with params: %#v", e.expectationOrigins.origin, *e.params)
+		}
+	}
+
+	afterCloseLostStreamsCounter := mm_atomic.LoadUint64(&m.afterCloseLostStreamsCounter)
+	// if default expectation was set then invocations count should be greater than zero
+	if m.CloseLostStreamsMock.defaultExpectation != nil && afterCloseLostStreamsCounter < 1 {
+		if m.CloseLostStreamsMock.defaultExpectation.params == nil {
+			m.t.Errorf("Expected call to EventRepositoryMock.CloseLostStreams at\n%s", m.CloseLostStreamsMock.defaultExpectation.returnOrigin)
+		} else {
+			m.t.Errorf("Expected call to EventRepositoryMock.CloseLostStreams at\n%s with params: %#v", m.CloseLostStreamsMock.defaultExpectation.expectationOrigins.origin, *m.CloseLostStreamsMock.defaultExpectation.params)
+		}
+	}
+	// if func was set then invocations count should be greater than zero
+	if m.funcCloseLostStreams != nil && afterCloseLostStreamsCounter < 1 {
+		m.t.Errorf("Expected call to EventRepositoryMock.CloseLostStreams at\n%s", m.funcCloseLostStreamsOrigin)
+	}
+
+	if !m.CloseLostStreamsMock.invocationsDone() && afterCloseLostStreamsCounter > 0 {
+		m.t.Errorf("Expected %d calls to EventRepositoryMock.CloseLostStreams at\n%s but found %d calls",
+			mm_atomic.LoadUint64(&m.CloseLostStreamsMock.expectedInvocations), m.CloseLostStreamsMock.expectedInvocationsOrigin, afterCloseLostStreamsCounter)
+	}
 }
 
 type mEventRepositoryMockStore struct {
@@ -417,11 +811,389 @@ func (m *EventRepositoryMock) MinimockStoreInspect() {
 	}
 }
 
+type mEventRepositoryMockStoreHeartbeat struct {
+	optional           bool
+	mock               *EventRepositoryMock
+	defaultExpectation *EventRepositoryMockStoreHeartbeatExpectation
+	expectations       []*EventRepositoryMockStoreHeartbeatExpectation
+
+	callArgs []*EventRepositoryMockStoreHeartbeatParams
+	mutex    sync.RWMutex
+
+	expectedInvocations       uint64
+	expectedInvocationsOrigin string
+}
+
+// EventRepositoryMockStoreHeartbeatExpectation specifies expectation struct of the EventRepository.StoreHeartbeat
+type EventRepositoryMockStoreHeartbeatExpectation struct {
+	mock               *EventRepositoryMock
+	params             *EventRepositoryMockStoreHeartbeatParams
+	paramPtrs          *EventRepositoryMockStoreHeartbeatParamPtrs
+	expectationOrigins EventRepositoryMockStoreHeartbeatExpectationOrigins
+	results            *EventRepositoryMockStoreHeartbeatResults
+	returnOrigin       string
+	Counter            uint64
+}
+
+// EventRepositoryMockStoreHeartbeatParams contains parameters of the EventRepository.StoreHeartbeat
+type EventRepositoryMockStoreHeartbeatParams struct {
+	ctx context.Context
+	s1  model.StreamHeartbeat
+	d1  model.Delivery
+}
+
+// EventRepositoryMockStoreHeartbeatParamPtrs contains pointers to parameters of the EventRepository.StoreHeartbeat
+type EventRepositoryMockStoreHeartbeatParamPtrs struct {
+	ctx *context.Context
+	s1  *model.StreamHeartbeat
+	d1  *model.Delivery
+}
+
+// EventRepositoryMockStoreHeartbeatResults contains results of the EventRepository.StoreHeartbeat
+type EventRepositoryMockStoreHeartbeatResults struct {
+	i1  model.IngestResult
+	err error
+}
+
+// EventRepositoryMockStoreHeartbeatOrigins contains origins of expectations of the EventRepository.StoreHeartbeat
+type EventRepositoryMockStoreHeartbeatExpectationOrigins struct {
+	origin    string
+	originCtx string
+	originS1  string
+	originD1  string
+}
+
+// Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
+// the test will fail minimock's automatic final call check if the mocked method was not called at least once.
+// Optional() makes method check to work in '0 or more' mode.
+// It is NOT RECOMMENDED to use this option unless you really need it, as default behaviour helps to
+// catch the problems when the expected method call is totally skipped during test run.
+func (mmStoreHeartbeat *mEventRepositoryMockStoreHeartbeat) Optional() *mEventRepositoryMockStoreHeartbeat {
+	mmStoreHeartbeat.optional = true
+	return mmStoreHeartbeat
+}
+
+// Expect sets up expected params for EventRepository.StoreHeartbeat
+func (mmStoreHeartbeat *mEventRepositoryMockStoreHeartbeat) Expect(ctx context.Context, s1 model.StreamHeartbeat, d1 model.Delivery) *mEventRepositoryMockStoreHeartbeat {
+	if mmStoreHeartbeat.mock.funcStoreHeartbeat != nil {
+		mmStoreHeartbeat.mock.t.Fatalf("EventRepositoryMock.StoreHeartbeat mock is already set by Set")
+	}
+
+	if mmStoreHeartbeat.defaultExpectation == nil {
+		mmStoreHeartbeat.defaultExpectation = &EventRepositoryMockStoreHeartbeatExpectation{}
+	}
+
+	if mmStoreHeartbeat.defaultExpectation.paramPtrs != nil {
+		mmStoreHeartbeat.mock.t.Fatalf("EventRepositoryMock.StoreHeartbeat mock is already set by ExpectParams functions")
+	}
+
+	mmStoreHeartbeat.defaultExpectation.params = &EventRepositoryMockStoreHeartbeatParams{ctx, s1, d1}
+	mmStoreHeartbeat.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
+	for _, e := range mmStoreHeartbeat.expectations {
+		if minimock.Equal(e.params, mmStoreHeartbeat.defaultExpectation.params) {
+			mmStoreHeartbeat.mock.t.Fatalf("Expectation set by When has same params: %#v", *mmStoreHeartbeat.defaultExpectation.params)
+		}
+	}
+
+	return mmStoreHeartbeat
+}
+
+// ExpectCtxParam1 sets up expected param ctx for EventRepository.StoreHeartbeat
+func (mmStoreHeartbeat *mEventRepositoryMockStoreHeartbeat) ExpectCtxParam1(ctx context.Context) *mEventRepositoryMockStoreHeartbeat {
+	if mmStoreHeartbeat.mock.funcStoreHeartbeat != nil {
+		mmStoreHeartbeat.mock.t.Fatalf("EventRepositoryMock.StoreHeartbeat mock is already set by Set")
+	}
+
+	if mmStoreHeartbeat.defaultExpectation == nil {
+		mmStoreHeartbeat.defaultExpectation = &EventRepositoryMockStoreHeartbeatExpectation{}
+	}
+
+	if mmStoreHeartbeat.defaultExpectation.params != nil {
+		mmStoreHeartbeat.mock.t.Fatalf("EventRepositoryMock.StoreHeartbeat mock is already set by Expect")
+	}
+
+	if mmStoreHeartbeat.defaultExpectation.paramPtrs == nil {
+		mmStoreHeartbeat.defaultExpectation.paramPtrs = &EventRepositoryMockStoreHeartbeatParamPtrs{}
+	}
+	mmStoreHeartbeat.defaultExpectation.paramPtrs.ctx = &ctx
+	mmStoreHeartbeat.defaultExpectation.expectationOrigins.originCtx = minimock.CallerInfo(1)
+
+	return mmStoreHeartbeat
+}
+
+// ExpectS1Param2 sets up expected param s1 for EventRepository.StoreHeartbeat
+func (mmStoreHeartbeat *mEventRepositoryMockStoreHeartbeat) ExpectS1Param2(s1 model.StreamHeartbeat) *mEventRepositoryMockStoreHeartbeat {
+	if mmStoreHeartbeat.mock.funcStoreHeartbeat != nil {
+		mmStoreHeartbeat.mock.t.Fatalf("EventRepositoryMock.StoreHeartbeat mock is already set by Set")
+	}
+
+	if mmStoreHeartbeat.defaultExpectation == nil {
+		mmStoreHeartbeat.defaultExpectation = &EventRepositoryMockStoreHeartbeatExpectation{}
+	}
+
+	if mmStoreHeartbeat.defaultExpectation.params != nil {
+		mmStoreHeartbeat.mock.t.Fatalf("EventRepositoryMock.StoreHeartbeat mock is already set by Expect")
+	}
+
+	if mmStoreHeartbeat.defaultExpectation.paramPtrs == nil {
+		mmStoreHeartbeat.defaultExpectation.paramPtrs = &EventRepositoryMockStoreHeartbeatParamPtrs{}
+	}
+	mmStoreHeartbeat.defaultExpectation.paramPtrs.s1 = &s1
+	mmStoreHeartbeat.defaultExpectation.expectationOrigins.originS1 = minimock.CallerInfo(1)
+
+	return mmStoreHeartbeat
+}
+
+// ExpectD1Param3 sets up expected param d1 for EventRepository.StoreHeartbeat
+func (mmStoreHeartbeat *mEventRepositoryMockStoreHeartbeat) ExpectD1Param3(d1 model.Delivery) *mEventRepositoryMockStoreHeartbeat {
+	if mmStoreHeartbeat.mock.funcStoreHeartbeat != nil {
+		mmStoreHeartbeat.mock.t.Fatalf("EventRepositoryMock.StoreHeartbeat mock is already set by Set")
+	}
+
+	if mmStoreHeartbeat.defaultExpectation == nil {
+		mmStoreHeartbeat.defaultExpectation = &EventRepositoryMockStoreHeartbeatExpectation{}
+	}
+
+	if mmStoreHeartbeat.defaultExpectation.params != nil {
+		mmStoreHeartbeat.mock.t.Fatalf("EventRepositoryMock.StoreHeartbeat mock is already set by Expect")
+	}
+
+	if mmStoreHeartbeat.defaultExpectation.paramPtrs == nil {
+		mmStoreHeartbeat.defaultExpectation.paramPtrs = &EventRepositoryMockStoreHeartbeatParamPtrs{}
+	}
+	mmStoreHeartbeat.defaultExpectation.paramPtrs.d1 = &d1
+	mmStoreHeartbeat.defaultExpectation.expectationOrigins.originD1 = minimock.CallerInfo(1)
+
+	return mmStoreHeartbeat
+}
+
+// Inspect accepts an inspector function that has same arguments as the EventRepository.StoreHeartbeat
+func (mmStoreHeartbeat *mEventRepositoryMockStoreHeartbeat) Inspect(f func(ctx context.Context, s1 model.StreamHeartbeat, d1 model.Delivery)) *mEventRepositoryMockStoreHeartbeat {
+	if mmStoreHeartbeat.mock.inspectFuncStoreHeartbeat != nil {
+		mmStoreHeartbeat.mock.t.Fatalf("Inspect function is already set for EventRepositoryMock.StoreHeartbeat")
+	}
+
+	mmStoreHeartbeat.mock.inspectFuncStoreHeartbeat = f
+
+	return mmStoreHeartbeat
+}
+
+// Return sets up results that will be returned by EventRepository.StoreHeartbeat
+func (mmStoreHeartbeat *mEventRepositoryMockStoreHeartbeat) Return(i1 model.IngestResult, err error) *EventRepositoryMock {
+	if mmStoreHeartbeat.mock.funcStoreHeartbeat != nil {
+		mmStoreHeartbeat.mock.t.Fatalf("EventRepositoryMock.StoreHeartbeat mock is already set by Set")
+	}
+
+	if mmStoreHeartbeat.defaultExpectation == nil {
+		mmStoreHeartbeat.defaultExpectation = &EventRepositoryMockStoreHeartbeatExpectation{mock: mmStoreHeartbeat.mock}
+	}
+	mmStoreHeartbeat.defaultExpectation.results = &EventRepositoryMockStoreHeartbeatResults{i1, err}
+	mmStoreHeartbeat.defaultExpectation.returnOrigin = minimock.CallerInfo(1)
+	return mmStoreHeartbeat.mock
+}
+
+// Set uses given function f to mock the EventRepository.StoreHeartbeat method
+func (mmStoreHeartbeat *mEventRepositoryMockStoreHeartbeat) Set(f func(ctx context.Context, s1 model.StreamHeartbeat, d1 model.Delivery) (i1 model.IngestResult, err error)) *EventRepositoryMock {
+	if mmStoreHeartbeat.defaultExpectation != nil {
+		mmStoreHeartbeat.mock.t.Fatalf("Default expectation is already set for the EventRepository.StoreHeartbeat method")
+	}
+
+	if len(mmStoreHeartbeat.expectations) > 0 {
+		mmStoreHeartbeat.mock.t.Fatalf("Some expectations are already set for the EventRepository.StoreHeartbeat method")
+	}
+
+	mmStoreHeartbeat.mock.funcStoreHeartbeat = f
+	mmStoreHeartbeat.mock.funcStoreHeartbeatOrigin = minimock.CallerInfo(1)
+	return mmStoreHeartbeat.mock
+}
+
+// When sets expectation for the EventRepository.StoreHeartbeat which will trigger the result defined by the following
+// Then helper
+func (mmStoreHeartbeat *mEventRepositoryMockStoreHeartbeat) When(ctx context.Context, s1 model.StreamHeartbeat, d1 model.Delivery) *EventRepositoryMockStoreHeartbeatExpectation {
+	if mmStoreHeartbeat.mock.funcStoreHeartbeat != nil {
+		mmStoreHeartbeat.mock.t.Fatalf("EventRepositoryMock.StoreHeartbeat mock is already set by Set")
+	}
+
+	expectation := &EventRepositoryMockStoreHeartbeatExpectation{
+		mock:               mmStoreHeartbeat.mock,
+		params:             &EventRepositoryMockStoreHeartbeatParams{ctx, s1, d1},
+		expectationOrigins: EventRepositoryMockStoreHeartbeatExpectationOrigins{origin: minimock.CallerInfo(1)},
+	}
+	mmStoreHeartbeat.expectations = append(mmStoreHeartbeat.expectations, expectation)
+	return expectation
+}
+
+// Then sets up EventRepository.StoreHeartbeat return parameters for the expectation previously defined by the When method
+func (e *EventRepositoryMockStoreHeartbeatExpectation) Then(i1 model.IngestResult, err error) *EventRepositoryMock {
+	e.results = &EventRepositoryMockStoreHeartbeatResults{i1, err}
+	return e.mock
+}
+
+// Times sets number of times EventRepository.StoreHeartbeat should be invoked
+func (mmStoreHeartbeat *mEventRepositoryMockStoreHeartbeat) Times(n uint64) *mEventRepositoryMockStoreHeartbeat {
+	if n == 0 {
+		mmStoreHeartbeat.mock.t.Fatalf("Times of EventRepositoryMock.StoreHeartbeat mock can not be zero")
+	}
+	mm_atomic.StoreUint64(&mmStoreHeartbeat.expectedInvocations, n)
+	mmStoreHeartbeat.expectedInvocationsOrigin = minimock.CallerInfo(1)
+	return mmStoreHeartbeat
+}
+
+func (mmStoreHeartbeat *mEventRepositoryMockStoreHeartbeat) invocationsDone() bool {
+	if len(mmStoreHeartbeat.expectations) == 0 && mmStoreHeartbeat.defaultExpectation == nil && mmStoreHeartbeat.mock.funcStoreHeartbeat == nil {
+		return true
+	}
+
+	totalInvocations := mm_atomic.LoadUint64(&mmStoreHeartbeat.mock.afterStoreHeartbeatCounter)
+	expectedInvocations := mm_atomic.LoadUint64(&mmStoreHeartbeat.expectedInvocations)
+
+	return totalInvocations > 0 && (expectedInvocations == 0 || expectedInvocations == totalInvocations)
+}
+
+// StoreHeartbeat implements mm_repository.EventRepository
+func (mmStoreHeartbeat *EventRepositoryMock) StoreHeartbeat(ctx context.Context, s1 model.StreamHeartbeat, d1 model.Delivery) (i1 model.IngestResult, err error) {
+	mm_atomic.AddUint64(&mmStoreHeartbeat.beforeStoreHeartbeatCounter, 1)
+	defer mm_atomic.AddUint64(&mmStoreHeartbeat.afterStoreHeartbeatCounter, 1)
+
+	mmStoreHeartbeat.t.Helper()
+
+	if mmStoreHeartbeat.inspectFuncStoreHeartbeat != nil {
+		mmStoreHeartbeat.inspectFuncStoreHeartbeat(ctx, s1, d1)
+	}
+
+	mm_params := EventRepositoryMockStoreHeartbeatParams{ctx, s1, d1}
+
+	// Record call args
+	mmStoreHeartbeat.StoreHeartbeatMock.mutex.Lock()
+	mmStoreHeartbeat.StoreHeartbeatMock.callArgs = append(mmStoreHeartbeat.StoreHeartbeatMock.callArgs, &mm_params)
+	mmStoreHeartbeat.StoreHeartbeatMock.mutex.Unlock()
+
+	for _, e := range mmStoreHeartbeat.StoreHeartbeatMock.expectations {
+		if minimock.Equal(*e.params, mm_params) {
+			mm_atomic.AddUint64(&e.Counter, 1)
+			return e.results.i1, e.results.err
+		}
+	}
+
+	if mmStoreHeartbeat.StoreHeartbeatMock.defaultExpectation != nil {
+		mm_atomic.AddUint64(&mmStoreHeartbeat.StoreHeartbeatMock.defaultExpectation.Counter, 1)
+		mm_want := mmStoreHeartbeat.StoreHeartbeatMock.defaultExpectation.params
+		mm_want_ptrs := mmStoreHeartbeat.StoreHeartbeatMock.defaultExpectation.paramPtrs
+
+		mm_got := EventRepositoryMockStoreHeartbeatParams{ctx, s1, d1}
+
+		if mm_want_ptrs != nil {
+
+			if mm_want_ptrs.ctx != nil && !minimock.Equal(*mm_want_ptrs.ctx, mm_got.ctx) {
+				mmStoreHeartbeat.t.Errorf("EventRepositoryMock.StoreHeartbeat got unexpected parameter ctx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmStoreHeartbeat.StoreHeartbeatMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
+			}
+
+			if mm_want_ptrs.s1 != nil && !minimock.Equal(*mm_want_ptrs.s1, mm_got.s1) {
+				mmStoreHeartbeat.t.Errorf("EventRepositoryMock.StoreHeartbeat got unexpected parameter s1, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmStoreHeartbeat.StoreHeartbeatMock.defaultExpectation.expectationOrigins.originS1, *mm_want_ptrs.s1, mm_got.s1, minimock.Diff(*mm_want_ptrs.s1, mm_got.s1))
+			}
+
+			if mm_want_ptrs.d1 != nil && !minimock.Equal(*mm_want_ptrs.d1, mm_got.d1) {
+				mmStoreHeartbeat.t.Errorf("EventRepositoryMock.StoreHeartbeat got unexpected parameter d1, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmStoreHeartbeat.StoreHeartbeatMock.defaultExpectation.expectationOrigins.originD1, *mm_want_ptrs.d1, mm_got.d1, minimock.Diff(*mm_want_ptrs.d1, mm_got.d1))
+			}
+
+		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
+			mmStoreHeartbeat.t.Errorf("EventRepositoryMock.StoreHeartbeat got unexpected parameters, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+				mmStoreHeartbeat.StoreHeartbeatMock.defaultExpectation.expectationOrigins.origin, *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
+		}
+
+		mm_results := mmStoreHeartbeat.StoreHeartbeatMock.defaultExpectation.results
+		if mm_results == nil {
+			mmStoreHeartbeat.t.Fatal("No results are set for the EventRepositoryMock.StoreHeartbeat")
+		}
+		return (*mm_results).i1, (*mm_results).err
+	}
+	if mmStoreHeartbeat.funcStoreHeartbeat != nil {
+		return mmStoreHeartbeat.funcStoreHeartbeat(ctx, s1, d1)
+	}
+	mmStoreHeartbeat.t.Fatalf("Unexpected call to EventRepositoryMock.StoreHeartbeat. %v %v %v", ctx, s1, d1)
+	return
+}
+
+// StoreHeartbeatAfterCounter returns a count of finished EventRepositoryMock.StoreHeartbeat invocations
+func (mmStoreHeartbeat *EventRepositoryMock) StoreHeartbeatAfterCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmStoreHeartbeat.afterStoreHeartbeatCounter)
+}
+
+// StoreHeartbeatBeforeCounter returns a count of EventRepositoryMock.StoreHeartbeat invocations
+func (mmStoreHeartbeat *EventRepositoryMock) StoreHeartbeatBeforeCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmStoreHeartbeat.beforeStoreHeartbeatCounter)
+}
+
+// Calls returns a list of arguments used in each call to EventRepositoryMock.StoreHeartbeat.
+// The list is in the same order as the calls were made (i.e. recent calls have a higher index)
+func (mmStoreHeartbeat *mEventRepositoryMockStoreHeartbeat) Calls() []*EventRepositoryMockStoreHeartbeatParams {
+	mmStoreHeartbeat.mutex.RLock()
+
+	argCopy := make([]*EventRepositoryMockStoreHeartbeatParams, len(mmStoreHeartbeat.callArgs))
+	copy(argCopy, mmStoreHeartbeat.callArgs)
+
+	mmStoreHeartbeat.mutex.RUnlock()
+
+	return argCopy
+}
+
+// MinimockStoreHeartbeatDone returns true if the count of the StoreHeartbeat invocations corresponds
+// the number of defined expectations
+func (m *EventRepositoryMock) MinimockStoreHeartbeatDone() bool {
+	if m.StoreHeartbeatMock.optional {
+		// Optional methods provide '0 or more' call count restriction.
+		return true
+	}
+
+	for _, e := range m.StoreHeartbeatMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			return false
+		}
+	}
+
+	return m.StoreHeartbeatMock.invocationsDone()
+}
+
+// MinimockStoreHeartbeatInspect logs each unmet expectation
+func (m *EventRepositoryMock) MinimockStoreHeartbeatInspect() {
+	for _, e := range m.StoreHeartbeatMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			m.t.Errorf("Expected call to EventRepositoryMock.StoreHeartbeat at\n%s with params: %#v", e.expectationOrigins.origin, *e.params)
+		}
+	}
+
+	afterStoreHeartbeatCounter := mm_atomic.LoadUint64(&m.afterStoreHeartbeatCounter)
+	// if default expectation was set then invocations count should be greater than zero
+	if m.StoreHeartbeatMock.defaultExpectation != nil && afterStoreHeartbeatCounter < 1 {
+		if m.StoreHeartbeatMock.defaultExpectation.params == nil {
+			m.t.Errorf("Expected call to EventRepositoryMock.StoreHeartbeat at\n%s", m.StoreHeartbeatMock.defaultExpectation.returnOrigin)
+		} else {
+			m.t.Errorf("Expected call to EventRepositoryMock.StoreHeartbeat at\n%s with params: %#v", m.StoreHeartbeatMock.defaultExpectation.expectationOrigins.origin, *m.StoreHeartbeatMock.defaultExpectation.params)
+		}
+	}
+	// if func was set then invocations count should be greater than zero
+	if m.funcStoreHeartbeat != nil && afterStoreHeartbeatCounter < 1 {
+		m.t.Errorf("Expected call to EventRepositoryMock.StoreHeartbeat at\n%s", m.funcStoreHeartbeatOrigin)
+	}
+
+	if !m.StoreHeartbeatMock.invocationsDone() && afterStoreHeartbeatCounter > 0 {
+		m.t.Errorf("Expected %d calls to EventRepositoryMock.StoreHeartbeat at\n%s but found %d calls",
+			mm_atomic.LoadUint64(&m.StoreHeartbeatMock.expectedInvocations), m.StoreHeartbeatMock.expectedInvocationsOrigin, afterStoreHeartbeatCounter)
+	}
+}
+
 // MinimockFinish checks that all mocked methods have been called the expected number of times
 func (m *EventRepositoryMock) MinimockFinish() {
 	m.finishOnce.Do(func() {
 		if !m.minimockDone() {
+			m.MinimockCloseLostStreamsInspect()
+
 			m.MinimockStoreInspect()
+
+			m.MinimockStoreHeartbeatInspect()
 		}
 	})
 }
@@ -445,5 +1217,7 @@ func (m *EventRepositoryMock) MinimockWait(timeout mm_time.Duration) {
 func (m *EventRepositoryMock) minimockDone() bool {
 	done := true
 	return done &&
-		m.MinimockStoreDone()
+		m.MinimockCloseLostStreamsDone() &&
+		m.MinimockStoreDone() &&
+		m.MinimockStoreHeartbeatDone()
 }

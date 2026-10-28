@@ -19,6 +19,7 @@ const (
 )
 
 type Config struct {
+	MaxHistoryLag    time.Duration
 	FallbackReason   string
 	Interval         time.Duration
 	KeepPlans        int
@@ -67,6 +68,9 @@ func newService(
 	now func() time.Time,
 	newID func() string,
 ) *plannerService {
+	if cfg.MaxHistoryLag <= 0 {
+		cfg.MaxHistoryLag = 60 * time.Second
+	}
 	return &plannerService{
 		cfg: cfg, plans: plans, history: history, actions: actions, tx: tx, placements: placements,
 		migrations: migrations, features: features, predictor: predictor,

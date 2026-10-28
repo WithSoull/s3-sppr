@@ -102,12 +102,20 @@ func (d *cycleDeps) world(coverage model.Coverage) {
 	for _, k := range []string{"popular", "pinned", "busy", "recent"} {
 		reads = append(reads, hot("v-"+k, k)...)
 	}
-	d.history.ReadsSinceMock.Expect(minimock.AnyContext, cycleNow.Add(-24*time.Hour)).Return(reads, nil)
+	if coverage.Known && cycleNow.Sub(coverage.Watermark) <= time.Minute {
+		d.history.ReadsSinceMock.Expect(minimock.AnyContext, coverage.Watermark.Add(-24*time.Hour), coverage.Watermark).Return(reads, nil)
+	} else {
+		d.placements.ListStorageClassesMock.Optional()
+		d.migrations.GetSettingsMock.Optional()
+		d.migrations.GetBudgetMock.Optional()
+		d.migrations.ListPinsMock.Optional()
+		d.actions.ListActiveMock.Optional()
+	}
 	d.history.CoverageMock.Return(coverage, nil)
 }
 
 func TestPlanCycle(t *testing.T) {
-	known := model.Coverage{Known: true, Start: cycleNow.Add(-72 * time.Hour), Watermark: cycleNow.Add(-time.Minute)}
+	known := model.Coverage{Known: true, Start: cycleNow.Add(-72 * time.Hour), Watermark: cycleNow}
 
 	t.Run("snapshot becomes a ready plan with blockers and pending work counted", func(t *testing.T) {
 		mc := minimock.NewController(t)
@@ -173,4 +181,33 @@ func TestPlanCycle(t *testing.T) {
 		require.Equal(t, model.PlanFailed, plan.Status)
 		require.Contains(t, plan.Reason, "Metadata unavailable")
 	})
+}
+
+func TestPlanHistoryLag(t *testing.T) {
+	for _, tt := range []struct {
+		name   string
+		lag    time.Duration
+		status model.PlanStatus
+	}{{"calculates at W", 30 * time.Second, model.PlanReady}, {"threshold is inclusive", 60 * time.Second, model.PlanReady}, {"stale history stops planning", 61 * time.Second, model.PlanHistoryIncomplete}} {
+		t.Run(tt.name, func(t *testing.T) {
+			mc := minimock.NewController(t)
+			d := newCycleDeps(mc)
+			w := cycleNow.Add(-tt.lag)
+			d.world(model.Coverage{Known: true, Start: cycleNow.Add(-72 * time.Hour), Watermark: w})
+			p, err := d.service().Plan(context.Background(), model.TriggerManual)
+			require.NoError(t, err)
+			require.Equal(t, tt.status, p.Status)
+			if tt.status == model.PlanHistoryIncomplete {
+				require.Contains(t, p.Reason, "история отстаёт: 1m1s")
+				require.Empty(t, d.recs)
+			} else if tt.lag == 30*time.Second {
+				for _, r := range d.recs {
+					if r.VersionID == "v-popular" {
+						require.NotNil(t, r.Explanation.Forecast.LastReadSeconds)
+						require.Equal(t, 30.0, *r.Explanation.Forecast.LastReadSeconds)
+					}
+				}
+			}
+		})
+	}
 }

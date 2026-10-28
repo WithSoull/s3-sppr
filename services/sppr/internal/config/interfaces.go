@@ -54,6 +54,7 @@ type ObjectWrittenConsumerConfig interface {
 }
 
 type RetryConfig interface {
+	StreamLostAfter() time.Duration
 	Interval() time.Duration
 }
 
@@ -75,6 +76,7 @@ type MigrationConfig interface {
 }
 
 type PlannerConfig interface {
+	MaxHistoryLag() time.Duration
 	Predictor() string
 	ModelDir() string
 	Enabled() bool
