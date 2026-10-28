@@ -42,11 +42,16 @@ def train(args: argparse.Namespace) -> None:
     compared = evaluate.compare(hurdle, train_rows, validation)
     difference = evaluate.versus_best_baseline(hurdle, train_rows, validation, compared)
     scores = _clean(evaluate.as_dict(compared))
-    manifest = export.write(Path(args.out), hurdle, train_rows, validation, scores, trials)
+    if hurdle.regressor is None:
+        # Evaluated, but not a model the planner can load: see model.py.
+        Path(args.out).mkdir(parents=True, exist_ok=False)
+        version = "not exported: no repeated read in train, N̂ = p"
+    else:
+        version = export.write(Path(args.out), hurdle, train_rows, validation, scores, trials)["model_version"]
     peak_mib = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / (1 << 20 if sys.platform == "darwin" else 1 << 10)
     report = {
         "source": source,
-        "model_version": manifest["model_version"],
+        "model_version": version,
         "train_every": args.train_every,
         "labels": {"train": evaluate.label_summary(train_rows), "validation": evaluate.label_summary(validation)},
         "scores": scores,
@@ -60,7 +65,7 @@ def train(args: argparse.Namespace) -> None:
     with open(Path(args.out) / "report.json", "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2, allow_nan=False)
         f.write("\n")
-    print(f"{source}: {manifest['model_version']} in {report['seconds']:.0f} s, peak {peak_mib:.0f} MiB")
+    print(f"{source}: {version} in {report['seconds']:.0f} s, peak {peak_mib:.0f} MiB")
 
 
 def report(args: argparse.Namespace) -> None:

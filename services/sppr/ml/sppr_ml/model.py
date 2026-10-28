@@ -2,6 +2,11 @@
 
 p = P(N >= 1) from a `binary` classifier on every row; the `poisson` regressor
 learns y = N - 1 on rows with N >= 1, so m = 1 + ŷ and N̂ = p · m.
+
+When train has no repeated read within the horizon (every positive label is 1,
+as in IBM COS 001), y is all zero: LightGBM cannot fit a Poisson model to it and
+the right estimate is ŷ = 0. The regressor is then left out (m = 1, N̂ = p);
+such a model is evaluated but not exported, since the Go contract needs both.
 """
 
 from __future__ import annotations
@@ -44,21 +49,24 @@ class Forecast:
 @dataclass
 class Hurdle:
     classifier: lgb.Booster
-    regressor: lgb.Booster
+    regressor: lgb.Booster | None
     params: dict
     rounds: dict = field(default_factory=dict)
 
     def predict(self, x: np.ndarray) -> Forecast:
-        return Forecast(self.classifier.predict(x), self.regressor.predict(x))
+        excess = np.zeros(len(x)) if self.regressor is None else self.regressor.predict(x)
+        return Forecast(self.classifier.predict(x), excess)
 
     def contributions(self, x: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
         """Per-feature contributions in raw space (logit of p, log of ŷ); the last column is the bias."""
+        if self.regressor is None:
+            raise ValueError("no regressor: train had no repeated read, ŷ = 0")
         return self.classifier.predict(x, pred_contrib=True), self.regressor.predict(x, pred_contrib=True)
 
 
 def _rounds(params: dict, objective: str, x: np.ndarray, y: np.ndarray, tail: np.ndarray) -> int:
     """Number of trees that early stopping on the last hours of train keeps."""
-    if tail.sum() == 0 or (~tail).sum() == 0:
+    if tail.sum() == 0 or (~tail).sum() == 0 or (objective == "poisson" and y[~tail].sum() == 0):
         return 100
     full = {**BASE_PARAMS, **params, "objective": objective}
     booster = lgb.train(
@@ -86,10 +94,13 @@ def fit(train: Slices, params: dict) -> Hurdle:
         raise ValueError("no positive rows in train: the regressor cannot be fitted")
 
     cls_rounds = _rounds(params, "binary", x, has_read, tail)
-    reg_rounds = _rounds(params, "poisson", x[positive], reads[positive] - 1, tail[positive])
     classifier = lgb.train({**BASE_PARAMS, **params, "objective": "binary"},
                            lgb.Dataset(x, label=has_read, feature_name=FEATURES), num_boost_round=cls_rounds)
+    excess = reads[positive] - 1
+    if excess.sum() == 0:
+        return Hurdle(classifier, None, params, {"classifier": cls_rounds, "regressor": 0})
+    reg_rounds = _rounds(params, "poisson", x[positive], excess, tail[positive])
     regressor = lgb.train({**BASE_PARAMS, **params, "objective": "poisson"},
-                          lgb.Dataset(x[positive], label=reads[positive] - 1, feature_name=FEATURES),
+                          lgb.Dataset(x[positive], label=excess, feature_name=FEATURES),
                           num_boost_round=reg_rounds)
     return Hurdle(classifier, regressor, params, {"classifier": cls_rounds, "regressor": reg_rounds})

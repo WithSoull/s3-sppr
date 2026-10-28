@@ -94,3 +94,15 @@ def test_test_split_is_locked_by_default():
     rows = synthetic()
     with pytest.raises(data.TestSplitLocked):
         data.require_test(rows)
+
+
+def test_no_repeated_read_leaves_out_the_regressor(tmp_path):
+    rows = synthetic()
+    rows.reads = np.minimum(rows.reads, 1.0)
+    hurdle = model.fit(rows.of("train"), PARAMS)
+    assert hurdle.regressor is None and hurdle.rounds["regressor"] == 0
+    f = hurdle.predict(rows.of("validation").x)
+    np.testing.assert_array_equal(f.expected, f.p)
+    with pytest.raises(ValueError, match="repeated read"):
+        export.write(tmp_path / "m", hurdle, rows.of("train"), rows.of("validation"), {}, [])
+    assert not (tmp_path / "m").exists()

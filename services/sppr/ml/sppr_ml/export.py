@@ -97,6 +97,8 @@ def _matrix(controls: list[dict]) -> np.ndarray:
 
 
 def write(out: Path, hurdle: Hurdle, train: Slices, validation: Slices, scores: dict, trials: list) -> dict:
+    if hurdle.regressor is None:
+        raise ValueError("no regressor (train had no repeated read): the Go contract needs both models")
     out.mkdir(parents=True, exist_ok=False)
     hurdle.classifier.save_model(out / "classifier.txt")
     hurdle.regressor.save_model(out / "regressor.txt")
