@@ -12,7 +12,7 @@ import (
 type plannerEnvConfig struct {
 	MaxHistoryLag     time.Duration `env:"PLANNER_MAX_HISTORY_LAG" envDefault:"60s"`
 	Predictor         string        `env:"PLANNER_PREDICTOR" envDefault:"ewma"`
-	ModelRegistry     string        `env:"PLANNER_MODEL_REGISTRY" envDefault:"/models/registry"`
+	ModelRegistry     string        `env:"PLANNER_MODEL_REGISTRY" envDefault:"/var/lib/sppr/models"`
 	ModelMaxAge       time.Duration `env:"PLANNER_MODEL_MAX_AGE" envDefault:"72h"`
 	ModelUpdateEvery  time.Duration `env:"PLANNER_MODEL_UPDATE_EVERY" envDefault:"24h"`
 	ModelMinHistory   time.Duration `env:"PLANNER_MODEL_MIN_HISTORY" envDefault:"26h"`

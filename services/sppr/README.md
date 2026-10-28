@@ -525,7 +525,7 @@ Planner использует EWMA; очередное обучение берё�
 только активная запись; прерванные `candidate` получают `training_interrupted`.
 
 Compose сохраняет реестр в именованном томе `sppr-model-registry`
-(`/models/registry`, запись), а `./build/models:/models:ro` используется для
+(`/var/lib/sppr/models`, запись), а `./build/models:/models:ro` используется для
 импорта. Финальный образ содержит Python 3.12, `sppr_ml`, закреплённые зависимости
 и `libgomp`; квота процесса вместе с обучением — 2 CPU / 2 GiB,
 `num_threads=2`. Измерение фактического пика памяти этим ограничением не заменяется.
@@ -649,7 +649,7 @@ shell или корневого `.env`; `services/sppr/.env.example` описы�
 | `PLANNER_ENABLED` | `false`; цикл планирования и `/api/planner`. Требует `MIGRATION_ENABLED=true` |
 | `PLANNER_INTERVAL`, `PLANNER_KEEP_PLANS`, `PLANNER_MAX_REJECTED` | `300s`, `200`, `1000` |
 | `PLANNER_PREDICTOR`, `PLANNER_MODEL_DIR` | legacy `ewma|lgbm`; пустой путь bootstrap по умолчанию, импорт только в пустой журнал |
-| `PLANNER_MODEL_REGISTRY` | `/models/registry`; writable каталог, Compose использует постоянный именованный том |
+| `PLANNER_MODEL_REGISTRY` | `/var/lib/sppr/models`; writable каталог, Compose использует постоянный именованный том |
 | `PLANNER_MODEL_MAX_AGE`, `PLANNER_MODEL_UPDATE_EVERY` | `72h`, `24h`; возраст от конца меток и период попыток |
 | `PLANNER_MODEL_MIN_HISTORY`, `PLANNER_MODEL_TRAIN_WINDOW` | `26h`, `168h`; полная история и окно срезов |
 | `PLANNER_MODEL_TRAIN_TIMEOUT` | `30m`; подготовка + subprocess + проверка |

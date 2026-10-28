@@ -20,6 +20,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates
 COPY services/sppr/ml/requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
 COPY services/sppr/ml/sppr_ml /opt/sppr-ml/sppr_ml
+# Outside /models: Compose mounts that read-only, so a volume cannot nest in it.
+RUN mkdir -p /var/lib/sppr/models && chown sppr:sppr /var/lib/sppr/models
 ENV PYTHONPATH=/opt/sppr-ml PYTHONDONTWRITEBYTECODE=1 OMP_NUM_THREADS=2
 USER sppr
 WORKDIR /app

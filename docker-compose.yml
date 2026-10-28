@@ -95,7 +95,7 @@ services:
       PLANNER_HORIZON: "${PLANNER_HORIZON:-1h}"
       PLANNER_PREDICTOR: "${PLANNER_PREDICTOR:-ewma}"
       PLANNER_MODEL_DIR: "${PLANNER_MODEL_DIR:-}"
-      PLANNER_MODEL_REGISTRY: /models/registry
+      PLANNER_MODEL_REGISTRY: /var/lib/sppr/models
       PLANNER_MODEL_MAX_AGE: "${PLANNER_MODEL_MAX_AGE:-72h}"
       PLANNER_MODEL_UPDATE_EVERY: "${PLANNER_MODEL_UPDATE_EVERY:-24h}"
       PLANNER_MODEL_MIN_HISTORY: "${PLANNER_MODEL_MIN_HISTORY:-26h}"
@@ -110,7 +110,7 @@ services:
       STORAGE_COLD_GRPC_ADDR: storage-cold:50053
     volumes:
       - ./build/models:/models:ro
-      - sppr-model-registry:/models/registry
+      - sppr-model-registry:/var/lib/sppr/models
     cpus: 2
     mem_limit: 2g
     # Keep the administrator interface on loopback for the local stand.
