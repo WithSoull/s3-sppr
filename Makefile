@@ -158,7 +158,7 @@ generate-quota-py:
 test-users:
 	go test ./services/users/... -count=1
 
-.PHONY: ml-sppr-venv ml-sppr-data ml-sppr-train ml-sppr-train-all ml-sppr-report ml-sppr-notebook test-sppr-ml test-sppr test-sppr-integration up-sppr up-sppr-gateway up-sppr-migration up-sppr-planner smoke-sppr smoke-sppr-local require-gateway-access-producer demo-sppr-data dataset-sppr
+.PHONY: ml-sppr-venv ml-sppr-data ml-sppr-traces ml-sppr-train ml-sppr-train-all ml-sppr-report ml-sppr-notebook test-sppr-ml test-sppr test-sppr-integration up-sppr up-sppr-gateway up-sppr-migration up-sppr-planner smoke-sppr smoke-sppr-local require-gateway-access-producer demo-sppr-data dataset-sppr
 SPPR_DATA_CONFIG ?= services/sppr/examples/data/small.json
 SPPR_DATA_OUT ?= build/sppr-data
 SPPR_SCENARIO ?= stable
@@ -184,6 +184,15 @@ ml-sppr-data:
 	for s in stable decay periodic burst shift uniform; do \
 		test -d build/ml-medium/$$s-0 || go run ./services/sppr/cmd/dataset -config services/sppr/examples/data/medium.json -scenario $$s -seed 0 -out build/ml-medium/$$s-0 >/dev/null || exit 1; \
 	done
+
+# Real traces with parameters fixed in the script; inputs stay outside the repo.
+SPPR_TRACE_DOWNLOADS ?= $(HOME)/home/98_Downloads
+SPPR_META_TRACE ?= build/traces/meta/reag0c01_20230315_20230322_0.2000.csv.zst
+ml-sppr-traces:
+	mkdir -p build/bin
+	go build -o build/bin/trace-convert ./services/sppr/cmd/trace-convert
+	go build -o build/bin/dataset ./services/sppr/cmd/dataset
+	$(SPPR_ML_PY) $(SPPR_ML)/scripts/trace_datasets.py --downloads "$(SPPR_TRACE_DOWNLOADS)" --meta "$(SPPR_META_TRACE)"
 
 ml-sppr-train:
 	PYTHONPATH=$(SPPR_ML) $(SPPR_ML_PY) -m sppr_ml train --data $(SPPR_ML_DATA) --out $(SPPR_ML_OUT)
