@@ -117,3 +117,13 @@ type HistoryRepository interface {
 	// Coverage reports what the Ingestor knows about the completeness of history.
 	Coverage(ctx context.Context, since time.Time) (model.Coverage, error)
 }
+
+// ModelVersionRepository keeps attempts and changes the single active row atomically.
+type ModelVersionRepository interface {
+	Rename(ctx context.Context, old, version string) error
+	List(ctx context.Context, before time.Time, limit int) ([]model.ModelVersion, error)
+	Save(ctx context.Context, version model.ModelVersion) error
+	Activate(ctx context.Context, version string, at time.Time) error
+	Retire(ctx context.Context, version, reason string, at time.Time) error
+	FailInterrupted(ctx context.Context) error
+}
