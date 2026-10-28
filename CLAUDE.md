@@ -50,6 +50,16 @@ refresh for access, cookie is HttpOnly/SameSite=Strict; expiry requires login.
 Runbook: [SPPR access](services/sppr/README.md#доступ-и-html-панель).
 
 
+Stage 9 is wired in `planner_provider.go`: ModelManager restores the active
+journal entry, optionally bootstraps an empty journal, and swaps immutable
+predictors between cycles. Registry files are on the `sppr-model-registry`
+Compose volume; bootstrap remains a read-only host mount. The image includes
+Python 3.12 and libgomp. Training uses real Coverage and the same minute feature
+path; it must not borrow the planner's temporary completeness assumption.
+Status additions live under `model_lifecycle`; `/admin/models` shows attempts.
+Configuration and the restart-based smoke are in the
+[SPPR runbook](services/sppr/README.md#выбор-предиктора-и-каталог-модели).
+
 ## Architecture
 
 ```

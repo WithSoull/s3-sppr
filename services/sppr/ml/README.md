@@ -2,7 +2,7 @@
 
 Пакет `sppr_ml` обучает двухэтапную LightGBM из текста ВКР, сравнивает её с
 базовыми оценками и экспортирует каталог модели, который загружает Go-предиктор
-SPPR (`PLANNER_PREDICTOR=lgbm`). ТЗ — [docs/ml-spec.md](../../../docs/ml-spec.md).
+SPPR (bootstrap через `PLANNER_MODEL_DIR`, затем реестр этапа 9). ТЗ — [docs/ml-spec.md](../../../docs/ml-spec.md).
 
 ## Быстрый старт
 
@@ -25,7 +25,11 @@ make test-sppr-ml
 `~/home/98_Downloads`) и неделю Meta CDN в `SPPR_META_TRACE`; где их взять —
 [docs/traces.md](../../../docs/traces.md). Доля ключей, шаг среза и периоды каждой
 трассы зафиксированы в `scripts/trace_datasets.py` до обучения.
-Подключение к SPPR: `PLANNER_PREDICTOR=lgbm PLANNER_MODEL_DIR=<каталог модели>`.
+Подключение к пустому реестру SPPR: `PLANNER_MODEL_DIR=<каталог модели>`.
+Горизонт берётся из manifest набора и переносится в модель (не константа 3600);
+частотная базовая оценка пересчитывается на тот же горизонт. Stage 9 передаёт
+`--params` без сетки и держит test пустым; модель без регрессора не активируется.
+Runbook реестра, таймаута и расписания — [README SPPR](../README.md#выбор-предиктора-и-каталог-модели).
 
 ## Что внутри
 

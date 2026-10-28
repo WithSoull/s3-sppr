@@ -46,6 +46,16 @@ warning. Panel templates are embedded; preserve Origin/Referer checks, HttpOnly
 SameSite cookies and command_id replay. Executor settings/pins from panel use
 `admin_form_commands` atomically with their effects. See the service README for
 login, seed and smoke instructions.
+Stage 9 uses `service/modelmanager`: a durable `model_versions` journal and a
+persistent writable registry. Every planner cycle captures one predictor; do not
+read the atomic manager again per object. Live `dataset.FromHistory` must use
+`history.Coverage` directly for feature and label quality, never `assumeCaughtUp`.
+Keep lifecycle status additive (`model_lifecycle`) for the parallel stage-5 work.
+The trainer runs once at a time with a timeout, inherited fixed parameters and
+`num_threads=2`; journal failed attempts and administrator retrain replay too.
+`make smoke-ml-update-local` uses a dedicated empty-HOT stand, a 2m horizon and
+40m of real reads because snapshots remain 15m. See the service README before
+running it; it recreates SPPR to exercise a failing trainer and restores it.
 The ML training package lives in `services/sppr/ml` (`make ml-sppr-venv`,
 `make test-sppr-ml`; see its README): never load the test split in stage 8, and
 export models only in the "Схема файлов экспорта v1" of `docs/ml-spec.md`, which
