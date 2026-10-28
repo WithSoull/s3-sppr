@@ -121,11 +121,11 @@ def test_processing_rejects_incomplete_series(tmp_path):
         process(tmp_path)
 
 
-def stand_series(tmp_path, *, overhead=False):
+def stand_series(tmp_path, *, overhead=False, policies=None):
     import json
     import hashlib
     from sppr_ml.experiment import BASELINES
-    policies = ["no-extension", "sppr-no-training", "sppr-update"] if overhead else [*BASELINES, "lgbm"]
+    policies = ["no-extension", "sppr-no-training", "sppr-update"] if overhead else (policies or [*BASELINES, "lgbm"])
     simulation = {"policies": ["ewma"] if overhead else policies, "budgets_bytes": [67108864],
                   "generator": {"scenario": "stable", "seed": 0}}
     stand = {"overhead": overhead, "load": {"generator": {"scenario": "stable", "seed": 0},
@@ -171,6 +171,15 @@ def test_stand_processing_unknown_metrics_and_invariants(tmp_path):
     assert not report["cells"][0]["passed"]
     assert report["cells"][0]["comparisons"][0]["reduction"] == pytest.approx(.2)
     assert "н/д" in markdown(report)
+
+
+def test_stand_subset_compares_only_present_baselines(tmp_path):
+    from sppr_ml.experiment import process
+    stand_series(tmp_path, policies=["ewma", "lgbm"])
+    cell = process(tmp_path)["cells"][0]
+    assert [c["baseline"] for c in cell["comparisons"]] == ["ewma"]
+    assert cell["comparisons"][0]["reduction"] == pytest.approx(.2)
+    assert not cell["passed"]
 
 
 def test_stand_demand_and_error_accounting():

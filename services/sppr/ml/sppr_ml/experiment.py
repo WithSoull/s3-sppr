@@ -106,8 +106,13 @@ def process(root: str | Path) -> dict:
     overhead = stand and cfg["stand"]["overhead"]
     if overhead:
         return process_overhead(root, manifest)
-    if set(sim["policies"]) != {*BASELINES, "lgbm"}:
+    # The stand series may compare ML with a subset of baselines; it then reports
+    # the observed comparisons only and cannot claim the five-policy criterion.
+    baselines = [p for p in BASELINES if p in sim["policies"]]
+    if not stand and set(sim["policies"]) != {*BASELINES, "lgbm"}:
         raise ValueError("the criterion requires all five policies")
+    if "lgbm" not in sim["policies"] or not baselines:
+        raise ValueError("a comparison needs lgbm and at least one baseline")
     expected_seeds = set(cfg["seeds"])
     if len(expected_seeds) != len(cfg["seeds"]):
         raise ValueError("duplicate configured seeds")
@@ -143,7 +148,7 @@ def process(root: str | Path) -> dict:
                 return values
 
             ml = rows("lgbm")
-            comparisons = [paired(ml, rows(p), p) for p in BASELINES]
+            comparisons = [paired(ml, rows(p), p) for p in baselines]
             policies = {}
             for p in sim["policies"]:
                 r = rows(p)
@@ -154,7 +159,7 @@ def process(root: str | Path) -> dict:
                     policies[p][key] = float(np.mean(values)) if all(v is not None for v in values) else None
             cells.append({"scenario": scenario, "budget_bytes": budget, "policies": policies,
                           "comparisons": [asdict(c) for c in comparisons],
-                          "passed": all(c.passed for c in comparisons)})
+                          "passed": len(baselines) == len(BASELINES) and all(c.passed for c in comparisons)})
     return {"mode": "stand" if stand else "sim", "bootstrap_rounds": ROUNDS, "bootstrap_seed": 0, "unit": "paired seed",
             "p95_aggregation": "mean of paired relative changes", "git_sha": manifest["git_sha"],
             "cells": cells}
