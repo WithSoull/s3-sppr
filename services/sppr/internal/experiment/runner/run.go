@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"reflect"
+	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -79,8 +80,10 @@ func (c Config) Validate() error {
 			return err
 		}
 	}
-	if c.Workers < 1 || c.Workers > 2 || len(c.Scenarios) == 0 || len(c.Seeds) == 0 {
-		return fmt.Errorf("invalid matrix/workers (1 or 2)")
+	// Latency results are in logical time and do not depend on workers; only
+	// plan_seconds does, so measure planning time in a single-worker series.
+	if c.Workers < 1 || c.Workers > runtime.NumCPU() || len(c.Scenarios) == 0 || len(c.Seeds) == 0 {
+		return fmt.Errorf("invalid matrix/workers (1..%d)", runtime.NumCPU())
 	}
 	seen := map[string]bool{}
 	for _, s := range c.Scenarios {
