@@ -20,7 +20,7 @@
     8,
     9
   ],
-  "workers": 1,
+  "workers": 5,
   "simulation": {
     "generator": {
       "scenario": "stable",
