@@ -140,6 +140,9 @@ func manifest(dir string) (lgbm.Manifest, error) {
 	e = json.Unmarshal(b, &v)
 	return v, e
 }
+
+// An empty validation interval is the export of `train --fit-only` with fixed
+// parameters (the experiment's bootstrap models); the predictor accepts it too.
 func metadata(v *model.ModelVersion, mf lgbm.Manifest) error {
 	var train, validation struct {
 		Start, End time.Time
@@ -151,7 +154,7 @@ func metadata(v *model.ModelVersion, mf lgbm.Manifest) error {
 	if err := json.Unmarshal(mf.ValidationInterval, &validation); err != nil {
 		return err
 	}
-	if train.Start.IsZero() || !train.End.After(train.Start) || validation.Start.Before(train.End) || !validation.End.After(validation.Start) || train.Rows < 0 {
+	if train.Start.IsZero() || !train.End.After(train.Start) || validation.Start.Before(train.End) || validation.End.Before(validation.Start) || train.Rows < 0 {
 		return fmt.Errorf("invalid training/validation intervals")
 	}
 	v.TrainedFrom = &train.Start
