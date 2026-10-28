@@ -41,6 +41,7 @@ def train(args: argparse.Namespace) -> None:
     hurdle, trials = evaluate.tune(train_rows, validation, candidates, log=lambda m: print(m, file=sys.stderr))
     compared = evaluate.compare(hurdle, train_rows, validation)
     difference = evaluate.versus_best_baseline(hurdle, train_rows, validation, compared)
+    never_read = evaluate.never_read_check(hurdle, train_rows, validation)
     scores = _clean(evaluate.as_dict(compared))
     if hurdle.regressor is None:
         # Evaluated, but not a model the planner can load: see model.py.
@@ -56,6 +57,7 @@ def train(args: argparse.Namespace) -> None:
         "labels": {"train": evaluate.label_summary(train_rows), "validation": evaluate.label_summary(validation)},
         "scores": scores,
         "versus_best_baseline": _clean(asdict(difference)),
+        "never_read": _clean(asdict(never_read)),
         "best": {"params": hurdle.params, "rounds": hurdle.rounds},
         "trials": _clean([{"params": t.params, "rounds": t.rounds, "seconds": t.seconds, "scores": asdict(t.scores)}
                           for t in trials]),
@@ -70,14 +72,22 @@ def train(args: argparse.Namespace) -> None:
 
 def report(args: argparse.Namespace) -> None:
     if args.summary:
-        print("| Источник | Лучшая базовая | Cov_K модели − базовой | 95 % ДИ | Вывод |")
-        print("|---|---|---|---|---|")
+        def verdict(d):
+            return "лучше" if d["low"] > 0 else ("хуже" if d["high"] < 0 else "различие не доказано")
+
+        print("| Источник | Лучшая базовая | Cov_K модели − базовой | 95 % ДИ | Вывод "
+              "| Чтения ещё не читанных | Без них: разность, 95 % ДИ |")
+        print("|---|---|---|---|---|---|---|")
         for path in args.reports:
             with open(path, encoding="utf-8") as f:
                 r = json.load(f)
             d = r["versus_best_baseline"]
-            verdict = "лучше" if d["low"] > 0 else ("хуже" if d["high"] < 0 else "различие не доказано")
-            print(f"| {r['source']} | {d['baseline']} | {d['coverage']:+.4f} | {d['low']:+.4f}…{d['high']:+.4f} | {verdict} |")
+            n = r.get("never_read")
+            extra = "— | —" if n is None else (
+                f"{n['read_share']:.1%} | {n['without']['coverage']:+.4f} "
+                f"({n['without']['low']:+.4f}…{n['without']['high']:+.4f}), {verdict(n['without'])}")
+            print(f"| {r['source']} | {d['baseline']} | {d['coverage']:+.4f} | {d['low']:+.4f}…{d['high']:+.4f} "
+                  f"| {verdict(d)} | {extra} |")
         return
     def fmt(v, digits=3):
         return "—" if v is None else f"{v:.{digits}f}"

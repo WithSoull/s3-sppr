@@ -106,3 +106,13 @@ def test_no_repeated_read_leaves_out_the_regressor(tmp_path):
     with pytest.raises(ValueError, match="repeated read"):
         export.write(tmp_path / "m", hurdle, rows.of("train"), rows.of("validation"), {}, [])
     assert not (tmp_path / "m").exists()
+
+
+def test_never_read_check_zeroes_rows_without_history():
+    rows = synthetic()
+    tr, va = rows.of("train"), rows.of("validation")
+    hurdle = model.fit(tr, PARAMS)
+    check = evaluate.never_read_check(hurdle, tr, va)
+    never = np.isnan(va.feature("last_read_seconds"))
+    assert check.read_share == pytest.approx(va.reads[never].sum() / va.reads.sum())
+    assert check.without.low <= check.without.coverage <= check.without.high

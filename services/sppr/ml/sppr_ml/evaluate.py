@@ -85,6 +85,31 @@ def versus_best_baseline(hurdle: model.Hurdle, train: Slices, validation: Slices
     return Difference(best, *metrics.paired_difference(caught_m, caught_b, total))
 
 
+@dataclass
+class NeverRead:
+    read_share: float
+    without: Difference
+
+
+def never_read_check(hurdle: model.Hurdle, train: Slices, validation: Slices) -> NeverRead:
+    """How much of the result rests on objects never read before the snapshot.
+
+    A converter that infers the catalogue from the trace (IBM COS: an object
+    first seen later is assumed to exist from the start) puts an object in the
+    catalogue because it will be touched — a leak a real catalogue lacks. Every
+    estimate is zeroed on never-read rows and the paired difference recomputed.
+    """
+    never = np.isnan(validation.feature("last_read_seconds"))
+    reads = validation.reads
+    estimates = {"lgbm": hurdle.predict(validation.x).expected,
+                 **{k: f(validation) for k, f in baselines.fitted(train).items()}}
+    parts = {k: metrics.coverage_parts(validation.at, reads, np.where(never, 0.0, e)) for k, e in estimates.items()}
+    best = max((k for k in parts if k != "lgbm"), key=lambda k: parts[k][0].sum())
+    total = parts["lgbm"][2]
+    return NeverRead(float(reads[never].sum() / reads.sum()) if reads.sum() else 0.0,
+                     Difference(best, *metrics.paired_difference(parts["lgbm"][0], parts[best][0], total)))
+
+
 def as_dict(scores: dict[str, metrics.Scores]) -> dict[str, dict]:
     return {k: asdict(v) for k, v in scores.items()}
 
