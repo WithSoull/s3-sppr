@@ -131,6 +131,10 @@ def main() -> None:
     r.add_argument("reports", nargs="+")
     r.add_argument("--summary", action="store_true", help="only the paired difference with the best baseline")
     r.set_defaults(func=report)
+    from .experiment import command
+    e = sub.add_parser("experiment", help="paired seed bootstrap and placement tables")
+    e.add_argument("results", help="completed cmd/experiment series directory")
+    e.set_defaults(func=command)
     args = ap.parse_args()
     args.func(args)
 
