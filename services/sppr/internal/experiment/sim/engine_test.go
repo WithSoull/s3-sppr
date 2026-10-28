@@ -2,8 +2,12 @@ package sim
 
 import (
 	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/gob"
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -132,4 +136,26 @@ func TestCopyKeepsFIFOPositionWhileAllSlotsBusy(t *testing.T) {
 	// every new read would let the second read overtake it.
 	require.Equal(t, 60.0, r.Latency.MeanMs)
 	require.Equal(t, .5, r.HotShare)
+}
+
+func TestRawLatenciesOutput(t *testing.T) {
+	c := controlConfig()
+	c.RawLatencies = true
+	e, err := NewEngine(c, controlCatalog(c), []Read{{int64(5010 * time.Millisecond), 0, model.MiB}, {int64(5020 * time.Millisecond), 1, model.MiB}}, "frequency", model.MiB)
+	require.NoError(t, err)
+	require.NoError(t, e.Plan(controlFrame()))
+	r, err := e.Finish()
+	require.NoError(t, err)
+	out := filepath.Join(t.TempDir(), "results")
+	require.NoError(t, WriteResults(out, []Result{r}, "test"))
+	require.Error(t, WriteResults(out, []Result{r}, "test"))
+	f, err := os.Open(filepath.Join(out, "frequency-1048576-latencies.json.gz"))
+	require.NoError(t, err)
+	defer f.Close()
+	gz, err := gzip.NewReader(f)
+	require.NoError(t, err)
+	defer gz.Close()
+	var latencies []int64
+	require.NoError(t, json.NewDecoder(gz).Decode(&latencies))
+	require.Equal(t, []int64{int64(50 * time.Millisecond), int64(80 * time.Millisecond)}, latencies)
 }

@@ -28,7 +28,11 @@ func main() {
 	if *scenario != "" {
 		c.Generator.Scenario = *scenario
 	}
-	c.Generator.Seed = *seed
+	flag.Visit(func(f *flag.Flag) {
+		if f.Name == "seed" {
+			c.Generator.Seed = *seed
+		}
+	})
 	if *python != "" {
 		c.Python = *python
 	}

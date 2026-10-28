@@ -3,8 +3,10 @@
 package sim
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"slices"
 	"time"
@@ -53,7 +55,12 @@ func ReadConfig(path string) (Config, error) {
 	if err != nil {
 		return c, err
 	}
-	err = json.Unmarshal(b, &c)
+	dec := json.NewDecoder(bytes.NewReader(b))
+	dec.DisallowUnknownFields()
+	err = dec.Decode(&c)
+	if err == nil && dec.Decode(new(any)) != io.EOF {
+		err = fmt.Errorf("config must contain one JSON object")
+	}
 	if err != nil {
 		return c, err
 	}
