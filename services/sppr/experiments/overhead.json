@@ -58,8 +58,8 @@
     "update_model_24h": false,
     "params": {
       "num_leaves": 15,
-      "learning_rate": 0.1,
-      "min_data_in_leaf": 200,
+      "learning_rate": 0.03,
+      "min_data_in_leaf": 20,
       "lambda_l2": 1.0
     },
     "python": "services/sppr/ml/.venv/bin/python",
