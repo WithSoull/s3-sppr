@@ -59,6 +59,8 @@ CSV.gz и прореживание train. Перед работой с реал�
 `make experiment-report EXPERIMENT_OUT=build/sim-smoke`. Повтор smoke требует
 новый `SIM_SMOKE_OUT`; существующая серия защищена от перезаписи.
 [Конфиги и resume](services/sppr/README.md#эксперимент-по-логическому-времени-этап-10a).
+Итоговые измерения: `make forecast-quality`, `make bench-admin`, `make bench-plan`;
+[запуск и границы замеров](services/sppr/README.md#измерения-для-вкр-этап-11).
 
 Gateway producer из отдельного [PR #1](https://github.com/WithSoull/s3-sppr/pull/1) уже есть в checkout.
 Для автономной проверки Ingestor используйте integration tests из README; порядок чтения

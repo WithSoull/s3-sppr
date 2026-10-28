@@ -1309,6 +1309,125 @@ Gateway и SPPR с Planner. `-compose-file`, `-gateway`, `-sppr`, `-metadata`,
 настройках подберите `-outage`, чтобы producer успел зафиксировать потерю.
 Результат smoke подтверждён только после фактического прогона всех PASS.
 
+### Измерения для ВКР (этап 11)
+
+#### Качество прогноза на TEST
+
+Это итоговая оценка с заранее фиксированными параметрами, не подбор модели.
+Нужен ML venv (`make ml-sppr-venv`), сервисы не нужны:
+
+```bash
+make forecast-quality
+make forecast-quality FQ_SCENARIO=shift FQ_SEEDS="0 1 2" FQ_OUT=build/fq-shift
+```
+
+`FQ_CONFIG=services/sppr/examples/data/acceptance.json`, `FQ_SCENARIO=stable`,
+`FQ_SEEDS="0 1 2"`, `FQ_OUT=build/forecast-quality` — defaults.
+`FQ_PARAMS` по умолчанию читается из `simulation.params` файла
+`services/sppr/experiments/main.json`; явный JSON переопределяет его.
+Для каждого seed цель последовательно создаёт временный набор через
+`build/bin/dataset -format csv.gz -train-every 15m`, обучает и оценивает,
+затем удаляет набор вместе с Python cache. В результате остаются только
+`<scenario>-<seed>/evaluate.json`; таблица печатается в stdout. При ошибке
+временный набор удаляется trap; корень результатов должен быть новым.
+
+Существующий набор от `cmd/dataset` можно оценить напрямую из корня:
+
+```bash
+PYTHONPATH=services/sppr/ml services/sppr/ml/.venv/bin/python -m sppr_ml evaluate \
+  --data build/sppr-data --params '{"num_leaves":15,"learning_rate":0.03,"min_data_in_leaf":20,"lambda_l2":1.0}' \
+  --out build/fq-existing
+PYTHONPATH=services/sppr/ml services/sppr/ml/.venv/bin/python -m sppr_ml evaluate-report \
+  build/forecast-quality/stable-0 build/forecast-quality/stable-1 build/forecast-quality/stable-2
+```
+
+`evaluate` вызывает тот же `model.fit`, что `train --params ... --fit-only`:
+train раз в 900 с, ранняя остановка по последним 8 ч train, без validation
+и без сетки. После fit train освобождается и открывается TEST (полные срезы).
+Для CSV.gz validation не открывается вообще. JSONL имеет общий файл срезов;
+в fit всё равно передаются только train-строки. Результат содержит параметры,
+границы периодов, происхождение/хеш данных, число строк и определения метрик.
+Файлы модели не экспортируются. Стадия 8 по-прежнему не читает test.
+
+PR-AUC — average precision для события «≥1 чтение за горизонт», равные оценки
+образуют один порог. ML использует вероятность классификатора, EWMA —
+`p = 1 − exp(−λ)`, где λ — ожидаемые чтения EWMA за горизонт, без пересчёта
+λ в часовую интенсивность. Brier сравнивает эти вероятности с бинарной меткой.
+MAE = `mean(abs(N̂ − N)) × 3600/H_seconds`, в чтениях на объект в час.
+`Cov_K` использует код и K этапа 8: `floor(0.0921 × объектов в срезе)`,
+921 при 10 000; доля суммарных фактических чтений, покрытых top-K, равные
+прогнозы разрешаются случайно с seed 0. Пустой TEST — ошибка; PR-AUC/Cov_K без
+положительных меток — JSON null. `evaluate-report` печатает среднее по seed
+с одинаковым весом и min–max; null не исключаются из среднего молча.
+
+#### Время ответа администратора и восстановление
+
+Нужен уже работающий выделенный SPPR с Planner и готовым планом:
+
+```bash
+make bench-admin BENCH_ADMIN_ARGS='-api http://localhost:8086 -token TOKEN -requests 100 -rate 5 -out build/bench-admin.json'
+# Дополнительно выполнить рестарт и проверить сохранение последнего плана:
+make bench-admin BENCH_ADMIN_ARGS='-api http://localhost:8086 -token TOKEN -requests 100 -rate 5 -restart-command "docker compose restart sppr" -out build/bench-admin-recovery.json'
+```
+
+`-token` можно опустить при отключённой аутентификации локального стенда.
+Команда выбирает последнюю по revision запись со статусом `ready`, фиксирует
+её ID и N раз читает первую страницу рекомендаций (`page_size=100`). Задержка
+включает полный HTTP-ответ. N последовательных запросов идут с частотой не
+выше `-rate`: медленный сервер снижает фактическую частоту, догоняющих всплесков нет.
+Затем N команд записывают прежнее значение паузы: `commands/pause`, если
+`status.paused=true`, иначе `commands/resume`. Каждый запрос имеет новый UUID
+`command_id`, ожидается HTTP 202 и `status=accepted`. Это сохраняет значение,
+проходит журналирование, не подтверждает планы и не ждёт миграций. На время
+замера другие администраторы не должны менять паузу. В журнале остаются N команд.
+
+JSON содержит p50/p95/max в мс и число измерений (nearest rank `ceil(p×N)`),
+а также все страницы сохранённых планов и статистику `finished_at−created_at`
+по всем завершённым статусам; незавершённые планы посчитаны отдельно. При
+отсутствии завершённых планов статистика null. Это длительность цикла с чтением
+зависимостей и сохранением, а не только `planner.Build`; список читается до
+замеров и не является транзакционным снимком между страницами.
+
+При `-restart-command` перед `sh -c` запоминается `status.latest_plan.plan_id`.
+Время восстановления в секундах считается от запуска shell до первого опроса,
+в котором `/readyz` и `/api/planner/status` дают 200 и latest ID совпадает с
+сохранённым. Длительность restart-команды входит в результат; опрос раз в 250 мс
+начинается после её завершения. `-recovery-timeout=2m` ограничивает оба шага.
+Без restart-команды `recovery_seconds=null`. Если Planner успел создать новую
+ревизию при старте, строгая проверка прежнего latest ID не пройдёт: CLI завершится
+с ошибкой по timeout. Это не доказательство потери старого плана. Ошибки HTTP,
+отказ команды и неуспешный restart завершают замер без JSON результата.
+Существующий выходной файл защищён от перезаписи.
+
+#### Один цикл Planner в памяти
+
+```bash
+make bench-plan BENCH_PLAN_ARGS='-objects 10000 -out build/bench-plan-ewma.json'
+make bench-plan BENCH_PLAN_ARGS='-objects 10000 -model build/ml-models/stable-0 -out build/bench-plan-ml.json'
+```
+
+Сервисы и Python для применения модели не нужны. `-config` по умолчанию —
+`services/sppr/examples/data/acceptance.json` относительно корня репозитория. `-objects=10000` переопределяет N,
+допустимо 10–100000. Генератор synthetic-v1 создаёт каталог и первые 24 ч
+спроса, который складывается в минутные агрегаты. Нужен `lifecycle=false`.
+Для каждого предиктора независимо выполняются production Feature Builder,
+прогноз всех объектов и `planner.Build`: всегда EWMA, дополнительно LGBM при
+`-model`. `-horizon=1h` должен совпадать с manifest модели. Ошибка ML не
+подменяется EWMA. Без `-out` JSON выводится в stdout.
+
+Время включает построение признаков, прогноз, подготовку PlanInput и Build;
+генерация входов, загрузка модели, БД/RPC и сохранение плана исключены.
+Размеры объектов берутся из config; HOT/COLD масштабируются с N (для N=10000:
+1024/12288 объектов), начальный HOT содержит floor(0.0921×N) объектов независимо
+от популярности. Утилизация 90 %, бюджет 256 МиБ, полное чтение 1 МиБ — 10/40 мс,
+штраф и порог выигрыша — 0. Между циклами размещение не меняется.
+В JSON есть wall time, число строк/прогнозов, итог плана, версии Go/модели,
+config и GOMAXPROCS. Go heap objects измеряется раз в 1 мс и на границах;
+это выборочная нижняя оценка пика, включая уже резидентные входы/модели,
+с baseline и приростом. RSS из `Getrusage` — максимум за жизнь процесса,
+в байтах (macOS/Linux), накопительный между циклами, включая генерацию.
+Это не потребление cgroup и не замер полного HTTP/SQL цикла.
+
 ## Наблюдаемость и диагностика
 
 | Инструмент | Содержимое |
