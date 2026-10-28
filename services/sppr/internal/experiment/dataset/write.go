@@ -19,27 +19,28 @@ import (
 )
 
 type Manifest struct {
-	Config              synthetic.Config   `json:"config"`
-	GeneratorVersion    string             `json:"generator_version"`
-	FeatureRulesVersion string             `json:"feature_rules_version"`
-	ConfigSHA256        string             `json:"config_sha256"`
-	HorizonSeconds      int64              `json:"horizon_seconds"`
-	Train               model.Interval     `json:"train"`
-	Validation          model.Interval     `json:"validation"`
-	Test                model.Interval     `json:"test"`
-	Events              int64              `json:"events"`
-	Rows                map[string]int64   `json:"rows"`
-	Eligible            map[string]int64   `json:"eligible"`
-	SHA256              map[string]string  `json:"sha256"`
-	Provenance          map[string]string  `json:"provenance"`
-	Format              string             `json:"format"`
-	SnapshotSeconds     float64            `json:"snapshot_seconds"`
-	TrainEverySeconds   float64            `json:"train_every_seconds"`
-	SplitFractions      map[string]float64 `json:"split_fractions"`
-	InputSHA256         map[string]string  `json:"input_sha256,omitempty"`
-	SourceManifest      json.RawMessage    `json:"source_manifest,omitempty"`
-	CompactColumns      []string           `json:"compact_columns,omitempty"`
-	CoveragePolicy      string             `json:"coverage_policy"`
+	LastLabelAvailableAt *time.Time         `json:"last_label_available_at,omitempty"`
+	Config               synthetic.Config   `json:"config"`
+	GeneratorVersion     string             `json:"generator_version"`
+	FeatureRulesVersion  string             `json:"feature_rules_version"`
+	ConfigSHA256         string             `json:"config_sha256"`
+	HorizonSeconds       int64              `json:"horizon_seconds"`
+	Train                model.Interval     `json:"train"`
+	Validation           model.Interval     `json:"validation"`
+	Test                 model.Interval     `json:"test"`
+	Events               int64              `json:"events"`
+	Rows                 map[string]int64   `json:"rows"`
+	Eligible             map[string]int64   `json:"eligible"`
+	SHA256               map[string]string  `json:"sha256"`
+	Provenance           map[string]string  `json:"provenance"`
+	Format               string             `json:"format"`
+	SnapshotSeconds      float64            `json:"snapshot_seconds"`
+	TrainEverySeconds    float64            `json:"train_every_seconds"`
+	SplitFractions       map[string]float64 `json:"split_fractions"`
+	InputSHA256          map[string]string  `json:"input_sha256,omitempty"`
+	SourceManifest       json.RawMessage    `json:"source_manifest,omitempty"`
+	CompactColumns       []string           `json:"compact_columns,omitempty"`
+	CoveragePolicy       string             `json:"coverage_policy"`
 }
 
 type jsonLines struct {
