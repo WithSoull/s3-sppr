@@ -3,9 +3,9 @@ package access
 import (
 	"context"
 	"errors"
+	"sync"
 
 	"github.com/alesplll/opens3-rebac/services/gateway/internal/model"
-	"github.com/alesplll/opens3-rebac/services/gateway/internal/service"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/kafka"
 	kafkaProducer "github.com/alesplll/opens3-rebac/shared/pkg/go-kit/kafka/producer"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/logger"
@@ -17,6 +17,9 @@ import (
 
 type accessProducerService struct {
 	gatewayID string
+	stop      chan struct{}
+	done      chan struct{}
+	stopOnce  sync.Once
 
 	objectReadStream   *stream
 	objectReadProducer kafka.Producer
@@ -32,7 +35,7 @@ func NewService(
 	objectReadProducer kafka.Producer,
 	objectWrittenProducer kafka.Producer,
 	dropped metric.Int64Counter,
-) service.AccessProducerService {
+) *accessProducerService {
 	return &accessProducerService{
 		gatewayID: gatewayID,
 

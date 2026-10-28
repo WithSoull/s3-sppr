@@ -225,7 +225,12 @@ func (m *Manager) latestFeatures(ctx context.Context) ([]model.FeatureSnapshot, 
 	if err != nil {
 		return nil, err
 	}
-	reads, err := m.history.ReadsSince(ctx, since)
+	if c.Known && c.Watermark.Before(at) {
+		// Like the planner, probe at W: events after it are not yet complete.
+		at = c.Watermark.UTC()
+		since = at.Add(-features.MaxWindow)
+	}
+	reads, err := m.history.ReadsSince(ctx, since, at)
 	if err != nil {
 		return nil, err
 	}

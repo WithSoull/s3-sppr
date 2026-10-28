@@ -72,7 +72,7 @@ func (s *serviceProvider) PlannerService(ctx context.Context) (service.PlannerSe
 	}
 	predictor := ewma.NewPredictor()
 	s.plannerService = plannerService.NewService(plannerService.Config{
-		Models: manager, Interval: cfg.Interval(), KeepPlans: cfg.KeepPlans(), MaxRejectedSaved: cfg.MaxRejectedSaved(),
+		Models: manager, MaxHistoryLag: cfg.MaxHistoryLag(), Interval: cfg.Interval(), KeepPlans: cfg.KeepPlans(), MaxRejectedSaved: cfg.MaxRejectedSaved(),
 	}, plans, historyRepository.NewRepository(pgClient), actions, tx, placements, migrations, s.FeatureBuilder(), predictor)
 	return s.plannerService, nil
 }

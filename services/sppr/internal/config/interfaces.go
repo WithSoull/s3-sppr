@@ -54,6 +54,7 @@ type ObjectWrittenConsumerConfig interface {
 }
 
 type RetryConfig interface {
+	StreamLostAfter() time.Duration
 	Interval() time.Duration
 }
 
@@ -82,6 +83,7 @@ type PlannerConfig interface {
 	ModelTrainWindow() time.Duration
 	ModelTrainTimeout() time.Duration
 	TrainCommand() string
+	MaxHistoryLag() time.Duration
 	Predictor() string
 	ModelDir() string
 	Enabled() bool

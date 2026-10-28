@@ -100,8 +100,59 @@ func (s *plannerService) Status(ctx context.Context) (model.PlannerStatus, error
 	if err != nil {
 		return st, fmt.Errorf("read history coverage: %w", err)
 	}
-	coverage = assumeCaughtUp(coverage, at, nil)
-	st.HistoryQuality = features.Quality(coverage, coverage.Start, at)
+	st.History = coverage
+	st.HistoryQuality = model.DataQuality{Reason: "unknown_completeness"}
+	if coverage.Known {
+		st.HistoryLagSeconds = max(0, at.Sub(coverage.Watermark).Seconds())
+		st.HistoryQuality = features.Quality(coverage, maxTime(coverage.Start, coverage.Watermark.Add(-features.MaxWindow)), coverage.Watermark)
+		if at.Sub(coverage.Watermark) > s.cfg.MaxHistoryLag {
+			st.HistoryQuality = model.DataQuality{Reason: "история отстаёт"}
+		}
+	}
+	catalog, err := s.placements.ListCatalog(ctx)
+	if err != nil {
+		return st, err
+	}
+	snapshots := map[string]model.FeatureSnapshot{}
+	if coverage.Known {
+		historyAt := coverage.Watermark
+		coverage, err = s.history.Coverage(ctx, historyAt.Add(-features.MaxWindow))
+		if err != nil {
+			return st, err
+		}
+		var featureQuality model.DataQuality
+		snapshots, featureQuality, err = s.forecastFeatures(ctx, historyAt, catalog, coverage)
+		if err != nil {
+			return st, err
+		}
+		st.History.Gaps = coverage.Gaps
+		if st.HistoryQuality.Usable && !featureQuality.Usable {
+			st.HistoryQuality = featureQuality
+		}
+	}
+	for _, p := range catalog {
+		if !p.IsCurrent {
+			continue
+		}
+		q := st.HistoryQuality
+		reads := int64(0)
+		if fs, ok := snapshots[p.VersionID]; ok {
+			q = fs.Quality
+			reads = fs.Features.Reads24h
+		} else if coverage.Known {
+			q = model.DataQuality{Reason: "unobserved"}
+		}
+		if st.HistoryLagSeconds > s.cfg.MaxHistoryLag.Seconds() {
+			q = model.DataQuality{Reason: "история отстаёт"}
+		}
+		state := "есть чтения"
+		if !q.Usable {
+			state = "история неполна"
+		} else if reads == 0 {
+			state = "чтений нет"
+		}
+		st.Objects = append(st.Objects, model.ObjectHistory{VersionRef: model.VersionRef{Bucket: p.Bucket, ObjectKey: p.Key, VersionID: p.VersionID}, Quality: q, State: state, Reads24h: reads})
+	}
 	if st.Migration, err = s.migrations.GetSettings(ctx); err != nil {
 		return st, err
 	}
@@ -130,4 +181,11 @@ func (s *plannerService) ModelVersions(ctx context.Context, before time.Time) ([
 		return nil, nil
 	}
 	return s.cfg.Models.Versions(ctx, before)
+}
+
+func maxTime(a, b time.Time) time.Time {
+	if a.After(b) {
+		return a
+	}
+	return b
 }

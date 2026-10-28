@@ -41,6 +41,9 @@
 <dd>{{text .ModelVersion}}</dd>
 {{if .FallbackReason}}<dt>Причина отката на EWMA</dt>
 <dd>{{.FallbackReason}}</dd>{{end}}
+<dt>W / отставание (с)</dt><dd>{{if .History.Known}}{{datetime .History.Watermark}}{{else}}неизвестна{{end}} / {{number .HistoryLagSeconds}}</dd>
+<dt>Потоки: открытые / закрытые / потерянные</dt><dd>{{integer .History.OpenStreams}} / {{integer .History.ClosedStreams}} / {{integer .History.LostStreams}}</dd>
+<dt>Пропуски за 24 ч</dt><dd>{{integer .History.Gaps24h}}</dd>
 <dt>Качество истории</dt>
 <dd>Пригодна: {{yesno .HistoryQuality.Usable}} · {{template "enum" .HistoryQuality.Reason}}{{if not .HistoryQuality.Usable}}<p>{{help "HISTORY_INCOMPLETE"}}</p>{{end}}</dd>
 <dt>Пауза</dt>
@@ -54,4 +57,4 @@
 <dt>Ожидают / выполняются</dt>
 <dd>{{integer .PendingActions}} / {{integer .RunningActions}}</dd>
 </dl>
-</section>{{with .LatestPlan}}<p>Последняя ревизия: <a href="/admin/recommendations?plan_id={{.PlanID}}">{{integer .Revision}}</a> · {{datetime .CreatedAt}} · {{template "enum" .Status}} · {{template "enum" .Reason}}</p>{{else}}<p>Ревизий ещё нет.</p>{{end}}{{end}}{{template "recompute" .}}{{end}}
+</section><section><h2>История объектов на W</h2>{{range .Objects}}<details><summary>{{.Bucket}}/{{.ObjectKey}} · {{.State}}</summary><p>Версия {{.VersionID}} · {{.Quality.Reason}} · чтений за 24 ч: {{integer .Reads24h}}</p></details>{{else}}<p>Объектов нет.</p>{{end}}</section>{{with .LatestPlan}}<p>Последняя ревизия: <a href="/admin/recommendations?plan_id={{.PlanID}}">{{integer .Revision}}</a> · {{datetime .CreatedAt}} · {{template "enum" .Status}} · {{template "enum" .Reason}}</p>{{else}}<p>Ревизий ещё нет.</p>{{end}}{{end}}{{template "recompute" .}}{{end}}

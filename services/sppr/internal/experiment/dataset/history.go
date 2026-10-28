@@ -41,7 +41,7 @@ func FromHistory(ctx context.Context, history repository.HistoryRepository, cata
 	if !boundary.After(start) {
 		return m, fmt.Errorf("empty train interval")
 	}
-	reads, err := history.ReadsSince(ctx, start.Add(-features.MaxWindow))
+	reads, err := history.ReadsSince(ctx, start.Add(-features.MaxWindow), end)
 	if err != nil {
 		return m, err
 	}

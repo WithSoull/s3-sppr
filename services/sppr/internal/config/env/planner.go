@@ -10,6 +10,7 @@ import (
 // The latency coefficients are placeholders until stage 10 measures the stand;
 // the administrator can change them, and the stored values win over env.
 type plannerEnvConfig struct {
+	MaxHistoryLag     time.Duration `env:"PLANNER_MAX_HISTORY_LAG" envDefault:"60s"`
 	Predictor         string        `env:"PLANNER_PREDICTOR" envDefault:"ewma"`
 	ModelRegistry     string        `env:"PLANNER_MODEL_REGISTRY" envDefault:"/models/registry"`
 	ModelMaxAge       time.Duration `env:"PLANNER_MODEL_MAX_AGE" envDefault:"72h"`
@@ -48,6 +49,8 @@ func NewPlannerConfig() (*plannerConfig, error) {
 		return nil, fmt.Errorf("PLANNER_MODEL_REGISTRY and PLANNER_TRAIN_COMMAND must not be empty")
 	case raw.ModelMaxAge <= 0 || raw.ModelUpdateEvery < time.Second || raw.ModelMinHistory <= 0 || raw.ModelTrainWindow <= 0 || raw.ModelTrainTimeout <= 0:
 		return nil, fmt.Errorf("model lifecycle durations must be positive (update interval >= 1s)")
+	case raw.MaxHistoryLag <= 0:
+		return nil, fmt.Errorf("PLANNER_MAX_HISTORY_LAG must be positive")
 	case raw.Predictor != "ewma" && raw.Predictor != "lgbm":
 		return nil, fmt.Errorf("PLANNER_PREDICTOR must be ewma or lgbm")
 	case raw.Interval < time.Second:
@@ -92,3 +95,4 @@ func (c *plannerConfig) ModelMinHistory() time.Duration   { return c.raw.ModelMi
 func (c *plannerConfig) ModelTrainWindow() time.Duration  { return c.raw.ModelTrainWindow }
 func (c *plannerConfig) ModelTrainTimeout() time.Duration { return c.raw.ModelTrainTimeout }
 func (c *plannerConfig) TrainCommand() string             { return c.raw.TrainCommand }
+func (c *plannerConfig) MaxHistoryLag() time.Duration     { return c.raw.MaxHistoryLag }

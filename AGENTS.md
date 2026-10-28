@@ -22,7 +22,16 @@ JSON arrays and externally sorts selected reads using `/usr/bin/sort`; one bucke
 per zone, digest keys, full GET 200 size, GET 200/206 demand. Data license is
 not stated; permission requested from authors. See `docs/traces.md`. See the service README for profiles.
 Use its service provider and shared go-kit clients. Preserve commit-before-ack,
-stream deduplication and atomic event/progress/gap/aggregate updates. Mark events
+stream deduplication and atomic event/progress/gap/aggregate updates.
+Stage 5 uses same-stream `StreamHeartbeat` barriers (Kafka `event-type: heartbeat`),
+periodic and closing heartbeats under the event mutex; HTTP never waits for Kafka.
+Shutdown drains HTTP, confirms ordinary barriers, confirms closing barriers, then
+closes sarama; consume both results channels. History Coverage owns W across
+observed open/closed/lost streams; never infer it from event traffic or now.
+Planner runs at W, gates excessive lag and reads only events strictly before W
+before grouping by minute. Keep gaps conservative and heartbeat replay atomic.
+See `docs/history-completeness-spec.md` and the SPPR README for env and recovery.
+`make smoke-history-local` disrupts Kafka/Gateway: use a dedicated stand. Mark events
 that a retry cannot fix with `model.ErrRejected` so they are committed; return
 infrastructure errors so the go-kit `Retry` middleware holds the partition. Its SQL
 migrations use migrate up/down files. See `services/sppr/README.md` for the event

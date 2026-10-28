@@ -22,7 +22,7 @@ generate-all-py: generate-py
 
 generate-go: generate-user-go generate-auth-go generate-storage-go generate-metadata-go generate-authz-go generate-quota-go generate-events-go
 
-generate-py: generate-user-py generate-auth-py generate-storage-py generate-metadata-py generate-authz-py generate-quota-py
+generate-py: generate-user-py generate-auth-py generate-storage-py generate-metadata-py generate-authz-py generate-quota-py generate-events-py
 
 generate-user-go:
 	mkdir -p $(GO_PROTO_OUT)/user/v1
@@ -142,6 +142,12 @@ generate-events-go:
 		--go_out=$(GO_PROTO_OUT)/events/v1 --go_opt=paths=source_relative \
 		--plugin=protoc-gen-go=$(LOCAL_BIN)/protoc-gen-go \
 		shared/api/events/v1/access.proto
+
+# events contain messages only; protoc's built-in Python generator is sufficient.
+generate-events-py:
+	mkdir -p $(PY_PROTO_OUT)/events/v1
+	protoc --proto_path=shared/api/events/v1 --python_out=$(PY_PROTO_OUT)/events/v1 shared/api/events/v1/access.proto
+	touch $(PY_PROTO_OUT)/events/__init__.py $(PY_PROTO_OUT)/events/v1/__init__.py
 
 generate-quota-py:
 	mkdir -p $(PY_PROTO_OUT)/quota/v1
@@ -323,3 +329,12 @@ smoke-ml-update:
 smoke-ml-update-local:
 	PLANNER_HORIZON=2m PLANNER_MODEL_MIN_HISTORY=1m PLANNER_MODEL_TRAIN_WINDOW=140m PLANNER_MODEL_DIR= GATEWAY_MAX_READ_DURATION=2s MIGRATION_SOURCE_CLEANUP_DELAY=5s METADATA_DELETE_CLEANUP_DELAY=5s MIGRATION_CLEANUP_INTERVAL=250ms MIGRATION_MIN_INTERVAL=0s $(MAKE) up-sppr-planner
 	GATEWAY_MAX_READ_DURATION=2s MIGRATION_SOURCE_CLEANUP_DELAY=5s METADATA_DELETE_CLEANUP_DELAY=5s MIGRATION_CLEANUP_INTERVAL=250ms MIGRATION_MIN_INTERVAL=0s $(MAKE) smoke-ml-update
+
+.PHONY: smoke-history smoke-history-local
+# Disruptive: dedicated stand only; stops Kafka and kills/stops Gateway.
+smoke-history:
+	SPPR_SMOKE_PG_DSN="$${SPPR_SMOKE_PG_DSN:-postgres://sppr_user:sppr_password@localhost:$${SPPR_DB_PORT:-5436}/sppr_db?sslmode=disable}" go run ./services/sppr/cmd/smoke-history $(SMOKE_HISTORY_ARGS)
+
+smoke-history-local:
+	ACCESS_EVENTS_ENABLED=true ADMIN_AUTH_ENABLED=false ACCESS_HEARTBEAT_INTERVAL=1s INGEST_STREAM_LOST_AFTER=30s $(MAKE) up-sppr-planner
+	$(MAKE) smoke-history

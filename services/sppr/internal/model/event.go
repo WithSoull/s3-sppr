@@ -50,3 +50,12 @@ type IngestResult struct {
 	Duplicate bool
 	Missing   int64
 }
+
+// StreamHeartbeat is a barrier, not a demand event.
+type StreamHeartbeat struct {
+	GatewayID, StreamID string
+	Sequence            int64
+	At                  time.Time
+	Closing             bool
+	Payload             []byte
+}

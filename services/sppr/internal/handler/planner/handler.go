@@ -57,6 +57,7 @@ func (h *handler) status(w http.ResponseWriter, r *http.Request) {
 	}
 	dto := statusDTO{
 		ModelLifecycle: st.ModelLifecycle,
+		History:        st.History, HistoryLagSeconds: st.HistoryLagSeconds, Objects: st.Objects,
 		Hot:            classDTO{st.Hot.CapacityBytes, st.Hot.MaxUtilization, st.Hot.UsedBytes},
 		Cold:           classDTO{st.Cold.CapacityBytes, st.Cold.MaxUtilization, st.Cold.UsedBytes},
 		HistoryQuality: st.HistoryQuality, MethodVersion: st.MethodVersion, ModelVersion: st.ModelVersion, FallbackReason: st.FallbackReason,

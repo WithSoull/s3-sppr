@@ -16,6 +16,7 @@ import (
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/handler/planner"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/repository/adminform"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/service"
+	ingestorService "github.com/alesplll/opens3-rebac/services/sppr/internal/service/ingestor"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/closer"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/logger"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/metric"
@@ -135,7 +136,17 @@ func (a *App) Run(ctx context.Context) error {
 	executed := make(chan error, 1)
 	cleaned := make(chan error, 1)
 	planned := make(chan error, 1)
+	ingestor, err := a.provider.Ingestor(ctx)
+	if err != nil {
+		return err
+	}
 	go func() { served <- a.server.Serve(a.listener) }()
+	lostDone := make(chan struct{})
+	go func() {
+		defer close(lostDone)
+		ingestorService.RunLostCheck(ctx, ingestor, a.cfg.Retry.StreamLostAfter(), time.Now)
+	}()
+	defer func() { cancel(); <-lostDone }()
 	go func() { consumed <- a.consumer.RunConsumer(ctx) }()
 	if a.executor != nil {
 		go func() { executed <- a.executor.Run(ctx) }()
