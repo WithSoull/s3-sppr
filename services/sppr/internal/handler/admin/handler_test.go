@@ -28,7 +28,7 @@ func TestPages(t *testing.T) {
 			p.StatusMock.Return(model.PlannerStatus{MethodVersion: "ewma-1h-v1"}, nil)
 		}, "ewma-1h-v1"},
 		{"ML status", "/admin", func(p *mocks.PlannerServiceMock, m *mocks.MigrationServiceMock, f *mocks.FormCommandsMock) {
-			p.StatusMock.Return(model.PlannerStatus{MethodVersion: "lgbm-hurdle-v1", ModelVersion: "spike-fixture-v1"}, nil)
+			p.StatusMock.Return(model.PlannerStatus{MethodVersion: "lgbm-hurdle-v1", ModelVersion: "spike-fixture-v1", ModelLifecycle: &model.ModelLifecycleStatus{Active: &model.ModelVersion{ModelVersion: "spike-fixture-v1", Source: "manual"}, LastAttempt: &model.ModelVersion{Status: "active"}, Training: true, Progress: "training"}}, nil)
 		}, "spike-fixture-v1"},
 		{"fallback status", "/admin", func(p *mocks.PlannerServiceMock, m *mocks.MigrationServiceMock, f *mocks.FormCommandsMock) {
 			p.StatusMock.Return(model.PlannerStatus{MethodVersion: "ewma-1h-v1", FallbackReason: "classifier.txt: SHA-256 mismatch"}, nil)

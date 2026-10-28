@@ -1,0 +1,7 @@
+{{define "models"}}<h1>Журнал версий моделей</h1>
+<table><tr><th>Версия / источник</th><th>Состояние / причина</th><th>Данные / обучение</th><th>Cov_K / EWMA</th><th>Время</th></tr>
+{{range .Models}}<tr><td>{{.ModelVersion}} · {{.Source}}</td><td>{{.Status}} · {{.Reason}}</td>
+<td>{{.TrainedFrom}} — {{.TrainedTo}}; строк: {{.TrainRows}}, секунд: {{.TrainSeconds}}</td>
+<td>{{with .ValidationCovK}}{{.}}{{else}}—{{end}} / {{with .ValidationEWMACovK}}{{.}}{{else}}—{{end}}</td>
+<td>{{datetime .CreatedAt}}; включена: {{.ActivatedAt}}; выведена: {{.RetiredAt}}</td></tr>{{else}}<tr><td colspan="5">Попыток ещё нет.</td></tr>{{end}}</table>
+{{if .Next}}<a href="{{.Next}}">Далее</a>{{end}}{{end}}

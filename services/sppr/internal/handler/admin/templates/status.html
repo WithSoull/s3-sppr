@@ -24,6 +24,16 @@
 </section>
 <section>
 <h2>История и исполнитель</h2>
+{{with .ModelLifecycle}}
+<dl><dt>Источник активной модели</dt><dd>{{with .Active}}{{.Source}}{{else}}EWMA{{end}}</dd>
+<dt>Возраст / предел (секунды)</dt><dd>{{.AgeSeconds}} / {{.MaxAgeSeconds}}</dd>
+<dt>Последняя попытка</dt><dd>{{with .LastAttempt}}{{datetime .CreatedAt}} · {{.ModelVersion}} · {{.Status}} · {{.Reason}}{{else}}Ещё нет{{end}}</dd>
+<dt>Следующая попытка</dt><dd>{{datetime .NextAttempt}}</dd>
+<dt>Обучение</dt><dd>{{yesno .Training}} · {{.Progress}} · {{.HistoryReason}}</dd>
+{{if .JournalError}}<dt>Ошибка журнала</dt><dd>{{.JournalError}}</dd>{{end}}</dl>
+{{end}}
+<form method="post" action="/admin/commands/retrain"><input type="hidden" name="command_id" value="{{id}}"><button>Переобучить модель</button></form>
+<a href="/admin/models">Журнал версий</a>
 <dl>
 <dt>Метод</dt>
 <dd>{{text .MethodVersion}}</dd>

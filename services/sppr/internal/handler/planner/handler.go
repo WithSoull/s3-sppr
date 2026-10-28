@@ -30,6 +30,8 @@ func NewHandler(s service.PlannerService) http.Handler {
 	h := &handler{service: s}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET "+Prefix+"/status", h.status)
+	mux.HandleFunc("POST "+Prefix+"/model/retrain", h.command(model.CommandRetrain))
+	mux.HandleFunc("GET "+Prefix+"/model/versions", h.modelVersions)
 	mux.HandleFunc("GET "+Prefix+"/plans", h.listPlans)
 	mux.HandleFunc("GET "+Prefix+"/plans/latest", h.latestPlan)
 	mux.HandleFunc("GET "+Prefix+"/plans/{id}", h.getPlan)
@@ -54,6 +56,7 @@ func (h *handler) status(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	dto := statusDTO{
+		ModelLifecycle: st.ModelLifecycle,
 		Hot:            classDTO{st.Hot.CapacityBytes, st.Hot.MaxUtilization, st.Hot.UsedBytes},
 		Cold:           classDTO{st.Cold.CapacityBytes, st.Cold.MaxUtilization, st.Cold.UsedBytes},
 		HistoryQuality: st.HistoryQuality, MethodVersion: st.MethodVersion, ModelVersion: st.ModelVersion, FallbackReason: st.FallbackReason,
@@ -262,4 +265,33 @@ func writeError(ctx context.Context, w http.ResponseWriter, err error) {
 		message = "internal error"
 	}
 	writeJSON(w, status, errorResponse{Error: message})
+}
+
+func (h *handler) modelVersions(w http.ResponseWriter, r *http.Request) {
+	provider, ok := h.service.(interface {
+		ModelVersions(context.Context, time.Time) ([]model.ModelVersion, error)
+	})
+	if !ok {
+		writeJSON(w, 200, map[string]any{"versions": []model.ModelVersion{}})
+		return
+	}
+	var before time.Time
+	if raw := r.URL.Query().Get("before"); raw != "" {
+		var err error
+		before, err = time.Parse(time.RFC3339Nano, raw)
+		if err != nil {
+			writeError(r.Context(), w, model.ErrInvalidArgument)
+			return
+		}
+	}
+	rows, err := provider.ModelVersions(r.Context(), before)
+	if err != nil {
+		writeError(r.Context(), w, err)
+		return
+	}
+	next := ""
+	if len(rows) == 100 {
+		next = rows[len(rows)-1].CreatedAt.Format(time.RFC3339Nano)
+	}
+	writeJSON(w, 200, map[string]any{"versions": rows, "next_before": next})
 }

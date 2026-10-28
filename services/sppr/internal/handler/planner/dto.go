@@ -147,19 +147,20 @@ type classDTO struct {
 }
 
 type statusDTO struct {
-	Hot            classDTO          `json:"hot"`
-	Cold           classDTO          `json:"cold"`
-	HistoryQuality model.DataQuality `json:"history_quality"`
-	MethodVersion  string            `json:"method_version"`
-	ModelVersion   string            `json:"model_version"`
-	FallbackReason string            `json:"fallback_reason"`
-	Paused         bool              `json:"paused"`
-	MinIntervalSec int64             `json:"min_interval_seconds"`
-	BudgetBytes    int64             `json:"budget_bytes"`
-	BudgetWindowS  int64             `json:"budget_window_seconds"`
-	BudgetSpent    int64             `json:"budget_spent"`
-	BudgetLeft     int64             `json:"budget_remaining"`
-	LatestPlan     *planDTO          `json:"latest_plan,omitempty"`
-	PendingActions int               `json:"pending_actions"`
-	RunningActions int               `json:"running_actions"`
+	ModelLifecycle *model.ModelLifecycleStatus `json:"model_lifecycle,omitempty"`
+	Hot            classDTO                    `json:"hot"`
+	Cold           classDTO                    `json:"cold"`
+	HistoryQuality model.DataQuality           `json:"history_quality"`
+	MethodVersion  string                      `json:"method_version"`
+	ModelVersion   string                      `json:"model_version"`
+	FallbackReason string                      `json:"fallback_reason"`
+	Paused         bool                        `json:"paused"`
+	MinIntervalSec int64                       `json:"min_interval_seconds"`
+	BudgetBytes    int64                       `json:"budget_bytes"`
+	BudgetWindowS  int64                       `json:"budget_window_seconds"`
+	BudgetSpent    int64                       `json:"budget_spent"`
+	BudgetLeft     int64                       `json:"budget_remaining"`
+	LatestPlan     *planDTO                    `json:"latest_plan,omitempty"`
+	PendingActions int                         `json:"pending_actions"`
+	RunningActions int                         `json:"running_actions"`
 }
