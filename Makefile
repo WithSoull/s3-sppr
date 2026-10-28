@@ -345,3 +345,17 @@ smoke-history:
 smoke-history-local:
 	ACCESS_EVENTS_ENABLED=true ADMIN_AUTH_ENABLED=false ACCESS_HEARTBEAT_INTERVAL=1s INGEST_STREAM_LOST_AFTER=30s $(MAKE) up-sppr-planner
 	$(MAKE) smoke-history
+
+# Disposable real-service stands; always run from the repository root.
+STAND_CONFIG ?= services/sppr/experiments/stand-shift.json
+STAND_OUT ?= build/stand-shift
+STAND_SMOKE_OUT ?= build/stand-smoke
+OVERHEAD_CONFIG ?= services/sppr/experiments/overhead.json
+OVERHEAD_OUT ?= build/overhead
+.PHONY: stand-smoke stand-experiment overhead
+stand-smoke: build/bin/experiment
+	build/bin/experiment -config services/sppr/experiments/stand-smoke.json -out $(STAND_SMOKE_OUT) $(EXPERIMENT_ARGS)
+stand-experiment: build/bin/experiment
+	build/bin/experiment -config $(STAND_CONFIG) -out $(STAND_OUT) $(EXPERIMENT_ARGS)
+overhead: build/bin/experiment
+	build/bin/experiment -config $(OVERHEAD_CONFIG) -out $(OVERHEAD_OUT) $(EXPERIMENT_ARGS)

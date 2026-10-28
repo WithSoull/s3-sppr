@@ -63,8 +63,19 @@ policy/budget. Preserve causal labels, measured training activation delays,
 capacity including temporary copies, FIFO reads, per-cycle budget and checkpoint
 hash verification. `make sim-smoke`, `make experiment CONFIG=...`, and
 `make experiment-report` need the ML venv but no services. New result directories
-are mandatory; `-resume` requires the same binary/config/revision. `stand` is
-reserved for stage 10b. See the SPPR README for model assumptions and overrides.
+are mandatory; `-resume` requires the same binary/config/revision. `mode=stand` runs serial disposable Compose projects, with loopback ephemeral
+ports and `down -v` before/after each policy. Preserve the predetermined open-loop
+arrival schedule, FIFO queue and <=8 active full GETs; latency includes queueing
+through the last byte, errors must account for every offered request. Compression
+changes arrival time only, not service clocks. Keep 2 CPU / 2 GiB SPPR limits,
+inspect verification, docker stats and status/journal artifacts. Overhead uses a
+fixed COLD placement, paused migrations, no confirmations, and paired
+no-extension/no-training/training runs; Python training/export shares the SPPR
+cgroup. This checkout has no Model Manager hot activation. Unknown stand
+invariants/metrics must stay unknown; snapshots alone never prove zero violations.
+`make stand-smoke`, `make stand-experiment`, `make overhead` require Docker;
+never run against an existing project. ML/map/train-only inputs must exist before
+the run and are hashed for resume. See the SPPR README for model assumptions and overrides.
 Baseline predictors register through `PLANNER_PREDICTOR=age|recency|frequency`;
 age/recency need `PLANNER_BASELINE_MAP` (one matching map, trained on train only).
 

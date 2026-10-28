@@ -1,0 +1,18 @@
+# Same service plus the real trainer under one cgroup for overhead runs.
+FROM golang:1.24.1-alpine3.21 AS builder
+ENV GOWORK=off CGO_ENABLED=0
+WORKDIR /workspace/services/sppr
+COPY shared /workspace/shared
+COPY services/sppr ./
+RUN go build -trimpath -o /out/sppr ./cmd/server
+
+FROM python:3.13-slim
+RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 wget && rm -rf /var/lib/apt/lists/*
+COPY services/sppr/ml/requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt && useradd -u 10001 -m sppr
+COPY services/sppr/ml/sppr_ml /app/sppr_ml
+COPY --from=builder /out/sppr /app/sppr
+ENV PYTHONPATH=/app OMP_NUM_THREADS=2 OPENBLAS_NUM_THREADS=2 MPLCONFIGDIR=/tmp/mpl
+USER sppr
+WORKDIR /app
+ENTRYPOINT ["/app/sppr"]

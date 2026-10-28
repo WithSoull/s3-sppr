@@ -59,8 +59,20 @@ func TestConfigValidation(t *testing.T) {
 		name   string
 		mutate func(*Config)
 	}{
-		{"stand", func(c *Config) { c.Mode = "stand" }}, {"duplicate seeds", func(c *Config) { c.Seeds = []uint64{1, 1} }}, {"duplicate scenarios", func(c *Config) { c.Scenarios = []string{"stable", "stable"} }}, {"invalid cycle", func(c *Config) { c.Simulation.CycleSeconds = 7 }},
+		{"stand", func(c *Config) { c.Mode = "invalid" }}, {"duplicate seeds", func(c *Config) { c.Seeds = []uint64{1, 1} }}, {"duplicate scenarios", func(c *Config) { c.Scenarios = []string{"stable", "stable"} }}, {"invalid cycle", func(c *Config) { c.Simulation.CycleSeconds = 7 }},
 	} {
 		t.Run(tt.name, func(t *testing.T) { c := smallConfig(); tt.mutate(&c); require.Error(t, c.Validate()) })
+	}
+}
+
+func TestStandProfilesLoad(t *testing.T) {
+	for _, name := range []string{"stand-smoke", "stand-shift", "overhead", "overhead-smoke"} {
+		t.Run(name, func(t *testing.T) {
+			c, err := Load(filepath.Join("..", "..", "..", "experiments", name+".json"))
+			require.NoError(t, err)
+			require.Equal(t, "stand", c.Mode)
+			require.Equal(t, 1, c.Workers)
+			require.Equal(t, 8, c.Stand.Load.Slots)
+		})
 	}
 }
