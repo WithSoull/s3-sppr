@@ -24,13 +24,13 @@ func (r *repo) Store(ctx context.Context, e model.AccessEvent, d model.Delivery)
 		return model.IngestResult{}, err
 	}
 	var sequence int64
-	var lastAt, closedAt, heartbeatAt *time.Time
+	var lastAt, closedAt, heartbeatAt, lostAt *time.Time
 	var topic string
 	var partition int32
 	err := r.db.DB().QueryRowContext(ctx, db.Query{Name: "event:lock_stream", QueryRaw: `
-		SELECT last_sequence, last_event_at, topic, partition, closed_at, last_heartbeat_at FROM ingestion_streams
+		SELECT last_sequence, last_event_at, topic, partition, closed_at, last_heartbeat_at, lost_at FROM ingestion_streams
 		WHERE gateway_id=$1 AND stream_id=$2 FOR UPDATE`}, e.GatewayID, e.StreamID).
-		Scan(&sequence, &lastAt, &topic, &partition, &closedAt, &heartbeatAt)
+		Scan(&sequence, &lastAt, &topic, &partition, &closedAt, &heartbeatAt, &lostAt)
 	if err != nil {
 		return model.IngestResult{}, err
 	}
@@ -54,7 +54,7 @@ func (r *repo) Store(ctx context.Context, e model.AccessEvent, d model.Delivery)
 		}
 		return model.IngestResult{Duplicate: true}, nil
 	}
-	if closedAt != nil {
+	if closedAt != nil && lostAt == nil {
 		return model.IngestResult{}, fmt.Errorf("%w: closed stream", model.ErrRejected)
 	}
 	if heartbeatAt != nil && e.OccurredAt.Before(*heartbeatAt) {
@@ -62,6 +62,10 @@ func (r *repo) Store(ctx context.Context, e model.AccessEvent, d model.Delivery)
 	}
 	if lastAt != nil && e.OccurredAt.Before(*lastAt) {
 		return model.IngestResult{}, fmt.Errorf("%w: event time regressed within stream", model.ErrRejected)
+	}
+	resumed, err := r.resume(ctx, e.GatewayID, e.StreamID, sequence, lostAt, e.Sequence == sequence+1)
+	if err != nil {
+		return model.IngestResult{}, err
 	}
 	if _, err := r.db.DB().ExecContext(ctx, db.Query{Name: "event:insert", QueryRaw: `
 		INSERT INTO access_events (gateway_id, stream_id, sequence, occurred_at, bucket, object_key,
@@ -88,7 +92,7 @@ func (r *repo) Store(ctx context.Context, e model.AccessEvent, d model.Delivery)
 		UPDATE ingestion_streams SET last_sequence=$3, last_event_at=$4,
 		 first_event_at=COALESCE(first_event_at,$4), missing_events=missing_events+$5, updated_at=now()
 		WHERE gateway_id=$1 AND stream_id=$2`}, e.GatewayID, e.StreamID, e.Sequence, e.OccurredAt, missing)
-	return model.IngestResult{Missing: missing}, err
+	return model.IngestResult{Missing: missing, Resumed: resumed}, err
 }
 
 func (r *repo) addDemand(ctx context.Context, e model.AccessEvent) error {

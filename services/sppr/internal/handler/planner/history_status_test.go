@@ -16,7 +16,7 @@ import (
 func TestHistoryStatusDTO(t *testing.T) {
 	mc := minimock.NewController(t)
 	p := mocks.NewPlannerServiceMock(mc)
-	c := model.Coverage{Known: true, Start: created, Watermark: created, OpenStreams: 2, ClosedStreams: 3, LostStreams: 1, Gaps24h: 4}
+	c := model.Coverage{Known: true, Start: created, Watermark: created, OpenStreams: 2, ClosedStreams: 3, LostStreams: 1, ResumedCount: 2, Gaps24h: 4}
 	objects := []model.ObjectHistory{{VersionRef: model.VersionRef{Bucket: "b", ObjectKey: "k", VersionID: "v"}, State: "история неполна", Quality: model.DataQuality{Reason: "gap"}}}
 	p.StatusMock.Return(model.PlannerStatus{History: c, HistoryLagSeconds: 61, Objects: objects}, nil)
 	w := httptest.NewRecorder()

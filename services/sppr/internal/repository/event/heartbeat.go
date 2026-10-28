@@ -23,10 +23,10 @@ func (r *repo) StoreHeartbeat(ctx context.Context, h model.StreamHeartbeat, d mo
 		return model.IngestResult{}, err
 	}
 	var seq, priorMissing int64
-	var last, heartbeat, closed *time.Time
+	var last, heartbeat, closed, lost *time.Time
 	var topic string
 	var partition int32
-	err = r.db.DB().QueryRowContext(ctx, db.Query{Name: "heartbeat:lock", QueryRaw: `SELECT last_sequence,last_event_at,last_heartbeat_at,closed_at,topic,partition,missing_events FROM ingestion_streams WHERE gateway_id=$1 AND stream_id=$2 FOR UPDATE`}, h.GatewayID, h.StreamID).Scan(&seq, &last, &heartbeat, &closed, &topic, &partition, &priorMissing)
+	err = r.db.DB().QueryRowContext(ctx, db.Query{Name: "heartbeat:lock", QueryRaw: `SELECT last_sequence,last_event_at,last_heartbeat_at,closed_at,topic,partition,missing_events,lost_at FROM ingestion_streams WHERE gateway_id=$1 AND stream_id=$2 FOR UPDATE`}, h.GatewayID, h.StreamID).Scan(&seq, &last, &heartbeat, &closed, &topic, &partition, &priorMissing, &lost)
 	if err != nil {
 		return model.IngestResult{}, err
 	}
@@ -46,7 +46,11 @@ func (r *repo) StoreHeartbeat(ctx context.Context, h model.StreamHeartbeat, d mo
 		return model.IngestResult{}, err
 	}
 
-	missing, complete, err := heartbeatProgress(seq, last, heartbeat, closed, h, priorMissing)
+	missing, complete, err := heartbeatProgress(seq, last, heartbeat, closed, lost, h, priorMissing)
+	if err != nil {
+		return model.IngestResult{}, err
+	}
+	resumed, err := r.resume(ctx, h.GatewayID, h.StreamID, seq, lost, h.Sequence == seq)
 	if err != nil {
 		return model.IngestResult{}, err
 	}
@@ -61,7 +65,7 @@ func (r *repo) StoreHeartbeat(ctx context.Context, h model.StreamHeartbeat, d mo
 		return model.IngestResult{}, err
 	}
 	_, err = r.db.DB().ExecContext(ctx, db.Query{Name: "heartbeat:receipt", QueryRaw: `INSERT INTO ingestion_heartbeats(topic,partition,kafka_offset,gateway_id,stream_id,payload_hash) VALUES($1,$2,$3,$4,$5,$6)`}, d.Topic, d.Partition, d.Offset, h.GatewayID, h.StreamID, hash[:])
-	return model.IngestResult{Missing: missing}, err
+	return model.IngestResult{Missing: missing, Resumed: resumed}, err
 }
 func (r *repo) CloseLostStreams(ctx context.Context, now time.Time, after time.Duration) error {
 	if _, ok := txctx.ExtractTx(ctx); !ok {
@@ -73,13 +77,13 @@ func (r *repo) CloseLostStreams(ctx context.Context, now time.Time, after time.D
  UPDATE ingestion_streams SET lost_at=$1,closed_at=$1,updated_at=$1
  WHERE closed_at IS NULL AND COALESCE(last_heartbeat_at,created_at)<$2
  RETURNING gateway_id,stream_id,last_sequence,COALESCE(complete_until,first_event_at,created_at) AS gap_start
- ) INSERT INTO ingestion_gaps(gateway_id,stream_id,first_sequence,last_sequence,after_time,before_time)
- SELECT gateway_id,stream_id,last_sequence+1,NULL,gap_start,$1 FROM lost`}, now, now.Add(-after))
+ ) INSERT INTO ingestion_gaps(gateway_id,stream_id,first_sequence,last_sequence,after_time,before_time,is_lost)
+ SELECT gateway_id,stream_id,last_sequence+1,NULL,gap_start,$1,true FROM lost`}, now, now.Add(-after))
 	return err
 }
 
-func heartbeatProgress(seq int64, last, heartbeat, closed *time.Time, h model.StreamHeartbeat, priorMissing int64) (int64, *time.Time, error) {
-	if closed != nil || h.Sequence < seq || (last != nil && h.At.Before(*last)) || (heartbeat != nil && h.At.Before(*heartbeat)) {
+func heartbeatProgress(seq int64, last, heartbeat, closed, lost *time.Time, h model.StreamHeartbeat, priorMissing int64) (int64, *time.Time, error) {
+	if (closed != nil && lost == nil) || h.Sequence < seq || (last != nil && h.At.Before(*last)) || (heartbeat != nil && h.At.Before(*heartbeat)) {
 		return 0, nil, fmt.Errorf("%w: heartbeat regressed or stream closed", model.ErrRejected)
 	}
 	missing := h.Sequence - seq

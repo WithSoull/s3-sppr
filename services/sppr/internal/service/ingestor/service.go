@@ -41,6 +41,9 @@ func (s *ingestor) Ingest(ctx context.Context, event model.AccessEvent, delivery
 	if err != nil {
 		return model.IngestResult{}, fmt.Errorf("persist access event: %w", err)
 	}
+	if result.Resumed {
+		logger.With().Info(ctx, "lost stream resumed", zap.String("gateway_id", event.GatewayID), zap.String("stream_id", event.StreamID), zap.Int64("sequence", event.Sequence))
+	}
 	return result, nil
 }
 
@@ -60,6 +63,9 @@ func (s *ingestor) Heartbeat(ctx context.Context, h model.StreamHeartbeat, d mod
 	})
 	if err != nil {
 		return model.IngestResult{}, err
+	}
+	if result.Resumed {
+		logger.With().Info(ctx, "lost stream resumed", zap.String("gateway_id", h.GatewayID), zap.String("stream_id", h.StreamID), zap.Int64("sequence", h.Sequence))
 	}
 	return result, nil
 }
