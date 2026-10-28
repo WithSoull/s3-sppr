@@ -98,7 +98,8 @@ func isolate(doc map[string]any, c Config, sc sim.Config, policy string, budget 
 		predictor = "ewma"
 	}
 	setEnv(s, "PLANNER_PREDICTOR", predictor)
-	var volumes []any
+	// Keep the service's own volumes, including the writable model registry.
+	volumes, _ := s["volumes"].([]any)
 	for key, path := range artifacts {
 		abs, err := filepath.Abs(path)
 		if err != nil {
@@ -110,22 +111,15 @@ func isolate(doc map[string]any, c Config, sc sim.Config, policy string, budget 
 	s["volumes"] = volumes
 	if policy == "lgbm" {
 		setEnv(s, "PLANNER_MODEL_DIR", "/artifacts/model")
+		// The bootstrap model is fixed for the run; its synthetic label dates lie in
+		// the past, so the production age limit would silently select EWMA.
+		setEnv(s, "PLANNER_MODEL_MAX_AGE", "87600h")
+		setEnv(s, "PLANNER_MODEL_UPDATE_EVERY", "87600h")
 	}
 	if policy == "age" || policy == "recency" {
 		setEnv(s, "PLANNER_BASELINE_MAP", "/artifacts/"+policy)
 	}
-	if c.Overhead {
-		s["build"] = map[string]any{"context": docContext(services), "dockerfile": "services/sppr/Dockerfile.stand"}
-	}
 	return nil
-}
-func docContext(services map[string]any) string {
-	if b, ok := services["sppr"].(map[string]any)["build"].(map[string]any); ok {
-		if p, ok := b["context"].(string); ok {
-			return p
-		}
-	}
-	return "."
 }
 func prepareCompose(ctx context.Context, c Config, sc sim.Config, policy string, budget int64, artifacts map[string]string, dir, project string) (compose, error) {
 	source, err := filepath.Abs(c.ComposeFile)

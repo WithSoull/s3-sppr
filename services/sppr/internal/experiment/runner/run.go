@@ -23,10 +23,13 @@ import (
 )
 
 type Config struct {
-	Mode       string       `json:"mode"`
-	Scenarios  []string     `json:"scenarios"`
-	Seeds      []uint64     `json:"seeds"`
-	Workers    int          `json:"workers"`
+	Mode      string   `json:"mode"`
+	Scenarios []string `json:"scenarios"`
+	Seeds     []uint64 `json:"seeds"`
+	Workers   int      `json:"workers"`
+	// DropCache removes the large replay caches of a finished pair before it is
+	// hashed; models, baseline maps and logs stay for the stand series.
+	DropCache  bool         `json:"drop_cache"`
 	Simulation sim.Config   `json:"simulation"`
 	Stand      stand.Config `json:"stand"`
 }
@@ -289,6 +292,9 @@ func Run(ctx context.Context, c Config, out string, resume bool) error {
 							if err == nil {
 								err = sim.WriteResults(filepath.Join(tmp, "results"), results, git)
 							}
+							if err == nil && c.DropCache {
+								err = dropCache(filepath.Join(tmp, "cache"))
+							}
 							if err == nil {
 								for _, r := range results {
 									fmt.Printf("%s %s budget=%d MiB reads=%d mean=%.4f ms p95=%.4f ms HOT=%.4f moved=%d violations=%d\n", name, r.Policy, r.Budget/(1<<20), r.Latency.Reads, r.Latency.MeanMs, r.Latency.P95Ms, r.HotShare, r.Migrations, r.Violations)
@@ -351,4 +357,20 @@ sending:
 		}
 	}
 	return jsonFile(filepath.Join(out, "manifest.json"), m)
+}
+
+func dropCache(dir string) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		n := e.Name()
+		if strings.HasSuffix(n, ".gob") || (e.IsDir() && strings.HasPrefix(n, "train-")) {
+			if err := os.RemoveAll(filepath.Join(dir, n)); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

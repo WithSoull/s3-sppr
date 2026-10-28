@@ -57,8 +57,9 @@ func TestComposeIsolationAndPolicy(t *testing.T) {
 				}
 			}
 			require.Equal(t, policy != "no-extension", s["gateway"].(map[string]any)["environment"].(map[string]any)["ACCESS_EVENTS_ENABLED"] == "true")
-			if c.Overhead {
-				require.Equal(t, "services/sppr/Dockerfile.stand", sppr["build"].(map[string]any)["dockerfile"])
+			require.Equal(t, "services/sppr/Dockerfile", sppr["build"].(map[string]any)["dockerfile"])
+			if policy == "lgbm" {
+				require.Equal(t, "87600h", env["PLANNER_MODEL_MAX_AGE"])
 			}
 		})
 	}
