@@ -329,7 +329,7 @@ func Help(code string) string {
 		return "План устарел или уже закрыт. Откройте последнюю ревизию, при необходимости рассчитайте новый план и проверьте рекомендации."
 	case "DEPENDENCY_REQUIRED":
 		return "Для выбранного переноса сначала нужно освободить место. Добавьте перечисленные ниже предшествующие действия и подтвердите выбор новой командой."
-	case "HISTORY_INCOMPLETE", "HISTORY_INCOMPLETE_PLAN":
+	case "HISTORY_INCOMPLETE", "HISTORY_INCOMPLETE_PLAN", "INSUFFICIENT_HISTORY", "UNKNOWN_COMPLETENESS", "WATERMARK_BEHIND", "GAP", "UNOBSERVED":
 		return "История неполна. Проверьте Ingestor и пропуски событий, затем рассчитайте план заново."
 	case "ACCESS_DENIED":
 		return "Нет действующего доступа администратора. Войдите с учётной записью с правом ADMIN на system:placement; при отказе обратитесь к администратору."
@@ -337,6 +337,10 @@ func Help(code string) string {
 		return "Бюджет переноса исчерпан. Дождитесь нового окна или увеличьте бюджет и рассчитайте план заново."
 	case "CAPACITY_LIMIT", "HOT_CAPACITY", "COLD_CAPACITY", "NO_CAPACITY":
 		return "Не хватает ёмкости с учётом временных копий. Дождитесь очистки, освободите место или измените допустимую загрузку и пересчитайте план."
+	case "TRAINING_IN_PROGRESS":
+		return "Обучение уже выполняется. Дождитесь результата в журнале моделей; для новой попытки отправьте новую команду."
+	case "HORIZON_NOT_WHOLE_MINUTES":
+		return "Метки из минутных агрегатов требуют горизонта, кратного минуте. Измените горизонт Planner и запустите обучение новой командой."
 	case "MODEL_UNAVAILABLE":
 		return "Прогноз недоступен. Проверьте метод прогноза и повторите расчёт."
 	case "EMPTY_SELECTION":
