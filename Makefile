@@ -319,3 +319,12 @@ smoke-planner:
 smoke-planner-local:
 	GATEWAY_MAX_READ_DURATION=2s MIGRATION_SOURCE_CLEANUP_DELAY=5s METADATA_DELETE_CLEANUP_DELAY=5s MIGRATION_CLEANUP_INTERVAL=250ms MIGRATION_MIN_INTERVAL=0s $(MAKE) up-sppr-planner
 	$(MAKE) smoke-planner
+
+.PHONY: smoke-history smoke-history-local
+# Disruptive: dedicated stand only; stops Kafka and kills/stops Gateway.
+smoke-history:
+	SPPR_SMOKE_PG_DSN="$${SPPR_SMOKE_PG_DSN:-postgres://sppr_user:sppr_password@localhost:$${SPPR_DB_PORT:-5436}/sppr_db?sslmode=disable}" go run ./services/sppr/cmd/smoke-history $(SMOKE_HISTORY_ARGS)
+
+smoke-history-local:
+	ACCESS_EVENTS_ENABLED=true ADMIN_AUTH_ENABLED=false ACCESS_HEARTBEAT_INTERVAL=1s INGEST_STREAM_LOST_AFTER=30s $(MAKE) up-sppr-planner
+	$(MAKE) smoke-history
