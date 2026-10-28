@@ -40,3 +40,10 @@ func AccessEvent(e model.AccessEvent) error {
 func validText(s string, limit int) bool {
 	return s != "" && len(s) <= limit && !strings.ContainsRune(s, 0) && utf8.ValidString(s)
 }
+
+func Heartbeat(h model.StreamHeartbeat) error {
+	if !streamID.MatchString(h.GatewayID) || !streamID.MatchString(h.StreamID) || h.Sequence < 0 || h.At.IsZero() || h.At.Year() < 1970 || h.At.Year() > 9999 {
+		return fmt.Errorf("invalid stream heartbeat")
+	}
+	return nil
+}

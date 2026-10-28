@@ -28,7 +28,7 @@ type App struct {
 func NewApp(configPath string) (*App, error) {
 	a := &App{}
 	if err := a.initDeps(configPath); err != nil {
-		return nil, errors.Join(err, a.closeResources())
+		return nil, errors.Join(err, a.closeResources(false))
 	}
 	return a, nil
 }
@@ -114,7 +114,8 @@ func (a *App) initHTTPServer() error {
 }
 
 func (a *App) Run(ctx context.Context) (runErr error) {
-	defer func() { runErr = errors.Join(runErr, a.closeResources()) }()
+	httpDrained := false
+	defer func() { runErr = errors.Join(runErr, a.closeResources(httpDrained && runErr == nil)) }()
 
 	listener, err := net.Listen("tcp", a.config.HTTP.Address())
 	if err != nil {
@@ -143,15 +144,28 @@ func (a *App) Run(ctx context.Context) (runErr error) {
 		if err := <-served; !errors.Is(err, http.ErrServerClosed) {
 			return err
 		}
-		logger.Info(context.Background(), "Gateway stopped gracefully")
+		httpDrained = true
+		logger.Info(context.Background(), "Gateway HTTP drained")
 		return nil
 	}
 }
 
-func (a *App) closeResources() error {
+func (a *App) closeResources(graceful bool) error {
 	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
 	var result error
+	if a.serviceProvider != nil {
+		if access, ok := a.serviceProvider.accessProducerService.(interface {
+			Stop(context.Context) error
+			Abort(context.Context) error
+		}); ok {
+			if graceful {
+				result = errors.Join(result, access.Stop(ctx))
+			} else {
+				result = errors.Join(result, access.Abort(ctx))
+			}
+		}
+	}
 	if a.closer != nil {
 		result = errors.Join(result, a.closer.CloseAll(ctx))
 	} else if a.serviceProvider != nil {

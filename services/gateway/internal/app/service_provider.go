@@ -111,7 +111,7 @@ func (s *serviceProvider) AsyncProducer() (sarama.AsyncProducer, error) {
 		if err != nil {
 			return nil, fmt.Errorf("create Kafka async producer: %w", err)
 		}
-		go kafkaproducer.LogErrors(p, logger.Logger(), func(topic string) {
+		go kafkaproducer.LogResults(p, logger.Logger(), func(topic string) {
 			deliveryErrors.Add(context.Background(), 1, metric.WithAttributes(attribute.String("topic", topic)))
 		})
 		s.closer.AddNamed("Kafka async producer", func(context.Context) error { return p.Close() })
@@ -160,12 +160,14 @@ func (s *serviceProvider) AccessProducerService() (service.AccessProducerService
 		if err != nil {
 			return nil, err
 		}
-		s.accessProducerService = accessproducer.NewService(
+		access := accessproducer.NewService(
 			s.config.AccessEvents.GatewayID(),
 			objectReadProducer,
 			objectWrittenProducer,
 			dropped,
 		)
+		access.Start(s.config.AccessEvents.HeartbeatInterval())
+		s.accessProducerService = access
 	}
 	return s.accessProducerService, nil
 }

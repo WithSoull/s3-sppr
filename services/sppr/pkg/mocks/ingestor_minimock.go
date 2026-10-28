@@ -8,6 +8,7 @@ import (
 	"context"
 	"sync"
 	mm_atomic "sync/atomic"
+	"time"
 	mm_time "time"
 
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/model"
@@ -18,6 +19,20 @@ import (
 type IngestorMock struct {
 	t          minimock.Tester
 	finishOnce sync.Once
+
+	funcCheckLostStreams          func(ctx context.Context, t1 time.Time, d1 time.Duration) (err error)
+	funcCheckLostStreamsOrigin    string
+	inspectFuncCheckLostStreams   func(ctx context.Context, t1 time.Time, d1 time.Duration)
+	afterCheckLostStreamsCounter  uint64
+	beforeCheckLostStreamsCounter uint64
+	CheckLostStreamsMock          mIngestorMockCheckLostStreams
+
+	funcHeartbeat          func(ctx context.Context, s1 model.StreamHeartbeat, d1 model.Delivery) (i1 model.IngestResult, err error)
+	funcHeartbeatOrigin    string
+	inspectFuncHeartbeat   func(ctx context.Context, s1 model.StreamHeartbeat, d1 model.Delivery)
+	afterHeartbeatCounter  uint64
+	beforeHeartbeatCounter uint64
+	HeartbeatMock          mIngestorMockHeartbeat
 
 	funcIngest          func(ctx context.Context, a1 model.AccessEvent, d1 model.Delivery) (i1 model.IngestResult, err error)
 	funcIngestOrigin    string
@@ -35,12 +50,765 @@ func NewIngestorMock(t minimock.Tester) *IngestorMock {
 		controller.RegisterMocker(m)
 	}
 
+	m.CheckLostStreamsMock = mIngestorMockCheckLostStreams{mock: m}
+	m.CheckLostStreamsMock.callArgs = []*IngestorMockCheckLostStreamsParams{}
+
+	m.HeartbeatMock = mIngestorMockHeartbeat{mock: m}
+	m.HeartbeatMock.callArgs = []*IngestorMockHeartbeatParams{}
+
 	m.IngestMock = mIngestorMockIngest{mock: m}
 	m.IngestMock.callArgs = []*IngestorMockIngestParams{}
 
 	t.Cleanup(m.MinimockFinish)
 
 	return m
+}
+
+type mIngestorMockCheckLostStreams struct {
+	optional           bool
+	mock               *IngestorMock
+	defaultExpectation *IngestorMockCheckLostStreamsExpectation
+	expectations       []*IngestorMockCheckLostStreamsExpectation
+
+	callArgs []*IngestorMockCheckLostStreamsParams
+	mutex    sync.RWMutex
+
+	expectedInvocations       uint64
+	expectedInvocationsOrigin string
+}
+
+// IngestorMockCheckLostStreamsExpectation specifies expectation struct of the Ingestor.CheckLostStreams
+type IngestorMockCheckLostStreamsExpectation struct {
+	mock               *IngestorMock
+	params             *IngestorMockCheckLostStreamsParams
+	paramPtrs          *IngestorMockCheckLostStreamsParamPtrs
+	expectationOrigins IngestorMockCheckLostStreamsExpectationOrigins
+	results            *IngestorMockCheckLostStreamsResults
+	returnOrigin       string
+	Counter            uint64
+}
+
+// IngestorMockCheckLostStreamsParams contains parameters of the Ingestor.CheckLostStreams
+type IngestorMockCheckLostStreamsParams struct {
+	ctx context.Context
+	t1  time.Time
+	d1  time.Duration
+}
+
+// IngestorMockCheckLostStreamsParamPtrs contains pointers to parameters of the Ingestor.CheckLostStreams
+type IngestorMockCheckLostStreamsParamPtrs struct {
+	ctx *context.Context
+	t1  *time.Time
+	d1  *time.Duration
+}
+
+// IngestorMockCheckLostStreamsResults contains results of the Ingestor.CheckLostStreams
+type IngestorMockCheckLostStreamsResults struct {
+	err error
+}
+
+// IngestorMockCheckLostStreamsOrigins contains origins of expectations of the Ingestor.CheckLostStreams
+type IngestorMockCheckLostStreamsExpectationOrigins struct {
+	origin    string
+	originCtx string
+	originT1  string
+	originD1  string
+}
+
+// Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
+// the test will fail minimock's automatic final call check if the mocked method was not called at least once.
+// Optional() makes method check to work in '0 or more' mode.
+// It is NOT RECOMMENDED to use this option unless you really need it, as default behaviour helps to
+// catch the problems when the expected method call is totally skipped during test run.
+func (mmCheckLostStreams *mIngestorMockCheckLostStreams) Optional() *mIngestorMockCheckLostStreams {
+	mmCheckLostStreams.optional = true
+	return mmCheckLostStreams
+}
+
+// Expect sets up expected params for Ingestor.CheckLostStreams
+func (mmCheckLostStreams *mIngestorMockCheckLostStreams) Expect(ctx context.Context, t1 time.Time, d1 time.Duration) *mIngestorMockCheckLostStreams {
+	if mmCheckLostStreams.mock.funcCheckLostStreams != nil {
+		mmCheckLostStreams.mock.t.Fatalf("IngestorMock.CheckLostStreams mock is already set by Set")
+	}
+
+	if mmCheckLostStreams.defaultExpectation == nil {
+		mmCheckLostStreams.defaultExpectation = &IngestorMockCheckLostStreamsExpectation{}
+	}
+
+	if mmCheckLostStreams.defaultExpectation.paramPtrs != nil {
+		mmCheckLostStreams.mock.t.Fatalf("IngestorMock.CheckLostStreams mock is already set by ExpectParams functions")
+	}
+
+	mmCheckLostStreams.defaultExpectation.params = &IngestorMockCheckLostStreamsParams{ctx, t1, d1}
+	mmCheckLostStreams.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
+	for _, e := range mmCheckLostStreams.expectations {
+		if minimock.Equal(e.params, mmCheckLostStreams.defaultExpectation.params) {
+			mmCheckLostStreams.mock.t.Fatalf("Expectation set by When has same params: %#v", *mmCheckLostStreams.defaultExpectation.params)
+		}
+	}
+
+	return mmCheckLostStreams
+}
+
+// ExpectCtxParam1 sets up expected param ctx for Ingestor.CheckLostStreams
+func (mmCheckLostStreams *mIngestorMockCheckLostStreams) ExpectCtxParam1(ctx context.Context) *mIngestorMockCheckLostStreams {
+	if mmCheckLostStreams.mock.funcCheckLostStreams != nil {
+		mmCheckLostStreams.mock.t.Fatalf("IngestorMock.CheckLostStreams mock is already set by Set")
+	}
+
+	if mmCheckLostStreams.defaultExpectation == nil {
+		mmCheckLostStreams.defaultExpectation = &IngestorMockCheckLostStreamsExpectation{}
+	}
+
+	if mmCheckLostStreams.defaultExpectation.params != nil {
+		mmCheckLostStreams.mock.t.Fatalf("IngestorMock.CheckLostStreams mock is already set by Expect")
+	}
+
+	if mmCheckLostStreams.defaultExpectation.paramPtrs == nil {
+		mmCheckLostStreams.defaultExpectation.paramPtrs = &IngestorMockCheckLostStreamsParamPtrs{}
+	}
+	mmCheckLostStreams.defaultExpectation.paramPtrs.ctx = &ctx
+	mmCheckLostStreams.defaultExpectation.expectationOrigins.originCtx = minimock.CallerInfo(1)
+
+	return mmCheckLostStreams
+}
+
+// ExpectT1Param2 sets up expected param t1 for Ingestor.CheckLostStreams
+func (mmCheckLostStreams *mIngestorMockCheckLostStreams) ExpectT1Param2(t1 time.Time) *mIngestorMockCheckLostStreams {
+	if mmCheckLostStreams.mock.funcCheckLostStreams != nil {
+		mmCheckLostStreams.mock.t.Fatalf("IngestorMock.CheckLostStreams mock is already set by Set")
+	}
+
+	if mmCheckLostStreams.defaultExpectation == nil {
+		mmCheckLostStreams.defaultExpectation = &IngestorMockCheckLostStreamsExpectation{}
+	}
+
+	if mmCheckLostStreams.defaultExpectation.params != nil {
+		mmCheckLostStreams.mock.t.Fatalf("IngestorMock.CheckLostStreams mock is already set by Expect")
+	}
+
+	if mmCheckLostStreams.defaultExpectation.paramPtrs == nil {
+		mmCheckLostStreams.defaultExpectation.paramPtrs = &IngestorMockCheckLostStreamsParamPtrs{}
+	}
+	mmCheckLostStreams.defaultExpectation.paramPtrs.t1 = &t1
+	mmCheckLostStreams.defaultExpectation.expectationOrigins.originT1 = minimock.CallerInfo(1)
+
+	return mmCheckLostStreams
+}
+
+// ExpectD1Param3 sets up expected param d1 for Ingestor.CheckLostStreams
+func (mmCheckLostStreams *mIngestorMockCheckLostStreams) ExpectD1Param3(d1 time.Duration) *mIngestorMockCheckLostStreams {
+	if mmCheckLostStreams.mock.funcCheckLostStreams != nil {
+		mmCheckLostStreams.mock.t.Fatalf("IngestorMock.CheckLostStreams mock is already set by Set")
+	}
+
+	if mmCheckLostStreams.defaultExpectation == nil {
+		mmCheckLostStreams.defaultExpectation = &IngestorMockCheckLostStreamsExpectation{}
+	}
+
+	if mmCheckLostStreams.defaultExpectation.params != nil {
+		mmCheckLostStreams.mock.t.Fatalf("IngestorMock.CheckLostStreams mock is already set by Expect")
+	}
+
+	if mmCheckLostStreams.defaultExpectation.paramPtrs == nil {
+		mmCheckLostStreams.defaultExpectation.paramPtrs = &IngestorMockCheckLostStreamsParamPtrs{}
+	}
+	mmCheckLostStreams.defaultExpectation.paramPtrs.d1 = &d1
+	mmCheckLostStreams.defaultExpectation.expectationOrigins.originD1 = minimock.CallerInfo(1)
+
+	return mmCheckLostStreams
+}
+
+// Inspect accepts an inspector function that has same arguments as the Ingestor.CheckLostStreams
+func (mmCheckLostStreams *mIngestorMockCheckLostStreams) Inspect(f func(ctx context.Context, t1 time.Time, d1 time.Duration)) *mIngestorMockCheckLostStreams {
+	if mmCheckLostStreams.mock.inspectFuncCheckLostStreams != nil {
+		mmCheckLostStreams.mock.t.Fatalf("Inspect function is already set for IngestorMock.CheckLostStreams")
+	}
+
+	mmCheckLostStreams.mock.inspectFuncCheckLostStreams = f
+
+	return mmCheckLostStreams
+}
+
+// Return sets up results that will be returned by Ingestor.CheckLostStreams
+func (mmCheckLostStreams *mIngestorMockCheckLostStreams) Return(err error) *IngestorMock {
+	if mmCheckLostStreams.mock.funcCheckLostStreams != nil {
+		mmCheckLostStreams.mock.t.Fatalf("IngestorMock.CheckLostStreams mock is already set by Set")
+	}
+
+	if mmCheckLostStreams.defaultExpectation == nil {
+		mmCheckLostStreams.defaultExpectation = &IngestorMockCheckLostStreamsExpectation{mock: mmCheckLostStreams.mock}
+	}
+	mmCheckLostStreams.defaultExpectation.results = &IngestorMockCheckLostStreamsResults{err}
+	mmCheckLostStreams.defaultExpectation.returnOrigin = minimock.CallerInfo(1)
+	return mmCheckLostStreams.mock
+}
+
+// Set uses given function f to mock the Ingestor.CheckLostStreams method
+func (mmCheckLostStreams *mIngestorMockCheckLostStreams) Set(f func(ctx context.Context, t1 time.Time, d1 time.Duration) (err error)) *IngestorMock {
+	if mmCheckLostStreams.defaultExpectation != nil {
+		mmCheckLostStreams.mock.t.Fatalf("Default expectation is already set for the Ingestor.CheckLostStreams method")
+	}
+
+	if len(mmCheckLostStreams.expectations) > 0 {
+		mmCheckLostStreams.mock.t.Fatalf("Some expectations are already set for the Ingestor.CheckLostStreams method")
+	}
+
+	mmCheckLostStreams.mock.funcCheckLostStreams = f
+	mmCheckLostStreams.mock.funcCheckLostStreamsOrigin = minimock.CallerInfo(1)
+	return mmCheckLostStreams.mock
+}
+
+// When sets expectation for the Ingestor.CheckLostStreams which will trigger the result defined by the following
+// Then helper
+func (mmCheckLostStreams *mIngestorMockCheckLostStreams) When(ctx context.Context, t1 time.Time, d1 time.Duration) *IngestorMockCheckLostStreamsExpectation {
+	if mmCheckLostStreams.mock.funcCheckLostStreams != nil {
+		mmCheckLostStreams.mock.t.Fatalf("IngestorMock.CheckLostStreams mock is already set by Set")
+	}
+
+	expectation := &IngestorMockCheckLostStreamsExpectation{
+		mock:               mmCheckLostStreams.mock,
+		params:             &IngestorMockCheckLostStreamsParams{ctx, t1, d1},
+		expectationOrigins: IngestorMockCheckLostStreamsExpectationOrigins{origin: minimock.CallerInfo(1)},
+	}
+	mmCheckLostStreams.expectations = append(mmCheckLostStreams.expectations, expectation)
+	return expectation
+}
+
+// Then sets up Ingestor.CheckLostStreams return parameters for the expectation previously defined by the When method
+func (e *IngestorMockCheckLostStreamsExpectation) Then(err error) *IngestorMock {
+	e.results = &IngestorMockCheckLostStreamsResults{err}
+	return e.mock
+}
+
+// Times sets number of times Ingestor.CheckLostStreams should be invoked
+func (mmCheckLostStreams *mIngestorMockCheckLostStreams) Times(n uint64) *mIngestorMockCheckLostStreams {
+	if n == 0 {
+		mmCheckLostStreams.mock.t.Fatalf("Times of IngestorMock.CheckLostStreams mock can not be zero")
+	}
+	mm_atomic.StoreUint64(&mmCheckLostStreams.expectedInvocations, n)
+	mmCheckLostStreams.expectedInvocationsOrigin = minimock.CallerInfo(1)
+	return mmCheckLostStreams
+}
+
+func (mmCheckLostStreams *mIngestorMockCheckLostStreams) invocationsDone() bool {
+	if len(mmCheckLostStreams.expectations) == 0 && mmCheckLostStreams.defaultExpectation == nil && mmCheckLostStreams.mock.funcCheckLostStreams == nil {
+		return true
+	}
+
+	totalInvocations := mm_atomic.LoadUint64(&mmCheckLostStreams.mock.afterCheckLostStreamsCounter)
+	expectedInvocations := mm_atomic.LoadUint64(&mmCheckLostStreams.expectedInvocations)
+
+	return totalInvocations > 0 && (expectedInvocations == 0 || expectedInvocations == totalInvocations)
+}
+
+// CheckLostStreams implements mm_service.Ingestor
+func (mmCheckLostStreams *IngestorMock) CheckLostStreams(ctx context.Context, t1 time.Time, d1 time.Duration) (err error) {
+	mm_atomic.AddUint64(&mmCheckLostStreams.beforeCheckLostStreamsCounter, 1)
+	defer mm_atomic.AddUint64(&mmCheckLostStreams.afterCheckLostStreamsCounter, 1)
+
+	mmCheckLostStreams.t.Helper()
+
+	if mmCheckLostStreams.inspectFuncCheckLostStreams != nil {
+		mmCheckLostStreams.inspectFuncCheckLostStreams(ctx, t1, d1)
+	}
+
+	mm_params := IngestorMockCheckLostStreamsParams{ctx, t1, d1}
+
+	// Record call args
+	mmCheckLostStreams.CheckLostStreamsMock.mutex.Lock()
+	mmCheckLostStreams.CheckLostStreamsMock.callArgs = append(mmCheckLostStreams.CheckLostStreamsMock.callArgs, &mm_params)
+	mmCheckLostStreams.CheckLostStreamsMock.mutex.Unlock()
+
+	for _, e := range mmCheckLostStreams.CheckLostStreamsMock.expectations {
+		if minimock.Equal(*e.params, mm_params) {
+			mm_atomic.AddUint64(&e.Counter, 1)
+			return e.results.err
+		}
+	}
+
+	if mmCheckLostStreams.CheckLostStreamsMock.defaultExpectation != nil {
+		mm_atomic.AddUint64(&mmCheckLostStreams.CheckLostStreamsMock.defaultExpectation.Counter, 1)
+		mm_want := mmCheckLostStreams.CheckLostStreamsMock.defaultExpectation.params
+		mm_want_ptrs := mmCheckLostStreams.CheckLostStreamsMock.defaultExpectation.paramPtrs
+
+		mm_got := IngestorMockCheckLostStreamsParams{ctx, t1, d1}
+
+		if mm_want_ptrs != nil {
+
+			if mm_want_ptrs.ctx != nil && !minimock.Equal(*mm_want_ptrs.ctx, mm_got.ctx) {
+				mmCheckLostStreams.t.Errorf("IngestorMock.CheckLostStreams got unexpected parameter ctx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmCheckLostStreams.CheckLostStreamsMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
+			}
+
+			if mm_want_ptrs.t1 != nil && !minimock.Equal(*mm_want_ptrs.t1, mm_got.t1) {
+				mmCheckLostStreams.t.Errorf("IngestorMock.CheckLostStreams got unexpected parameter t1, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmCheckLostStreams.CheckLostStreamsMock.defaultExpectation.expectationOrigins.originT1, *mm_want_ptrs.t1, mm_got.t1, minimock.Diff(*mm_want_ptrs.t1, mm_got.t1))
+			}
+
+			if mm_want_ptrs.d1 != nil && !minimock.Equal(*mm_want_ptrs.d1, mm_got.d1) {
+				mmCheckLostStreams.t.Errorf("IngestorMock.CheckLostStreams got unexpected parameter d1, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmCheckLostStreams.CheckLostStreamsMock.defaultExpectation.expectationOrigins.originD1, *mm_want_ptrs.d1, mm_got.d1, minimock.Diff(*mm_want_ptrs.d1, mm_got.d1))
+			}
+
+		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
+			mmCheckLostStreams.t.Errorf("IngestorMock.CheckLostStreams got unexpected parameters, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+				mmCheckLostStreams.CheckLostStreamsMock.defaultExpectation.expectationOrigins.origin, *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
+		}
+
+		mm_results := mmCheckLostStreams.CheckLostStreamsMock.defaultExpectation.results
+		if mm_results == nil {
+			mmCheckLostStreams.t.Fatal("No results are set for the IngestorMock.CheckLostStreams")
+		}
+		return (*mm_results).err
+	}
+	if mmCheckLostStreams.funcCheckLostStreams != nil {
+		return mmCheckLostStreams.funcCheckLostStreams(ctx, t1, d1)
+	}
+	mmCheckLostStreams.t.Fatalf("Unexpected call to IngestorMock.CheckLostStreams. %v %v %v", ctx, t1, d1)
+	return
+}
+
+// CheckLostStreamsAfterCounter returns a count of finished IngestorMock.CheckLostStreams invocations
+func (mmCheckLostStreams *IngestorMock) CheckLostStreamsAfterCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmCheckLostStreams.afterCheckLostStreamsCounter)
+}
+
+// CheckLostStreamsBeforeCounter returns a count of IngestorMock.CheckLostStreams invocations
+func (mmCheckLostStreams *IngestorMock) CheckLostStreamsBeforeCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmCheckLostStreams.beforeCheckLostStreamsCounter)
+}
+
+// Calls returns a list of arguments used in each call to IngestorMock.CheckLostStreams.
+// The list is in the same order as the calls were made (i.e. recent calls have a higher index)
+func (mmCheckLostStreams *mIngestorMockCheckLostStreams) Calls() []*IngestorMockCheckLostStreamsParams {
+	mmCheckLostStreams.mutex.RLock()
+
+	argCopy := make([]*IngestorMockCheckLostStreamsParams, len(mmCheckLostStreams.callArgs))
+	copy(argCopy, mmCheckLostStreams.callArgs)
+
+	mmCheckLostStreams.mutex.RUnlock()
+
+	return argCopy
+}
+
+// MinimockCheckLostStreamsDone returns true if the count of the CheckLostStreams invocations corresponds
+// the number of defined expectations
+func (m *IngestorMock) MinimockCheckLostStreamsDone() bool {
+	if m.CheckLostStreamsMock.optional {
+		// Optional methods provide '0 or more' call count restriction.
+		return true
+	}
+
+	for _, e := range m.CheckLostStreamsMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			return false
+		}
+	}
+
+	return m.CheckLostStreamsMock.invocationsDone()
+}
+
+// MinimockCheckLostStreamsInspect logs each unmet expectation
+func (m *IngestorMock) MinimockCheckLostStreamsInspect() {
+	for _, e := range m.CheckLostStreamsMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			m.t.Errorf("Expected call to IngestorMock.CheckLostStreams at\n%s with params: %#v", e.expectationOrigins.origin, *e.params)
+		}
+	}
+
+	afterCheckLostStreamsCounter := mm_atomic.LoadUint64(&m.afterCheckLostStreamsCounter)
+	// if default expectation was set then invocations count should be greater than zero
+	if m.CheckLostStreamsMock.defaultExpectation != nil && afterCheckLostStreamsCounter < 1 {
+		if m.CheckLostStreamsMock.defaultExpectation.params == nil {
+			m.t.Errorf("Expected call to IngestorMock.CheckLostStreams at\n%s", m.CheckLostStreamsMock.defaultExpectation.returnOrigin)
+		} else {
+			m.t.Errorf("Expected call to IngestorMock.CheckLostStreams at\n%s with params: %#v", m.CheckLostStreamsMock.defaultExpectation.expectationOrigins.origin, *m.CheckLostStreamsMock.defaultExpectation.params)
+		}
+	}
+	// if func was set then invocations count should be greater than zero
+	if m.funcCheckLostStreams != nil && afterCheckLostStreamsCounter < 1 {
+		m.t.Errorf("Expected call to IngestorMock.CheckLostStreams at\n%s", m.funcCheckLostStreamsOrigin)
+	}
+
+	if !m.CheckLostStreamsMock.invocationsDone() && afterCheckLostStreamsCounter > 0 {
+		m.t.Errorf("Expected %d calls to IngestorMock.CheckLostStreams at\n%s but found %d calls",
+			mm_atomic.LoadUint64(&m.CheckLostStreamsMock.expectedInvocations), m.CheckLostStreamsMock.expectedInvocationsOrigin, afterCheckLostStreamsCounter)
+	}
+}
+
+type mIngestorMockHeartbeat struct {
+	optional           bool
+	mock               *IngestorMock
+	defaultExpectation *IngestorMockHeartbeatExpectation
+	expectations       []*IngestorMockHeartbeatExpectation
+
+	callArgs []*IngestorMockHeartbeatParams
+	mutex    sync.RWMutex
+
+	expectedInvocations       uint64
+	expectedInvocationsOrigin string
+}
+
+// IngestorMockHeartbeatExpectation specifies expectation struct of the Ingestor.Heartbeat
+type IngestorMockHeartbeatExpectation struct {
+	mock               *IngestorMock
+	params             *IngestorMockHeartbeatParams
+	paramPtrs          *IngestorMockHeartbeatParamPtrs
+	expectationOrigins IngestorMockHeartbeatExpectationOrigins
+	results            *IngestorMockHeartbeatResults
+	returnOrigin       string
+	Counter            uint64
+}
+
+// IngestorMockHeartbeatParams contains parameters of the Ingestor.Heartbeat
+type IngestorMockHeartbeatParams struct {
+	ctx context.Context
+	s1  model.StreamHeartbeat
+	d1  model.Delivery
+}
+
+// IngestorMockHeartbeatParamPtrs contains pointers to parameters of the Ingestor.Heartbeat
+type IngestorMockHeartbeatParamPtrs struct {
+	ctx *context.Context
+	s1  *model.StreamHeartbeat
+	d1  *model.Delivery
+}
+
+// IngestorMockHeartbeatResults contains results of the Ingestor.Heartbeat
+type IngestorMockHeartbeatResults struct {
+	i1  model.IngestResult
+	err error
+}
+
+// IngestorMockHeartbeatOrigins contains origins of expectations of the Ingestor.Heartbeat
+type IngestorMockHeartbeatExpectationOrigins struct {
+	origin    string
+	originCtx string
+	originS1  string
+	originD1  string
+}
+
+// Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
+// the test will fail minimock's automatic final call check if the mocked method was not called at least once.
+// Optional() makes method check to work in '0 or more' mode.
+// It is NOT RECOMMENDED to use this option unless you really need it, as default behaviour helps to
+// catch the problems when the expected method call is totally skipped during test run.
+func (mmHeartbeat *mIngestorMockHeartbeat) Optional() *mIngestorMockHeartbeat {
+	mmHeartbeat.optional = true
+	return mmHeartbeat
+}
+
+// Expect sets up expected params for Ingestor.Heartbeat
+func (mmHeartbeat *mIngestorMockHeartbeat) Expect(ctx context.Context, s1 model.StreamHeartbeat, d1 model.Delivery) *mIngestorMockHeartbeat {
+	if mmHeartbeat.mock.funcHeartbeat != nil {
+		mmHeartbeat.mock.t.Fatalf("IngestorMock.Heartbeat mock is already set by Set")
+	}
+
+	if mmHeartbeat.defaultExpectation == nil {
+		mmHeartbeat.defaultExpectation = &IngestorMockHeartbeatExpectation{}
+	}
+
+	if mmHeartbeat.defaultExpectation.paramPtrs != nil {
+		mmHeartbeat.mock.t.Fatalf("IngestorMock.Heartbeat mock is already set by ExpectParams functions")
+	}
+
+	mmHeartbeat.defaultExpectation.params = &IngestorMockHeartbeatParams{ctx, s1, d1}
+	mmHeartbeat.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
+	for _, e := range mmHeartbeat.expectations {
+		if minimock.Equal(e.params, mmHeartbeat.defaultExpectation.params) {
+			mmHeartbeat.mock.t.Fatalf("Expectation set by When has same params: %#v", *mmHeartbeat.defaultExpectation.params)
+		}
+	}
+
+	return mmHeartbeat
+}
+
+// ExpectCtxParam1 sets up expected param ctx for Ingestor.Heartbeat
+func (mmHeartbeat *mIngestorMockHeartbeat) ExpectCtxParam1(ctx context.Context) *mIngestorMockHeartbeat {
+	if mmHeartbeat.mock.funcHeartbeat != nil {
+		mmHeartbeat.mock.t.Fatalf("IngestorMock.Heartbeat mock is already set by Set")
+	}
+
+	if mmHeartbeat.defaultExpectation == nil {
+		mmHeartbeat.defaultExpectation = &IngestorMockHeartbeatExpectation{}
+	}
+
+	if mmHeartbeat.defaultExpectation.params != nil {
+		mmHeartbeat.mock.t.Fatalf("IngestorMock.Heartbeat mock is already set by Expect")
+	}
+
+	if mmHeartbeat.defaultExpectation.paramPtrs == nil {
+		mmHeartbeat.defaultExpectation.paramPtrs = &IngestorMockHeartbeatParamPtrs{}
+	}
+	mmHeartbeat.defaultExpectation.paramPtrs.ctx = &ctx
+	mmHeartbeat.defaultExpectation.expectationOrigins.originCtx = minimock.CallerInfo(1)
+
+	return mmHeartbeat
+}
+
+// ExpectS1Param2 sets up expected param s1 for Ingestor.Heartbeat
+func (mmHeartbeat *mIngestorMockHeartbeat) ExpectS1Param2(s1 model.StreamHeartbeat) *mIngestorMockHeartbeat {
+	if mmHeartbeat.mock.funcHeartbeat != nil {
+		mmHeartbeat.mock.t.Fatalf("IngestorMock.Heartbeat mock is already set by Set")
+	}
+
+	if mmHeartbeat.defaultExpectation == nil {
+		mmHeartbeat.defaultExpectation = &IngestorMockHeartbeatExpectation{}
+	}
+
+	if mmHeartbeat.defaultExpectation.params != nil {
+		mmHeartbeat.mock.t.Fatalf("IngestorMock.Heartbeat mock is already set by Expect")
+	}
+
+	if mmHeartbeat.defaultExpectation.paramPtrs == nil {
+		mmHeartbeat.defaultExpectation.paramPtrs = &IngestorMockHeartbeatParamPtrs{}
+	}
+	mmHeartbeat.defaultExpectation.paramPtrs.s1 = &s1
+	mmHeartbeat.defaultExpectation.expectationOrigins.originS1 = minimock.CallerInfo(1)
+
+	return mmHeartbeat
+}
+
+// ExpectD1Param3 sets up expected param d1 for Ingestor.Heartbeat
+func (mmHeartbeat *mIngestorMockHeartbeat) ExpectD1Param3(d1 model.Delivery) *mIngestorMockHeartbeat {
+	if mmHeartbeat.mock.funcHeartbeat != nil {
+		mmHeartbeat.mock.t.Fatalf("IngestorMock.Heartbeat mock is already set by Set")
+	}
+
+	if mmHeartbeat.defaultExpectation == nil {
+		mmHeartbeat.defaultExpectation = &IngestorMockHeartbeatExpectation{}
+	}
+
+	if mmHeartbeat.defaultExpectation.params != nil {
+		mmHeartbeat.mock.t.Fatalf("IngestorMock.Heartbeat mock is already set by Expect")
+	}
+
+	if mmHeartbeat.defaultExpectation.paramPtrs == nil {
+		mmHeartbeat.defaultExpectation.paramPtrs = &IngestorMockHeartbeatParamPtrs{}
+	}
+	mmHeartbeat.defaultExpectation.paramPtrs.d1 = &d1
+	mmHeartbeat.defaultExpectation.expectationOrigins.originD1 = minimock.CallerInfo(1)
+
+	return mmHeartbeat
+}
+
+// Inspect accepts an inspector function that has same arguments as the Ingestor.Heartbeat
+func (mmHeartbeat *mIngestorMockHeartbeat) Inspect(f func(ctx context.Context, s1 model.StreamHeartbeat, d1 model.Delivery)) *mIngestorMockHeartbeat {
+	if mmHeartbeat.mock.inspectFuncHeartbeat != nil {
+		mmHeartbeat.mock.t.Fatalf("Inspect function is already set for IngestorMock.Heartbeat")
+	}
+
+	mmHeartbeat.mock.inspectFuncHeartbeat = f
+
+	return mmHeartbeat
+}
+
+// Return sets up results that will be returned by Ingestor.Heartbeat
+func (mmHeartbeat *mIngestorMockHeartbeat) Return(i1 model.IngestResult, err error) *IngestorMock {
+	if mmHeartbeat.mock.funcHeartbeat != nil {
+		mmHeartbeat.mock.t.Fatalf("IngestorMock.Heartbeat mock is already set by Set")
+	}
+
+	if mmHeartbeat.defaultExpectation == nil {
+		mmHeartbeat.defaultExpectation = &IngestorMockHeartbeatExpectation{mock: mmHeartbeat.mock}
+	}
+	mmHeartbeat.defaultExpectation.results = &IngestorMockHeartbeatResults{i1, err}
+	mmHeartbeat.defaultExpectation.returnOrigin = minimock.CallerInfo(1)
+	return mmHeartbeat.mock
+}
+
+// Set uses given function f to mock the Ingestor.Heartbeat method
+func (mmHeartbeat *mIngestorMockHeartbeat) Set(f func(ctx context.Context, s1 model.StreamHeartbeat, d1 model.Delivery) (i1 model.IngestResult, err error)) *IngestorMock {
+	if mmHeartbeat.defaultExpectation != nil {
+		mmHeartbeat.mock.t.Fatalf("Default expectation is already set for the Ingestor.Heartbeat method")
+	}
+
+	if len(mmHeartbeat.expectations) > 0 {
+		mmHeartbeat.mock.t.Fatalf("Some expectations are already set for the Ingestor.Heartbeat method")
+	}
+
+	mmHeartbeat.mock.funcHeartbeat = f
+	mmHeartbeat.mock.funcHeartbeatOrigin = minimock.CallerInfo(1)
+	return mmHeartbeat.mock
+}
+
+// When sets expectation for the Ingestor.Heartbeat which will trigger the result defined by the following
+// Then helper
+func (mmHeartbeat *mIngestorMockHeartbeat) When(ctx context.Context, s1 model.StreamHeartbeat, d1 model.Delivery) *IngestorMockHeartbeatExpectation {
+	if mmHeartbeat.mock.funcHeartbeat != nil {
+		mmHeartbeat.mock.t.Fatalf("IngestorMock.Heartbeat mock is already set by Set")
+	}
+
+	expectation := &IngestorMockHeartbeatExpectation{
+		mock:               mmHeartbeat.mock,
+		params:             &IngestorMockHeartbeatParams{ctx, s1, d1},
+		expectationOrigins: IngestorMockHeartbeatExpectationOrigins{origin: minimock.CallerInfo(1)},
+	}
+	mmHeartbeat.expectations = append(mmHeartbeat.expectations, expectation)
+	return expectation
+}
+
+// Then sets up Ingestor.Heartbeat return parameters for the expectation previously defined by the When method
+func (e *IngestorMockHeartbeatExpectation) Then(i1 model.IngestResult, err error) *IngestorMock {
+	e.results = &IngestorMockHeartbeatResults{i1, err}
+	return e.mock
+}
+
+// Times sets number of times Ingestor.Heartbeat should be invoked
+func (mmHeartbeat *mIngestorMockHeartbeat) Times(n uint64) *mIngestorMockHeartbeat {
+	if n == 0 {
+		mmHeartbeat.mock.t.Fatalf("Times of IngestorMock.Heartbeat mock can not be zero")
+	}
+	mm_atomic.StoreUint64(&mmHeartbeat.expectedInvocations, n)
+	mmHeartbeat.expectedInvocationsOrigin = minimock.CallerInfo(1)
+	return mmHeartbeat
+}
+
+func (mmHeartbeat *mIngestorMockHeartbeat) invocationsDone() bool {
+	if len(mmHeartbeat.expectations) == 0 && mmHeartbeat.defaultExpectation == nil && mmHeartbeat.mock.funcHeartbeat == nil {
+		return true
+	}
+
+	totalInvocations := mm_atomic.LoadUint64(&mmHeartbeat.mock.afterHeartbeatCounter)
+	expectedInvocations := mm_atomic.LoadUint64(&mmHeartbeat.expectedInvocations)
+
+	return totalInvocations > 0 && (expectedInvocations == 0 || expectedInvocations == totalInvocations)
+}
+
+// Heartbeat implements mm_service.Ingestor
+func (mmHeartbeat *IngestorMock) Heartbeat(ctx context.Context, s1 model.StreamHeartbeat, d1 model.Delivery) (i1 model.IngestResult, err error) {
+	mm_atomic.AddUint64(&mmHeartbeat.beforeHeartbeatCounter, 1)
+	defer mm_atomic.AddUint64(&mmHeartbeat.afterHeartbeatCounter, 1)
+
+	mmHeartbeat.t.Helper()
+
+	if mmHeartbeat.inspectFuncHeartbeat != nil {
+		mmHeartbeat.inspectFuncHeartbeat(ctx, s1, d1)
+	}
+
+	mm_params := IngestorMockHeartbeatParams{ctx, s1, d1}
+
+	// Record call args
+	mmHeartbeat.HeartbeatMock.mutex.Lock()
+	mmHeartbeat.HeartbeatMock.callArgs = append(mmHeartbeat.HeartbeatMock.callArgs, &mm_params)
+	mmHeartbeat.HeartbeatMock.mutex.Unlock()
+
+	for _, e := range mmHeartbeat.HeartbeatMock.expectations {
+		if minimock.Equal(*e.params, mm_params) {
+			mm_atomic.AddUint64(&e.Counter, 1)
+			return e.results.i1, e.results.err
+		}
+	}
+
+	if mmHeartbeat.HeartbeatMock.defaultExpectation != nil {
+		mm_atomic.AddUint64(&mmHeartbeat.HeartbeatMock.defaultExpectation.Counter, 1)
+		mm_want := mmHeartbeat.HeartbeatMock.defaultExpectation.params
+		mm_want_ptrs := mmHeartbeat.HeartbeatMock.defaultExpectation.paramPtrs
+
+		mm_got := IngestorMockHeartbeatParams{ctx, s1, d1}
+
+		if mm_want_ptrs != nil {
+
+			if mm_want_ptrs.ctx != nil && !minimock.Equal(*mm_want_ptrs.ctx, mm_got.ctx) {
+				mmHeartbeat.t.Errorf("IngestorMock.Heartbeat got unexpected parameter ctx, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmHeartbeat.HeartbeatMock.defaultExpectation.expectationOrigins.originCtx, *mm_want_ptrs.ctx, mm_got.ctx, minimock.Diff(*mm_want_ptrs.ctx, mm_got.ctx))
+			}
+
+			if mm_want_ptrs.s1 != nil && !minimock.Equal(*mm_want_ptrs.s1, mm_got.s1) {
+				mmHeartbeat.t.Errorf("IngestorMock.Heartbeat got unexpected parameter s1, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmHeartbeat.HeartbeatMock.defaultExpectation.expectationOrigins.originS1, *mm_want_ptrs.s1, mm_got.s1, minimock.Diff(*mm_want_ptrs.s1, mm_got.s1))
+			}
+
+			if mm_want_ptrs.d1 != nil && !minimock.Equal(*mm_want_ptrs.d1, mm_got.d1) {
+				mmHeartbeat.t.Errorf("IngestorMock.Heartbeat got unexpected parameter d1, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmHeartbeat.HeartbeatMock.defaultExpectation.expectationOrigins.originD1, *mm_want_ptrs.d1, mm_got.d1, minimock.Diff(*mm_want_ptrs.d1, mm_got.d1))
+			}
+
+		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
+			mmHeartbeat.t.Errorf("IngestorMock.Heartbeat got unexpected parameters, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+				mmHeartbeat.HeartbeatMock.defaultExpectation.expectationOrigins.origin, *mm_want, mm_got, minimock.Diff(*mm_want, mm_got))
+		}
+
+		mm_results := mmHeartbeat.HeartbeatMock.defaultExpectation.results
+		if mm_results == nil {
+			mmHeartbeat.t.Fatal("No results are set for the IngestorMock.Heartbeat")
+		}
+		return (*mm_results).i1, (*mm_results).err
+	}
+	if mmHeartbeat.funcHeartbeat != nil {
+		return mmHeartbeat.funcHeartbeat(ctx, s1, d1)
+	}
+	mmHeartbeat.t.Fatalf("Unexpected call to IngestorMock.Heartbeat. %v %v %v", ctx, s1, d1)
+	return
+}
+
+// HeartbeatAfterCounter returns a count of finished IngestorMock.Heartbeat invocations
+func (mmHeartbeat *IngestorMock) HeartbeatAfterCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmHeartbeat.afterHeartbeatCounter)
+}
+
+// HeartbeatBeforeCounter returns a count of IngestorMock.Heartbeat invocations
+func (mmHeartbeat *IngestorMock) HeartbeatBeforeCounter() uint64 {
+	return mm_atomic.LoadUint64(&mmHeartbeat.beforeHeartbeatCounter)
+}
+
+// Calls returns a list of arguments used in each call to IngestorMock.Heartbeat.
+// The list is in the same order as the calls were made (i.e. recent calls have a higher index)
+func (mmHeartbeat *mIngestorMockHeartbeat) Calls() []*IngestorMockHeartbeatParams {
+	mmHeartbeat.mutex.RLock()
+
+	argCopy := make([]*IngestorMockHeartbeatParams, len(mmHeartbeat.callArgs))
+	copy(argCopy, mmHeartbeat.callArgs)
+
+	mmHeartbeat.mutex.RUnlock()
+
+	return argCopy
+}
+
+// MinimockHeartbeatDone returns true if the count of the Heartbeat invocations corresponds
+// the number of defined expectations
+func (m *IngestorMock) MinimockHeartbeatDone() bool {
+	if m.HeartbeatMock.optional {
+		// Optional methods provide '0 or more' call count restriction.
+		return true
+	}
+
+	for _, e := range m.HeartbeatMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			return false
+		}
+	}
+
+	return m.HeartbeatMock.invocationsDone()
+}
+
+// MinimockHeartbeatInspect logs each unmet expectation
+func (m *IngestorMock) MinimockHeartbeatInspect() {
+	for _, e := range m.HeartbeatMock.expectations {
+		if mm_atomic.LoadUint64(&e.Counter) < 1 {
+			m.t.Errorf("Expected call to IngestorMock.Heartbeat at\n%s with params: %#v", e.expectationOrigins.origin, *e.params)
+		}
+	}
+
+	afterHeartbeatCounter := mm_atomic.LoadUint64(&m.afterHeartbeatCounter)
+	// if default expectation was set then invocations count should be greater than zero
+	if m.HeartbeatMock.defaultExpectation != nil && afterHeartbeatCounter < 1 {
+		if m.HeartbeatMock.defaultExpectation.params == nil {
+			m.t.Errorf("Expected call to IngestorMock.Heartbeat at\n%s", m.HeartbeatMock.defaultExpectation.returnOrigin)
+		} else {
+			m.t.Errorf("Expected call to IngestorMock.Heartbeat at\n%s with params: %#v", m.HeartbeatMock.defaultExpectation.expectationOrigins.origin, *m.HeartbeatMock.defaultExpectation.params)
+		}
+	}
+	// if func was set then invocations count should be greater than zero
+	if m.funcHeartbeat != nil && afterHeartbeatCounter < 1 {
+		m.t.Errorf("Expected call to IngestorMock.Heartbeat at\n%s", m.funcHeartbeatOrigin)
+	}
+
+	if !m.HeartbeatMock.invocationsDone() && afterHeartbeatCounter > 0 {
+		m.t.Errorf("Expected %d calls to IngestorMock.Heartbeat at\n%s but found %d calls",
+			mm_atomic.LoadUint64(&m.HeartbeatMock.expectedInvocations), m.HeartbeatMock.expectedInvocationsOrigin, afterHeartbeatCounter)
+	}
 }
 
 type mIngestorMockIngest struct {
@@ -421,6 +1189,10 @@ func (m *IngestorMock) MinimockIngestInspect() {
 func (m *IngestorMock) MinimockFinish() {
 	m.finishOnce.Do(func() {
 		if !m.minimockDone() {
+			m.MinimockCheckLostStreamsInspect()
+
+			m.MinimockHeartbeatInspect()
+
 			m.MinimockIngestInspect()
 		}
 	})
@@ -445,5 +1217,7 @@ func (m *IngestorMock) MinimockWait(timeout mm_time.Duration) {
 func (m *IngestorMock) minimockDone() bool {
 	done := true
 	return done &&
+		m.MinimockCheckLostStreamsDone() &&
+		m.MinimockHeartbeatDone() &&
 		m.MinimockIngestDone()
 }

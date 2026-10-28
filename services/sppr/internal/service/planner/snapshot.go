@@ -52,6 +52,22 @@ func (s *plannerService) snapshot(ctx context.Context, at time.Time, params mode
 		return snapshot{}, fmt.Errorf("read active actions: %w", err)
 	}
 
+	coverage, err := s.history.Coverage(ctx, at.Add(-features.MaxWindow))
+	if err != nil {
+		return snapshot{}, fmt.Errorf("read history coverage: %w", err)
+	}
+	if !coverage.Known {
+		return snapshot{quality: model.DataQuality{Reason: "unknown_completeness"}}, nil
+	}
+	if lag := at.Sub(coverage.Watermark); lag > s.cfg.MaxHistoryLag {
+		return snapshot{quality: model.DataQuality{Reason: fmt.Sprintf("история отстаёт: %s", lag)}}, nil
+	}
+	at = coverage.Watermark
+	// A second read covers the full 24h ending at W, not now.
+	coverage, err = s.history.Coverage(ctx, at.Add(-features.MaxWindow))
+	if err != nil {
+		return snapshot{}, err
+	}
 	in := model.PlanInput{At: at, Params: params, MethodVersion: s.predictor.MethodVersion()}
 	for _, u := range usage {
 		state := model.ClassState{CapacityBytes: u.CapacityBytes, MaxUtilization: u.MaxUtilization, UsedBytes: u.PlacedBytes + u.CopyBytes}
@@ -86,7 +102,7 @@ func (s *plannerService) snapshot(ctx context.Context, at time.Time, params mode
 		pinned[[2]string{p.Bucket, p.Key}] = true
 	}
 
-	snapshots, quality, err := s.forecastFeatures(ctx, at, catalog)
+	snapshots, quality, err := s.forecastFeatures(ctx, at, catalog, coverage)
 	if err != nil {
 		return snapshot{}, err
 	}
@@ -118,15 +134,11 @@ func (s *plannerService) snapshot(ctx context.Context, at time.Time, params mode
 
 // forecastFeatures builds feature snapshots of the catalogue from the last day
 // of minute aggregates and reports whether the history behind them is usable.
-func (s *plannerService) forecastFeatures(ctx context.Context, at time.Time, catalog []model.Placement) (map[string]model.FeatureSnapshot, model.DataQuality, error) {
+func (s *plannerService) forecastFeatures(ctx context.Context, at time.Time, catalog []model.Placement, coverage model.Coverage) (map[string]model.FeatureSnapshot, model.DataQuality, error) {
 	since := at.Add(-features.MaxWindow)
-	reads, err := s.history.ReadsSince(ctx, since)
+	reads, err := s.history.ReadsSince(ctx, since, at)
 	if err != nil {
 		return nil, model.DataQuality{}, fmt.Errorf("read demand history: %w", err)
-	}
-	coverage, err := s.history.Coverage(ctx, since)
-	if err != nil {
-		return nil, model.DataQuality{}, fmt.Errorf("read history coverage: %w", err)
 	}
 	versions := make([]model.Version, 0, len(catalog))
 	for _, p := range catalog {
@@ -135,7 +147,7 @@ func (s *plannerService) forecastFeatures(ctx context.Context, at time.Time, cat
 			SizeBytes:  p.SizeBytes, CreatedAt: p.CreatedAt,
 		})
 	}
-	coverage = assumeCaughtUp(coverage, at, versions)
+	coverage = extendHistoryStart(coverage, versions)
 	rows, err := s.features.Build(ctx, model.FeatureRequest{At: at, Catalog: versions, Reads: reads, Coverage: coverage})
 	if err != nil {
 		return nil, model.DataQuality{}, fmt.Errorf("build features: %w", err)
@@ -151,19 +163,21 @@ func (s *plannerService) forecastFeatures(ctx context.Context, at time.Time, cat
 			quality = r.Quality
 		}
 	}
+	for _, v := range versions {
+		if v.CreatedAt.After(at) {
+			quality = model.DataQuality{Reason: "unobserved"}
+			break
+		}
+	}
 	return out, quality, nil
 }
 
-// assumeCaughtUp is the completeness rule until heartbeats exist (stage 5):
-// the Ingestor is taken to have every event up to now, and history to start no
-// later than the oldest catalogue version, because Gateway publishes the write
-// of a version only after Metadata created it. Gaps the Ingestor detected
-// still make history unusable.
-func assumeCaughtUp(c model.Coverage, at time.Time, versions []model.Version) model.Coverage {
+// Gateway publishes a version write after Metadata creates it. Preserve this
+// start adjustment, but never advance the heartbeat watermark.
+func extendHistoryStart(c model.Coverage, versions []model.Version) model.Coverage {
 	if !c.Known {
 		return c
 	}
-	c.Watermark = at
 	for _, v := range versions {
 		if v.CreatedAt.Before(c.Start) {
 			c.Start = v.CreatedAt

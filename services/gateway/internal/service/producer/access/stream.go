@@ -2,6 +2,7 @@ package access
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -19,6 +20,7 @@ type stream struct {
 	id       string
 	mu       sync.Mutex
 	sequence int64
+	closed   bool
 }
 
 func newStream() *stream {
@@ -37,6 +39,9 @@ func (s *stream) publish(
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if s.closed {
+		return fmt.Errorf("stream closed")
+	}
 	position, occurredAt := s.next(gatewayID)
 	payload, err := proto.Marshal(message(position, occurredAt))
 	if err != nil {

@@ -27,9 +27,9 @@ type HistoryRepositoryMock struct {
 	beforeCoverageCounter uint64
 	CoverageMock          mHistoryRepositoryMockCoverage
 
-	funcReadsSince          func(ctx context.Context, from time.Time) (ma1 []model.MinuteReads, err error)
+	funcReadsSince          func(ctx context.Context, from time.Time, until time.Time) (ma1 []model.MinuteReads, err error)
 	funcReadsSinceOrigin    string
-	inspectFuncReadsSince   func(ctx context.Context, from time.Time)
+	inspectFuncReadsSince   func(ctx context.Context, from time.Time, until time.Time)
 	afterReadsSinceCounter  uint64
 	beforeReadsSinceCounter uint64
 	ReadsSinceMock          mHistoryRepositoryMockReadsSince
@@ -423,14 +423,16 @@ type HistoryRepositoryMockReadsSinceExpectation struct {
 
 // HistoryRepositoryMockReadsSinceParams contains parameters of the HistoryRepository.ReadsSince
 type HistoryRepositoryMockReadsSinceParams struct {
-	ctx  context.Context
-	from time.Time
+	ctx   context.Context
+	from  time.Time
+	until time.Time
 }
 
 // HistoryRepositoryMockReadsSinceParamPtrs contains pointers to parameters of the HistoryRepository.ReadsSince
 type HistoryRepositoryMockReadsSinceParamPtrs struct {
-	ctx  *context.Context
-	from *time.Time
+	ctx   *context.Context
+	from  *time.Time
+	until *time.Time
 }
 
 // HistoryRepositoryMockReadsSinceResults contains results of the HistoryRepository.ReadsSince
@@ -441,9 +443,10 @@ type HistoryRepositoryMockReadsSinceResults struct {
 
 // HistoryRepositoryMockReadsSinceOrigins contains origins of expectations of the HistoryRepository.ReadsSince
 type HistoryRepositoryMockReadsSinceExpectationOrigins struct {
-	origin     string
-	originCtx  string
-	originFrom string
+	origin      string
+	originCtx   string
+	originFrom  string
+	originUntil string
 }
 
 // Marks this method to be optional. The default behavior of any method with Return() is '1 or more', meaning
@@ -457,7 +460,7 @@ func (mmReadsSince *mHistoryRepositoryMockReadsSince) Optional() *mHistoryReposi
 }
 
 // Expect sets up expected params for HistoryRepository.ReadsSince
-func (mmReadsSince *mHistoryRepositoryMockReadsSince) Expect(ctx context.Context, from time.Time) *mHistoryRepositoryMockReadsSince {
+func (mmReadsSince *mHistoryRepositoryMockReadsSince) Expect(ctx context.Context, from time.Time, until time.Time) *mHistoryRepositoryMockReadsSince {
 	if mmReadsSince.mock.funcReadsSince != nil {
 		mmReadsSince.mock.t.Fatalf("HistoryRepositoryMock.ReadsSince mock is already set by Set")
 	}
@@ -470,7 +473,7 @@ func (mmReadsSince *mHistoryRepositoryMockReadsSince) Expect(ctx context.Context
 		mmReadsSince.mock.t.Fatalf("HistoryRepositoryMock.ReadsSince mock is already set by ExpectParams functions")
 	}
 
-	mmReadsSince.defaultExpectation.params = &HistoryRepositoryMockReadsSinceParams{ctx, from}
+	mmReadsSince.defaultExpectation.params = &HistoryRepositoryMockReadsSinceParams{ctx, from, until}
 	mmReadsSince.defaultExpectation.expectationOrigins.origin = minimock.CallerInfo(1)
 	for _, e := range mmReadsSince.expectations {
 		if minimock.Equal(e.params, mmReadsSince.defaultExpectation.params) {
@@ -527,8 +530,31 @@ func (mmReadsSince *mHistoryRepositoryMockReadsSince) ExpectFromParam2(from time
 	return mmReadsSince
 }
 
+// ExpectUntilParam3 sets up expected param until for HistoryRepository.ReadsSince
+func (mmReadsSince *mHistoryRepositoryMockReadsSince) ExpectUntilParam3(until time.Time) *mHistoryRepositoryMockReadsSince {
+	if mmReadsSince.mock.funcReadsSince != nil {
+		mmReadsSince.mock.t.Fatalf("HistoryRepositoryMock.ReadsSince mock is already set by Set")
+	}
+
+	if mmReadsSince.defaultExpectation == nil {
+		mmReadsSince.defaultExpectation = &HistoryRepositoryMockReadsSinceExpectation{}
+	}
+
+	if mmReadsSince.defaultExpectation.params != nil {
+		mmReadsSince.mock.t.Fatalf("HistoryRepositoryMock.ReadsSince mock is already set by Expect")
+	}
+
+	if mmReadsSince.defaultExpectation.paramPtrs == nil {
+		mmReadsSince.defaultExpectation.paramPtrs = &HistoryRepositoryMockReadsSinceParamPtrs{}
+	}
+	mmReadsSince.defaultExpectation.paramPtrs.until = &until
+	mmReadsSince.defaultExpectation.expectationOrigins.originUntil = minimock.CallerInfo(1)
+
+	return mmReadsSince
+}
+
 // Inspect accepts an inspector function that has same arguments as the HistoryRepository.ReadsSince
-func (mmReadsSince *mHistoryRepositoryMockReadsSince) Inspect(f func(ctx context.Context, from time.Time)) *mHistoryRepositoryMockReadsSince {
+func (mmReadsSince *mHistoryRepositoryMockReadsSince) Inspect(f func(ctx context.Context, from time.Time, until time.Time)) *mHistoryRepositoryMockReadsSince {
 	if mmReadsSince.mock.inspectFuncReadsSince != nil {
 		mmReadsSince.mock.t.Fatalf("Inspect function is already set for HistoryRepositoryMock.ReadsSince")
 	}
@@ -553,7 +579,7 @@ func (mmReadsSince *mHistoryRepositoryMockReadsSince) Return(ma1 []model.MinuteR
 }
 
 // Set uses given function f to mock the HistoryRepository.ReadsSince method
-func (mmReadsSince *mHistoryRepositoryMockReadsSince) Set(f func(ctx context.Context, from time.Time) (ma1 []model.MinuteReads, err error)) *HistoryRepositoryMock {
+func (mmReadsSince *mHistoryRepositoryMockReadsSince) Set(f func(ctx context.Context, from time.Time, until time.Time) (ma1 []model.MinuteReads, err error)) *HistoryRepositoryMock {
 	if mmReadsSince.defaultExpectation != nil {
 		mmReadsSince.mock.t.Fatalf("Default expectation is already set for the HistoryRepository.ReadsSince method")
 	}
@@ -569,14 +595,14 @@ func (mmReadsSince *mHistoryRepositoryMockReadsSince) Set(f func(ctx context.Con
 
 // When sets expectation for the HistoryRepository.ReadsSince which will trigger the result defined by the following
 // Then helper
-func (mmReadsSince *mHistoryRepositoryMockReadsSince) When(ctx context.Context, from time.Time) *HistoryRepositoryMockReadsSinceExpectation {
+func (mmReadsSince *mHistoryRepositoryMockReadsSince) When(ctx context.Context, from time.Time, until time.Time) *HistoryRepositoryMockReadsSinceExpectation {
 	if mmReadsSince.mock.funcReadsSince != nil {
 		mmReadsSince.mock.t.Fatalf("HistoryRepositoryMock.ReadsSince mock is already set by Set")
 	}
 
 	expectation := &HistoryRepositoryMockReadsSinceExpectation{
 		mock:               mmReadsSince.mock,
-		params:             &HistoryRepositoryMockReadsSinceParams{ctx, from},
+		params:             &HistoryRepositoryMockReadsSinceParams{ctx, from, until},
 		expectationOrigins: HistoryRepositoryMockReadsSinceExpectationOrigins{origin: minimock.CallerInfo(1)},
 	}
 	mmReadsSince.expectations = append(mmReadsSince.expectations, expectation)
@@ -611,17 +637,17 @@ func (mmReadsSince *mHistoryRepositoryMockReadsSince) invocationsDone() bool {
 }
 
 // ReadsSince implements mm_repository.HistoryRepository
-func (mmReadsSince *HistoryRepositoryMock) ReadsSince(ctx context.Context, from time.Time) (ma1 []model.MinuteReads, err error) {
+func (mmReadsSince *HistoryRepositoryMock) ReadsSince(ctx context.Context, from time.Time, until time.Time) (ma1 []model.MinuteReads, err error) {
 	mm_atomic.AddUint64(&mmReadsSince.beforeReadsSinceCounter, 1)
 	defer mm_atomic.AddUint64(&mmReadsSince.afterReadsSinceCounter, 1)
 
 	mmReadsSince.t.Helper()
 
 	if mmReadsSince.inspectFuncReadsSince != nil {
-		mmReadsSince.inspectFuncReadsSince(ctx, from)
+		mmReadsSince.inspectFuncReadsSince(ctx, from, until)
 	}
 
-	mm_params := HistoryRepositoryMockReadsSinceParams{ctx, from}
+	mm_params := HistoryRepositoryMockReadsSinceParams{ctx, from, until}
 
 	// Record call args
 	mmReadsSince.ReadsSinceMock.mutex.Lock()
@@ -640,7 +666,7 @@ func (mmReadsSince *HistoryRepositoryMock) ReadsSince(ctx context.Context, from 
 		mm_want := mmReadsSince.ReadsSinceMock.defaultExpectation.params
 		mm_want_ptrs := mmReadsSince.ReadsSinceMock.defaultExpectation.paramPtrs
 
-		mm_got := HistoryRepositoryMockReadsSinceParams{ctx, from}
+		mm_got := HistoryRepositoryMockReadsSinceParams{ctx, from, until}
 
 		if mm_want_ptrs != nil {
 
@@ -652,6 +678,11 @@ func (mmReadsSince *HistoryRepositoryMock) ReadsSince(ctx context.Context, from 
 			if mm_want_ptrs.from != nil && !minimock.Equal(*mm_want_ptrs.from, mm_got.from) {
 				mmReadsSince.t.Errorf("HistoryRepositoryMock.ReadsSince got unexpected parameter from, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
 					mmReadsSince.ReadsSinceMock.defaultExpectation.expectationOrigins.originFrom, *mm_want_ptrs.from, mm_got.from, minimock.Diff(*mm_want_ptrs.from, mm_got.from))
+			}
+
+			if mm_want_ptrs.until != nil && !minimock.Equal(*mm_want_ptrs.until, mm_got.until) {
+				mmReadsSince.t.Errorf("HistoryRepositoryMock.ReadsSince got unexpected parameter until, expected at\n%s:\nwant: %#v\n got: %#v%s\n",
+					mmReadsSince.ReadsSinceMock.defaultExpectation.expectationOrigins.originUntil, *mm_want_ptrs.until, mm_got.until, minimock.Diff(*mm_want_ptrs.until, mm_got.until))
 			}
 
 		} else if mm_want != nil && !minimock.Equal(*mm_want, mm_got) {
@@ -666,9 +697,9 @@ func (mmReadsSince *HistoryRepositoryMock) ReadsSince(ctx context.Context, from 
 		return (*mm_results).ma1, (*mm_results).err
 	}
 	if mmReadsSince.funcReadsSince != nil {
-		return mmReadsSince.funcReadsSince(ctx, from)
+		return mmReadsSince.funcReadsSince(ctx, from, until)
 	}
-	mmReadsSince.t.Fatalf("Unexpected call to HistoryRepositoryMock.ReadsSince. %v %v", ctx, from)
+	mmReadsSince.t.Fatalf("Unexpected call to HistoryRepositoryMock.ReadsSince. %v %v %v", ctx, from, until)
 	return
 }
 

@@ -160,7 +160,7 @@ func TestSaramaConfigIsValidIdempotentProducer(t *testing.T) {
 	config := cfg.Config()
 	require.NoError(t, config.Validate())
 	require.True(t, config.Producer.Idempotent)
-	require.False(t, config.Producer.Return.Successes)
+	require.True(t, config.Producer.Return.Successes)
 	require.Equal(t, 1024, config.ChannelBufferSize)
 }
 

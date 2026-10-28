@@ -325,7 +325,17 @@ type PlannerSettings struct {
 }
 
 // PlannerStatus is the "Состояние" page: what the next plan will be based on.
+type ObjectHistory struct {
+	VersionRef
+	Quality  DataQuality `json:"quality"`
+	State    string      `json:"state"`
+	Reads24h int64       `json:"reads_24h"`
+}
 type PlannerStatus struct {
+	History           Coverage
+	HistoryLagSeconds float64
+	Objects           []ObjectHistory
+
 	Hot, Cold      ClassState
 	HistoryQuality DataQuality
 	MethodVersion  string

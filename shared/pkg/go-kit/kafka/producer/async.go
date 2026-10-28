@@ -35,11 +35,13 @@ func NewAsyncProducer(ap sarama.AsyncProducer, topic string) kafka.Producer {
 // nil means sarama accepted it, ErrBufferFull means the event is lost.
 // Delivery failures arrive later in Errors(), see LogErrors.
 // Send keeps key and value until delivery, so callers must not reuse them.
-func (p *asyncProducer) Send(_ context.Context, key, value []byte, _ kafka.PrettyDecoder) error {
+func (p *asyncProducer) Send(ctx context.Context, key, value []byte, _ kafka.PrettyDecoder) error {
 	msg := &sarama.ProducerMessage{
-		Topic: p.topic,
-		Key:   sarama.ByteEncoder(key),
-		Value: sarama.ByteEncoder(value),
+		Topic:    p.topic,
+		Key:      sarama.ByteEncoder(key),
+		Value:    sarama.ByteEncoder(value),
+		Metadata: receipt(ctx),
+		Headers:  headers(ctx),
 	}
 
 	select {

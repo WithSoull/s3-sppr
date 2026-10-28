@@ -8,7 +8,8 @@ import (
 )
 
 type retryEnvConfig struct {
-	Interval time.Duration `env:"KAFKA_RETRY_INTERVAL" envDefault:"1s"`
+	LostAfter time.Duration `env:"INGEST_STREAM_LOST_AFTER" envDefault:"30s"`
+	Interval  time.Duration `env:"KAFKA_RETRY_INTERVAL" envDefault:"1s"`
 }
 
 type retryConfig struct {
@@ -20,6 +21,9 @@ func NewRetryConfig() (*retryConfig, error) {
 	if err := env.Parse(&raw); err != nil {
 		return nil, err
 	}
+	if raw.LostAfter <= 0 {
+		return nil, fmt.Errorf("INGEST_STREAM_LOST_AFTER must be positive")
+	}
 	if raw.Interval <= 0 {
 		return nil, fmt.Errorf("KAFKA_RETRY_INTERVAL must be positive")
 	}
@@ -30,3 +34,5 @@ func NewRetryConfig() (*retryConfig, error) {
 func (cfg *retryConfig) Interval() time.Duration {
 	return cfg.raw.Interval
 }
+
+func (c *retryConfig) StreamLostAfter() time.Duration { return c.raw.LostAfter }

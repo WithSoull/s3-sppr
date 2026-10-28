@@ -10,6 +10,7 @@ import (
 // The latency coefficients are placeholders until stage 10 measures the stand;
 // the administrator can change them, and the stored values win over env.
 type plannerEnvConfig struct {
+	MaxHistoryLag    time.Duration `env:"PLANNER_MAX_HISTORY_LAG" envDefault:"60s"`
 	Predictor        string        `env:"PLANNER_PREDICTOR" envDefault:"ewma"`
 	ModelDir         string        `env:"PLANNER_MODEL_DIR"`
 	Enabled          bool          `env:"PLANNER_ENABLED" envDefault:"false"`
@@ -37,6 +38,8 @@ func NewPlannerConfig() (*plannerConfig, error) {
 		return nil, err
 	}
 	switch {
+	case raw.MaxHistoryLag <= 0:
+		return nil, fmt.Errorf("PLANNER_MAX_HISTORY_LAG must be positive")
 	case raw.Predictor != "ewma" && raw.Predictor != "lgbm":
 		return nil, fmt.Errorf("PLANNER_PREDICTOR must be ewma or lgbm")
 	case raw.Interval < time.Second:
@@ -73,3 +76,5 @@ func (c *plannerConfig) ColdUtilization() float64 { return c.raw.ColdUtilization
 
 func (c *plannerConfig) Predictor() string { return c.raw.Predictor }
 func (c *plannerConfig) ModelDir() string  { return c.raw.ModelDir }
+
+func (c *plannerConfig) MaxHistoryLag() time.Duration { return c.raw.MaxHistoryLag }
