@@ -242,7 +242,10 @@ func (m *Manager) train(ctx context.Context, source string) {
 		return
 	}
 	v.TrainedFrom = &data.Train.Start
-	v.TrainedTo = &data.Validation.End
+	v.TrainedTo = data.LastLabelAvailableAt
+	if v.TrainedTo == nil {
+		v.TrainedTo = &data.Validation.End
+	}
 	v.TrainRows = data.Rows["train"]
 	params, err := m.parameters()
 	if err != nil {

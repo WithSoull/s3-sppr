@@ -211,23 +211,24 @@ func TestHistoryAndSingleTrainingGate(t *testing.T) {
 }
 func TestTrainingFailuresAreJournaled(t *testing.T) {
 	for _, tt := range []struct {
-		name  string
-		train TrainFunc
-		want  string
+		name    string
+		train   TrainFunc
+		want    string
+		timeout time.Duration
 	}{
-		{"error", func(context.Context, string, string, string, string) error { return fmt.Errorf("exit 7") }, "exit 7"},
+		{"error", func(context.Context, string, string, string, string) error { return fmt.Errorf("exit 7") }, "exit 7", 5 * time.Second},
 		{"timeout", func(ctx context.Context, _ string, _ string, _ string, _ string) error {
 			<-ctx.Done()
 			return ctx.Err()
-		}, "deadline"},
-		{"empty output", func(context.Context, string, string, string, string) error { return nil }, "manifest.json"},
+		}, "deadline", 100 * time.Millisecond},
+		{"empty output", func(context.Context, string, string, string, string) error { return nil }, "manifest.json", 5 * time.Second},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			d := deps(t)
 			m := d.manager(t)
 			importVersion(t, m, d, "A")
 			m.cfg.Window = 7 * time.Hour
-			m.cfg.Timeout = 20 * time.Millisecond
+			m.cfg.Timeout = tt.timeout
 			m.cfg.Train = tt.train
 			// catalogue is old and coverage supplies all labels; zero-demand data is
 			// sufficient to exercise process failures without fitting a fake model.
@@ -361,4 +362,18 @@ func TestPythonTrainingRoundTrip(t *testing.T) {
 	require.NotNil(t, st.Active.ValidationEWMACovK)
 	require.Equal(t, lgbm.MethodVersion, m.Capture(context.Background(), 2*time.Minute).MethodVersion())
 	require.Greater(t, st.AgeSeconds, float64(0))
+}
+
+func TestFailedTrainingRetainsLastAvailableLabel(t *testing.T) {
+	d := deps(t)
+	m := d.manager(t)
+	m.cfg.Horizon = 2 * time.Minute
+	m.cfg.Window = 140 * time.Minute
+	m.cfg.Timeout = 5 * time.Second
+	m.cfg.Train = func(context.Context, string, string, string, string) error { return fmt.Errorf("training failed") }
+	m.train(context.Background(), "manual")
+	st := m.Status(context.Background())
+	require.NotNil(t, st.LastAttempt)
+	require.Equal(t, "rejected", st.LastAttempt.Status)
+	require.Equal(t, d.now.Add(-3*time.Minute), *st.LastAttempt.TrainedTo)
 }
