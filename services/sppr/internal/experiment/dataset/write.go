@@ -227,7 +227,7 @@ func trim(events []model.AccessEvent, before time.Time) []model.AccessEvent {
 		pair[0], pair[1] = pair[1], e
 		older[key] = pair
 	}
-	kept := make([]model.AccessEvent, 0, len(events)-i+2*len(older))
+	kept := make([]model.AccessEvent, 0, 2*len(older))
 	for _, pair := range older {
 		for _, e := range pair {
 			if !e.OccurredAt.IsZero() {
@@ -241,8 +241,13 @@ func trim(events []model.AccessEvent, before time.Time) []model.AccessEvent {
 		}
 		return kept[i].OccurredAt.Before(kept[j].OccurredAt)
 	})
-	kept = append(kept, events[i:]...)
-	return kept
+	// Reuse the backing array: a fresh exact-size slice is doubled by the next
+	// append, which for a day of acceptance-profile events is ~1 GiB per snapshot.
+	// kept comes from events[:i], so it never overlaps the moved tail.
+	n := len(kept) + copy(events[len(kept):], events[i:])
+	copy(events, kept)
+	clear(events[n:])
+	return events[:n]
 }
 
 func Describe(m Manifest) string {

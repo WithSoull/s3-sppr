@@ -28,8 +28,9 @@ def synthetic(seed=0, objects=200, hours=72):
     periods = Periods((0, 48 * HOUR), (48 * HOUR, 72 * HOUR), (72 * HOUR, 96 * HOUR))
     manifest = {"sha256": {"slices.jsonl": "0" * 64}, "config": {"scenario": "test"}}
     return Slices("test", np.vstack(xs), np.concatenate(reads).astype(float), np.concatenate(at),
-                  np.concatenate(split).astype(np.int8), np.array([f"v{i}" for i in range(objects)] * hours),
-                  np.zeros(objects * hours), np.full(objects * hours, 1 << 20), periods, manifest)
+                  np.concatenate(split).astype(np.int8), np.tile(np.arange(objects, dtype=np.int32), hours),
+                  np.zeros(objects * hours), np.full(objects * hours, 1 << 20), periods, manifest, "0" * 64,
+                  np.array([f"v{i}" for i in range(objects)]))
 
 
 PARAMS = {"num_leaves": 7, "learning_rate": 0.1, "min_data_in_leaf": 20, "lambda_l2": 0.0}
@@ -93,3 +94,25 @@ def test_test_split_is_locked_by_default():
     rows = synthetic()
     with pytest.raises(data.TestSplitLocked):
         data.require_test(rows)
+
+
+def test_no_repeated_read_leaves_out_the_regressor(tmp_path):
+    rows = synthetic()
+    rows.reads = np.minimum(rows.reads, 1.0)
+    hurdle = model.fit(rows.of("train"), PARAMS)
+    assert hurdle.regressor is None and hurdle.rounds["regressor"] == 0
+    f = hurdle.predict(rows.of("validation").x)
+    np.testing.assert_array_equal(f.expected, f.p)
+    with pytest.raises(ValueError, match="repeated read"):
+        export.write(tmp_path / "m", hurdle, rows.of("train"), rows.of("validation"), {}, [])
+    assert not (tmp_path / "m").exists()
+
+
+def test_never_read_check_zeroes_rows_without_history():
+    rows = synthetic()
+    tr, va = rows.of("train"), rows.of("validation")
+    hurdle = model.fit(tr, PARAMS)
+    check = evaluate.never_read_check(hurdle, tr, va)
+    never = np.isnan(va.feature("last_read_seconds"))
+    assert check.read_share == pytest.approx(va.reads[never].sum() / va.reads.sum())
+    assert check.without.low <= check.without.coverage <= check.without.high

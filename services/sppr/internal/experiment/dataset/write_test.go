@@ -65,3 +65,17 @@ func TestTrimPreservesFeatureAndLabelResults(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, want, got)
 }
+
+func TestTrimReusesBackingArray(t *testing.T) {
+	start := time.Date(2026, 10, 1, 0, 0, 0, 0, time.UTC)
+	read := func(key string, minutes int, seq int64) model.AccessEvent {
+		return model.AccessEvent{Sequence: seq, OccurredAt: start.Add(time.Duration(minutes) * time.Minute), Bucket: "b", ObjectKey: key, VersionID: key + "1",
+			Operation: model.OperationRead, Origin: model.OriginClient, Result: model.ResultSuccess}
+	}
+	events := []model.AccessEvent{read("a", 0, 1), read("a", 1, 2), read("a", 2, 3), read("b", 3, 4), read("a", 10, 5), read("c", 11, 6)}
+	got := trim(events, start.Add(5*time.Minute))
+	require.Equal(t, []model.AccessEvent{read("a", 1, 2), read("a", 2, 3), read("b", 3, 4), read("a", 10, 5), read("c", 11, 6)}, got)
+	require.Same(t, &events[0], &got[0])
+	require.Equal(t, cap(events), cap(got))
+	require.Zero(t, events[5])
+}

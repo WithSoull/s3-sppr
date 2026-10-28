@@ -49,7 +49,10 @@ login, seed and smoke instructions.
 The ML training package lives in `services/sppr/ml` (`make ml-sppr-venv`,
 `make test-sppr-ml`; see its README): never load the test split in stage 8, and
 export models only in the "Схема файлов экспорта v1" of `docs/ml-spec.md`, which
-the Go predictor validates. Run `make test-sppr`; database/Kafka checks use `make test-sppr-integration` with
+the Go predictor validates. `make ml-sppr-traces` builds the trace datasets with
+key share, snapshot step and periods fixed in `ml/scripts/trace_datasets.py`;
+results are in `docs/ml-report.md`. Keep the report's `never_read` check: IBM COS
+catalogues are inferred from the trace and leak future touches. Run `make test-sppr`; database/Kafka checks use `make test-sppr-integration` with
 documented test environment variables. Real-service failure tests additionally
 require `SPPR_TEST_MIGRATION_STAND=1`; their executor owns the run, so do not run a
 competing SPPR executor/cleanup. See the SPPR README for endpoint overrides.

@@ -60,7 +60,7 @@ def control_rows(rows: Slices, hurdle: Hurdle) -> list[dict]:
 
     def take(name, idx, limit):
         for i in idx[:limit]:
-            key = (str(rows.version[i]), int(rows.at[i]))
+            key = (rows.version_id(i), int(rows.at[i]))
             if key in picked:
                 continue
             picked.add(key)
@@ -97,6 +97,8 @@ def _matrix(controls: list[dict]) -> np.ndarray:
 
 
 def write(out: Path, hurdle: Hurdle, train: Slices, validation: Slices, scores: dict, trials: list) -> dict:
+    if hurdle.regressor is None:
+        raise ValueError("no regressor (train had no repeated read): the Go contract needs both models")
     out.mkdir(parents=True, exist_ok=False)
     hurdle.classifier.save_model(out / "classifier.txt")
     hurdle.regressor.save_model(out / "regressor.txt")
@@ -135,7 +137,7 @@ def write(out: Path, hurdle: Hurdle, train: Slices, validation: Slices, scores: 
         "source": train.source,
         "source_config": train.manifest.get("config"),
         "source_provenance": train.manifest.get("provenance"),
-        "data_sha256": train.manifest["sha256"]["slices.jsonl"],
+        "data_sha256": train.data_sha256,
         "validation_metrics": scores,
         "trials": len(trials),
         "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),

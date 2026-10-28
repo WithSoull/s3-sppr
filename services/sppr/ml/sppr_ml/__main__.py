@@ -32,21 +32,32 @@ def _clean(value):
 def train(args: argparse.Namespace) -> None:
     started = time.perf_counter()
     rows = data.load(args.data, train_every=args.train_every)
+    source = rows.source
     train_rows, validation = rows.of("train"), rows.of("validation")
+    del rows
     candidates = evaluate.grid()[:1] if args.quick else None
+    if args.params:
+        candidates = [json.loads(args.params)]
     hurdle, trials = evaluate.tune(train_rows, validation, candidates, log=lambda m: print(m, file=sys.stderr))
     compared = evaluate.compare(hurdle, train_rows, validation)
     difference = evaluate.versus_best_baseline(hurdle, train_rows, validation, compared)
+    never_read = evaluate.never_read_check(hurdle, train_rows, validation)
     scores = _clean(evaluate.as_dict(compared))
-    manifest = export.write(Path(args.out), hurdle, train_rows, validation, scores, trials)
+    if hurdle.regressor is None:
+        # Evaluated, but not a model the planner can load: see model.py.
+        Path(args.out).mkdir(parents=True, exist_ok=False)
+        version = "not exported: no repeated read in train, N̂ = p"
+    else:
+        version = export.write(Path(args.out), hurdle, train_rows, validation, scores, trials)["model_version"]
     peak_mib = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / (1 << 20 if sys.platform == "darwin" else 1 << 10)
     report = {
-        "source": rows.source,
-        "model_version": manifest["model_version"],
+        "source": source,
+        "model_version": version,
         "train_every": args.train_every,
         "labels": {"train": evaluate.label_summary(train_rows), "validation": evaluate.label_summary(validation)},
         "scores": scores,
         "versus_best_baseline": _clean(asdict(difference)),
+        "never_read": _clean(asdict(never_read)),
         "best": {"params": hurdle.params, "rounds": hurdle.rounds},
         "trials": _clean([{"params": t.params, "rounds": t.rounds, "seconds": t.seconds, "scores": asdict(t.scores)}
                           for t in trials]),
@@ -56,19 +67,27 @@ def train(args: argparse.Namespace) -> None:
     with open(Path(args.out) / "report.json", "w", encoding="utf-8") as f:
         json.dump(report, f, indent=2, allow_nan=False)
         f.write("\n")
-    print(f"{rows.source}: {manifest['model_version']} in {report['seconds']:.0f} s, peak {peak_mib:.0f} MiB")
+    print(f"{source}: {version} in {report['seconds']:.0f} s, peak {peak_mib:.0f} MiB")
 
 
 def report(args: argparse.Namespace) -> None:
     if args.summary:
-        print("| Источник | Лучшая базовая | Cov_K модели − базовой | 95 % ДИ | Вывод |")
-        print("|---|---|---|---|---|")
+        def verdict(d):
+            return "лучше" if d["low"] > 0 else ("хуже" if d["high"] < 0 else "различие не доказано")
+
+        print("| Источник | Лучшая базовая | Cov_K модели − базовой | 95 % ДИ | Вывод "
+              "| Чтения ещё не читанных | Без них: разность, 95 % ДИ |")
+        print("|---|---|---|---|---|---|---|")
         for path in args.reports:
             with open(path, encoding="utf-8") as f:
                 r = json.load(f)
             d = r["versus_best_baseline"]
-            verdict = "лучше" if d["low"] > 0 else ("хуже" if d["high"] < 0 else "различие не доказано")
-            print(f"| {r['source']} | {d['baseline']} | {d['coverage']:+.4f} | {d['low']:+.4f}…{d['high']:+.4f} | {verdict} |")
+            n = r.get("never_read")
+            extra = "— | —" if n is None else (
+                f"{n['read_share']:.1%} | {n['without']['coverage']:+.4f} "
+                f"({n['without']['low']:+.4f}…{n['without']['high']:+.4f}), {verdict(n['without'])}")
+            print(f"| {r['source']} | {d['baseline']} | {d['coverage']:+.4f} | {d['low']:+.4f}…{d['high']:+.4f} "
+                  f"| {verdict(d)} | {extra} |")
         return
     def fmt(v, digits=3):
         return "—" if v is None else f"{v:.{digits}f}"
@@ -92,6 +111,7 @@ def main() -> None:
     t.add_argument("--out", required=True, help="new model directory")
     t.add_argument("--train-every", type=int, default=900, help="keep a train snapshot every N seconds (0: all)")
     t.add_argument("--quick", action="store_true", help="one grid point; for smoke checks only")
+    t.add_argument("--params", help="JSON hyperparameters chosen earlier: retrain without the grid search")
     t.set_defaults(func=train)
     r = sub.add_parser("report", help="Markdown table of report.json files")
     r.add_argument("reports", nargs="+")
