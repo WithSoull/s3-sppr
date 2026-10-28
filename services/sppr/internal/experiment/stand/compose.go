@@ -82,6 +82,9 @@ func isolate(doc map[string]any, c Config, sc sim.Config, policy string, budget 
 		s := services[service].(map[string]any)
 		s["ports"] = []any{map[string]any{"target": port, "host_ip": "127.0.0.1", "published": "0", "protocol": "tcp"}}
 	}
+	// The stand measures read latency, not Metadata's request limiter: at the
+	// offered load plus SPPR polling the default 100 rps would reject calls.
+	setEnv(services["metadata"].(map[string]any), "RATE_LIMITER_LIMIT", 100000)
 	gateway := services["gateway"].(map[string]any)
 	setEnv(gateway, "ACCESS_EVENTS_ENABLED", policy != "no-extension")
 	setEnv(gateway, "ACCESS_HEARTBEAT_INTERVAL", "1s")

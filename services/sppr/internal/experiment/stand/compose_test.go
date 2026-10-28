@@ -57,6 +57,7 @@ func TestComposeIsolationAndPolicy(t *testing.T) {
 				}
 			}
 			require.Equal(t, policy != "no-extension", s["gateway"].(map[string]any)["environment"].(map[string]any)["ACCESS_EVENTS_ENABLED"] == "true")
+			require.Equal(t, "100000", s["metadata"].(map[string]any)["environment"].(map[string]any)["RATE_LIMITER_LIMIT"])
 			require.Equal(t, "services/sppr/Dockerfile", sppr["build"].(map[string]any)["dockerfile"])
 			if policy == "lgbm" {
 				require.Equal(t, "87600h", env["PLANNER_MODEL_MAX_AGE"])

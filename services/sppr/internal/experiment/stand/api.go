@@ -14,6 +14,8 @@ import (
 	"github.com/google/uuid"
 )
 
+const statusFailureLimit = time.Minute
+
 type api struct {
 	base   string
 	client *http.Client
@@ -124,6 +126,7 @@ func (a api) snapshot(ctx context.Context, dir string) error {
 // Refusals remain in the service journal and fail the run rather than being hidden.
 func (a api) confirmations(ctx context.Context, delay time.Duration) error {
 	confirmed := map[string]bool{}
+	var failingSince time.Time
 	for {
 		var st struct {
 			Latest *struct {
@@ -134,9 +137,23 @@ func (a api) confirmations(ctx context.Context, delay time.Duration) error {
 			} `json:"latest_plan"`
 			Fallback string `json:"fallback_reason"`
 		}
+		// A transient status failure must not end a six-hour run; a persistent one does.
 		if err := a.request(ctx, "GET", "/api/planner/status", nil, &st); err != nil {
-			return err
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			if failingSince.IsZero() {
+				failingSince = time.Now()
+			}
+			if time.Since(failingSince) > statusFailureLimit {
+				return err
+			}
+			if err := sleep(ctx, time.Second); err != nil {
+				return err
+			}
+			continue
 		}
+		failingSince = time.Time{}
 		if st.Fallback != "" {
 			return fmt.Errorf("predictor fallback: %s", st.Fallback)
 		}
