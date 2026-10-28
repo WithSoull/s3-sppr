@@ -4,3 +4,7 @@
 .DS_Store
 **/.DS_Store
 *.log
+# Generated datasets, models and binaries: tens of GB, never needed in images
+build
+**/.venv
+**/__pycache__
