@@ -53,6 +53,7 @@ type SaramaConfig interface{ Config() *sarama.Config }
 type AccessEventsConfig interface {
 	Enabled() bool
 	GatewayID() string
+	HeartbeatInterval() time.Duration
 }
 type ObjectReadProducerConfig interface{ Topic() string }
 type ObjectWrittenProducerConfig interface{ Topic() string }

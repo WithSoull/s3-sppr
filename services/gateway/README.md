@@ -168,6 +168,7 @@ S3-операция её не видит.
 | `GATEWAY_MAX_READ_DURATION` | `5m` | `${GATEWAY_MAX_READ_DURATION:-5m}` |
 | `STORAGE_RETRIEVE_CHUNK_SIZE_BYTES` | `1048576` (1 MiB) | `${STORAGE_RETRIEVE_CHUNK_SIZE_BYTES:-1048576}` |
 | `ACCESS_EVENTS_ENABLED` | `false` | `${ACCESS_EVENTS_ENABLED:-true}` |
+| `ACCESS_HEARTBEAT_INTERVAL` | `5s`, положительная длительность | `${ACCESS_HEARTBEAT_INTERVAL:-5s}` |
 | `GATEWAY_ID` | обязателен при включении; SPPR принимает `[A-Za-z0-9_.-]{1,128}` | `${GATEWAY_ID:-gateway-1}` |
 | `KAFKA_BOOTSTRAP` | `localhost:9092`; список `host:port` через запятую | `kafka:29092` |
 | `KAFKA_OBJECT_READ_TOPIC` | `object-read` | `${KAFKA_OBJECT_READ_TOPIC:-object-read}` |
@@ -287,12 +288,12 @@ route и status. HTTP trace context передаётся в Metadata и streamin
 Storage. Для логов контейнера: `docker compose logs -f gateway`.
 
 Потерянные события видны в двух счётчиках. `gateway_access_events_dropped_total`
-(`event=object_read|object_written`, `reason=buffer_full|error`) считает события,
+(`event=object_read|object_written|heartbeat`, `reason=buffer_full|error`) считает события,
 которые sarama не принял. `gateway_kafka_delivery_errors_total` (`topic`) считает
 сообщения, которые sarama не доставил после ретраев. Каждая потеря пишется в лог
 (`Access event dropped`, `Failed to deliver message`); object keys и stream IDs в
 labels отсутствуют. `/healthz` не проверяет Kafka: полноту истории показывает
-`ingestion_gaps` в SPPR.
+W, отставание и `ingestion_gaps` в SPPR (`/api/planner/status`, `/admin`).
 
 ## Разработка и тесты
 
@@ -396,9 +397,20 @@ pending-версии и отдельная фиксация в Metadata. Пос�
 восстановление зависших операций.
 
 События обращений не сохраняются на диск в Gateway: crash может потерять хвост
-буфера sarama. Без следующего события такой хвост не обнаруживается; это закроет
-heartbeat. Durable outbox, heartbeat, trace context в Kafka, общий watermark и
-восстановление gaps в этот срез не входят.
+буфера sarama. Периодический `StreamHeartbeat` раз в `ACCESS_HEARTBEAT_INTERVAL`
+(5 с) сообщает текущий sequence каждого топика и не тратит номер. Он отправляется
+под mutex потока с заголовком `event-type: heartbeat`; GET/PUT подтверждения Kafka
+не ждут. При остановке HTTP сначала дожидается активных запросов, затем producer
+подтверждёнными heartbeat дотправляет оба буфера и отправляет closing heartbeat.
+Только после этого closer закрывает sarama. При таймауте/ошибке закрытие не
+объявляется успешным, Ingestor обнаружит потерянный поток.
+
+SPPR отмечает хвостовой gap по heartbeat; при kill Gateway фоновая проверка
+закрывает поток с gap неизвестного размера. После долгого отказа Kafka поток
+может быть уже объявлен потерянным: рестарт Gateway создаёт новые stream_id.
+Durable outbox, trace context в Kafka и восстановление gaps пока не реализованы.
+Стендовая проверка: `make smoke-history-local` из корня, на отдельном стенде;
+она останавливает Kafka и делает kill/stop Gateway. См. [SPPR README](../sppr/README.md#полнота-истории-и-smoke-history).
 
 ## Связанные документы
 
