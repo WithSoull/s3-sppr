@@ -13,9 +13,14 @@ the Feature Builder/EWMA used both by the planner and by an offline dataset pipe
 the hand-checkable example; `make dataset-sppr` generates a small seven-day
 dataset without external infrastructure. The dataset CLI also accepts external
 `-catalog`/`-events` with explicit coverage/split bounds, `-format csv.gz` and
-`-train-every`. `cmd/trace-convert` converts local Meta CDN CSV/zstd; preserve its
-source manifest and explicit inferred-success limitation. Audit and blocked IBM
-sources: `docs/traces.md`. See the service README for profiles.
+`-train-every`. `cmd/trace-convert` defaults to Meta CDN CSV/zstd and supports IBM COS
+(`-source ibm-cos`, streaming tar gzip/Unix compress or text). COS needs an explicit
+`-origin`, one bucket per trace, and inferred-success opt-in just like Meta. Preserve
+the source manifest, deterministic key sampling and row policies. Docker Registry
+(`-source docker -zone <zone>`, optional filename `-from`/`-to` days) streams tar.gz
+JSON arrays and externally sorts selected reads using `/usr/bin/sort`; one bucket
+per zone, digest keys, full GET 200 size, GET 200/206 demand. Data license is
+not stated; permission requested from authors. See `docs/traces.md`. See the service README for profiles.
 Use its service provider and shared go-kit clients. Preserve commit-before-ack,
 stream deduplication and atomic event/progress/gap/aggregate updates. Mark events
 that a retry cannot fix with `model.ErrRejected` so they are committed; return

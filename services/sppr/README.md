@@ -109,7 +109,7 @@ cmd/server/                       entrypoint, flags, signals
 cmd/smoke/                        сквозная проверка Gateway → Kafka → SPPR
 cmd/smoke-migration/              Gateway → API переносов → Storage → очистка
 cmd/dataset/                      учебный пример, синтетика и внешняя история
-cmd/trace-convert/                локальный Meta CDN CSV/zstd → формат шага 6
+cmd/trace-convert/                локальные Meta CDN / IBM COS / Docker → формат шага 6
 internal/experiment/              генератор и сборка выборки по логическому времени
 internal/service/features/        общие правила признаков до T
 internal/service/predictor/ewma/   оценка числа чтений за горизонт
@@ -692,13 +692,25 @@ make dataset-sppr SPPR_SCENARIO=shift SPPR_SEED=1 SPPR_DATA_OUT=build/sppr-shift
 [разборе шага 6](../../docs/sppr-step6.md).
 
 Внешние трассы (только уже доступные локальные файлы) преобразует
-`go run ./services/sppr/cmd/trace-convert`: Meta CDN CSV/zstd → `catalog.json`,
+`go run ./services/sppr/cmd/trace-convert`: Meta CDN CSV/zstd (default) или
+`-source ibm-cos` (tar gzip/Unix compress либо text) → `catalog.json`,
 `events.jsonl`, manifest с URL, лицензией, SHA-256, mapping и долями выборки.
 Обязательны `-input`, `-source-url`, `-source-share`, `-out` и явный
 `-allow-inferred-success`: в Meta нет HTTP status, GET с телом — только прокси
-успеха. Неизвестный размер пропускается. Источники IBM пока требуют действий
-автора; [аудит трасс](../../docs/traces.md) содержит ссылки, размеры и условия.
-Go-конвертер использует уже имеющийся zstd, Python/requirements не нужны.
+успеха. Эти прежние flags относятся к Meta. Для COS обязательны `-input`,
+`-bucket ibm-cos-001`, `-origin <RFC3339>`, `-out`, `-allow-inferred-success`;
+календарное время искусственное. GET/range — одно чтение, PUT создаёт версию,
+DELETE закрывает её; HEAD не является demand, COPY исключён из-за неясной роли ID.
+Реальные COS `.tgz` используют Unix compress: нужен `/usr/bin/gzip`.
+[Аудит трасс](../../docs/traces.md) содержит mapping, измерения и команды.
+Docker: `-source docker -zone syd01 -input <tar.gz> -out <new-dir>`;
+необязательные `-from` / `-to` фильтруют даты **имён файлов**, to exclusive.
+Bucket по умолчанию `docker-<zone>`, key — digest с дедупликацией между repo;
+размер — max полного GET 200, demand — GET blobs 200/206. Inferred-success opt-in
+не нужен. Сортировка на диске через `/usr/bin/sort` требует временного места
+пропорционально выбранным GET. Лицензия данных: `not stated; permission requested
+from authors`. Go-конвертер Meta использует уже имеющийся zstd, Python/requirements
+не нужны. Подтверждённые счётчики / политики конфликтов — в аудите трасс.
 
 CLI `cmd/dataset` принимает `-catalog`, `-events`, `-start`, `-end` вместо
 `-config`. Границы покрытия задаются явно, не выводятся из последнего события.
