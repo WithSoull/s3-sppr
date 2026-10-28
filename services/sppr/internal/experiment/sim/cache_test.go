@@ -28,6 +28,13 @@ func TestCacheMatchesFreshFeaturesAndForecasts(t *testing.T) {
 	require.NoError(t, err)
 	cached, err := Replay(ctx, c, dir)
 	require.NoError(t, err)
+	again, err := Replay(ctx, c, dir)
+	require.NoError(t, err)
+	for i := range cached {
+		a, b := cached[i], again[i]
+		a.PlanSeconds, b.PlanSeconds = 0, 0
+		require.Equal(t, a, b, "same cached pair must reset placement and queue")
+	}
 	// Rebuild every test feature/forecast from the same demand, without reading
 	// either feature or forecast cache; use the production builder and EWMA.
 	demand, err := Generate(ctx, c)
