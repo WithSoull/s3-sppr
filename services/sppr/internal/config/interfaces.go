@@ -75,6 +75,7 @@ type MigrationConfig interface {
 }
 
 type PlannerConfig interface {
+	BaselineMap() string
 	Predictor() string
 	ModelDir() string
 	Enabled() bool

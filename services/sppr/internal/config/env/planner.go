@@ -11,6 +11,7 @@ import (
 // the administrator can change them, and the stored values win over env.
 type plannerEnvConfig struct {
 	Predictor        string        `env:"PLANNER_PREDICTOR" envDefault:"ewma"`
+	BaselineMap      string        `env:"PLANNER_BASELINE_MAP"`
 	ModelDir         string        `env:"PLANNER_MODEL_DIR"`
 	Enabled          bool          `env:"PLANNER_ENABLED" envDefault:"false"`
 	Interval         time.Duration `env:"PLANNER_INTERVAL" envDefault:"300s"`
@@ -37,8 +38,8 @@ func NewPlannerConfig() (*plannerConfig, error) {
 		return nil, err
 	}
 	switch {
-	case raw.Predictor != "ewma" && raw.Predictor != "lgbm":
-		return nil, fmt.Errorf("PLANNER_PREDICTOR must be ewma or lgbm")
+	case raw.Predictor != "ewma" && raw.Predictor != "lgbm" && raw.Predictor != "age" && raw.Predictor != "recency" && raw.Predictor != "frequency":
+		return nil, fmt.Errorf("PLANNER_PREDICTOR must be ewma, lgbm, age, recency or frequency")
 	case raw.Interval < time.Second:
 		return nil, fmt.Errorf("PLANNER_INTERVAL must be at least 1s")
 	case raw.KeepPlans < 1:
@@ -73,3 +74,5 @@ func (c *plannerConfig) ColdUtilization() float64 { return c.raw.ColdUtilization
 
 func (c *plannerConfig) Predictor() string { return c.raw.Predictor }
 func (c *plannerConfig) ModelDir() string  { return c.raw.ModelDir }
+
+func (c *plannerConfig) BaselineMap() string { return c.raw.BaselineMap }

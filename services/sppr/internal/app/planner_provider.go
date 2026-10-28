@@ -11,6 +11,7 @@ import (
 	planRepository "github.com/alesplll/opens3-rebac/services/sppr/internal/repository/plan"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/service"
 	plannerService "github.com/alesplll/opens3-rebac/services/sppr/internal/service/planner"
+	"github.com/alesplll/opens3-rebac/services/sppr/internal/service/predictor/baseline"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/service/predictor/ewma"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/service/predictor/lgbm"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/logger"
@@ -71,6 +72,21 @@ func (s *serviceProvider) PlannerService(ctx context.Context) (service.PlannerSe
 func plannerPredictor(cfg config.PlannerConfig, storedHorizon time.Duration) (service.Predictor, string) {
 	if cfg.Predictor() == "ewma" {
 		return ewma.NewPredictor(), ""
+	}
+	if kind := cfg.Predictor(); kind == "age" || kind == "recency" || kind == "frequency" {
+		var mapping baseline.Map
+		var err error
+		if kind != "frequency" {
+			mapping, err = baseline.Load(cfg.BaselineMap())
+		}
+		if err == nil {
+			var p *baseline.Predictor
+			p, err = baseline.New(kind, mapping)
+			if err == nil {
+				return p, ""
+			}
+		}
+		return ewma.NewPredictor(), err.Error()
 	}
 	m, err := lgbm.Load(cfg.ModelDir(), cfg.Horizon())
 	if err == nil && storedHorizon != cfg.Horizon() {
