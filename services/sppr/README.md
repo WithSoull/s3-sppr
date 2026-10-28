@@ -109,7 +109,7 @@ cmd/server/                       entrypoint, flags, signals
 cmd/smoke/                        сквозная проверка Gateway → Kafka → SPPR
 cmd/smoke-migration/              Gateway → API переносов → Storage → очистка
 cmd/dataset/                      учебный пример, синтетика и внешняя история
-cmd/trace-convert/                локальные Meta CDN / IBM COS → формат шага 6
+cmd/trace-convert/                локальные Meta CDN / IBM COS / Docker → формат шага 6
 internal/experiment/              генератор и сборка выборки по логическому времени
 internal/service/features/        общие правила признаков до T
 internal/service/predictor/ewma/   оценка числа чтений за горизонт
@@ -703,7 +703,14 @@ make dataset-sppr SPPR_SCENARIO=shift SPPR_SEED=1 SPPR_DATA_OUT=build/sppr-shift
 DELETE закрывает её; HEAD не является demand, COPY исключён из-за неясной роли ID.
 Реальные COS `.tgz` используют Unix compress: нужен `/usr/bin/gzip`.
 [Аудит трасс](../../docs/traces.md) содержит mapping, измерения и команды.
-Go-конвертер Meta использует уже имеющийся zstd, Python/requirements не нужны.
+Docker: `-source docker -zone syd01 -input <tar.gz> -out <new-dir>`;
+необязательные `-from` / `-to` фильтруют даты **имён файлов**, to exclusive.
+Bucket по умолчанию `docker-<zone>`, key — digest с дедупликацией между repo;
+размер — max полного GET 200, demand — GET blobs 200/206. Inferred-success opt-in
+не нужен. Сортировка на диске через `/usr/bin/sort` требует временного места
+пропорционально выбранным GET. Лицензия данных: `not stated; permission requested
+from authors`. Go-конвертер Meta использует уже имеющийся zstd, Python/requirements
+не нужны. Подтверждённые счётчики / политики конфликтов — в аудите трасс.
 
 CLI `cmd/dataset` принимает `-catalog`, `-events`, `-start`, `-end` вместо
 `-config`. Границы покрытия задаются явно, не выводятся из последнего события.

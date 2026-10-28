@@ -21,11 +21,14 @@ func main() {
 }
 func run() error {
 	var c traces.Config
-	source := flag.String("source", "meta", "meta or ibm-cos")
+	source := flag.String("source", "meta", "meta, ibm-cos or docker")
+	zone := flag.String("zone", "", "required Docker zone, e.g. syd01")
+	from := flag.String("from", "", "Docker first filename day, YYYY-MM-DD inclusive")
+	to := flag.String("to", "", "Docker last filename day, YYYY-MM-DD exclusive")
 	origin := flag.String("origin", "", "required IBM COS absolute origin, RFC3339 (calendar time is artificial)")
 	flag.StringVar(&c.Input, "input", "", "local trace input (no downloads); IBM COS tar gzip/Unix compress or text")
 	flag.StringVar(&c.SourceURL, "source-url", "", "original URL of this input")
-	flag.StringVar(&c.Bucket, "bucket", "meta-eag", "catalog bucket: one Meta region or COS trace file per dataset")
+	flag.StringVar(&c.Bucket, "bucket", "meta-eag", "catalog bucket: one Meta region, COS trace file or Docker zone per dataset")
 	flag.Float64Var(&c.SourceShare, "source-share", 0, "required source file share: eag/prn=0.2, nha=0.8")
 	flag.Float64Var(&c.KeyShare, "key-share", 1, "deterministic additional key sampling in (0,1]")
 	flag.StringVar(&c.SampleSeed, "sample-seed", "0", "SHA256 sampling seed")
@@ -72,6 +75,11 @@ func run() error {
 			return fmt.Errorf("IBM COS requires explicit -bucket, e.g. ibm-cos-001")
 		}
 		m, err = traces.ConvertCOS(ctx, traces.COSConfig{Config: c, Origin: at}, staging)
+	case "docker":
+		if !bucketGiven {
+			c.Bucket = "docker-" + *zone
+		}
+		m, err = traces.ConvertDocker(ctx, traces.DockerConfig{Config: c, Zone: *zone, From: *from, To: *to}, staging)
 	default:
 		return fmt.Errorf("unknown -source %q", *source)
 	}
