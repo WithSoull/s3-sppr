@@ -49,3 +49,48 @@ def test_load_keeps_eligible_rows_thins_train_and_hides_test(tmp_path):
     # The second load reads the cache and the test row appears only on request.
     assert sorted(data.load(tmp_path / "d", include_test=True).reads.tolist()) == [1, 2, 3, 5, 6]
     assert list((tmp_path / "d").glob("slices.*.npz"))
+
+
+def write_compact(path, rows):
+    import csv
+    import gzip
+    import io
+
+    path.mkdir()
+    header = ["version_id", "at", "size_bytes", "rules_version", *FEATURES, "label_reads", "eligible", "split", "ewma_forecast"]
+    hashes = {}
+    for split in data.SPLITS:
+        buf = io.StringIO()
+        w = csv.writer(buf)
+        w.writerow(header)
+        for r in rows:
+            if r["split"] != split:
+                continue
+            f = r["snapshot"]["features"]
+            w.writerow(["v1", r["snapshot"]["at"], 10, "features-v1",
+                        *["" if f[n] is None else f[n] for n in FEATURES],
+                        r["label"]["reads"], str(r["eligible"]).lower(), split, 0.5])
+        blob = gzip.compress(buf.getvalue().encode())
+        (path / f"{split}.csv.gz").write_bytes(blob)
+        hashes[f"{split}.csv.gz"] = hashlib.sha256(blob).hexdigest()
+    manifest = json.loads((path.parent / "j" / "manifest.json").read_text())
+    manifest.update(format="csv.gz", sha256=hashes)
+    (path / "manifest.json").write_text(json.dumps(manifest))
+
+
+def test_compact_format_matches_jsonl_and_never_parses_test(tmp_path):
+    rows = [
+        row("2026-10-01T00:00:00Z", "train", 1, last=60.0),
+        row("2026-10-01T00:05:00Z", "train", 2),
+        row("2026-10-01T00:20:00Z", "train", 4, eligible=False),
+        row("2026-10-03T00:05:00Z", "validation", 5),
+        row("2026-10-04T00:00:00Z", "test", 6),
+    ]
+    write_dataset(tmp_path / "j", rows)
+    write_compact(tmp_path / "c", rows)
+    j, c = data.load(tmp_path / "j"), data.load(tmp_path / "c")
+    np.testing.assert_array_equal(j.x, c.x)
+    for name in ("reads", "at", "split", "version", "ewma", "size"):
+        np.testing.assert_array_equal(getattr(j, name), getattr(c, name))
+    assert not list((tmp_path / "c").glob("test.*.npz"))
+    assert data.load(tmp_path / "c", include_test=True).reads.tolist() == [1, 2, 5, 6]

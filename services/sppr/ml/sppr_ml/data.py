@@ -1,12 +1,16 @@
 """Loading feature slices written by cmd/dataset.
 
-Rows are kept as numpy columns. The parsed JSONL is cached next to it as .npz,
-keyed by the slices SHA-256 from the manifest, because parsing hundreds of
-megabytes of JSON dominates a notebook run otherwise.
+Rows are kept as numpy columns. Both output formats are read: slices.jsonl and
+the compact per-split <split>.csv.gz. Parsed rows are cached next to them as
+.npz, keyed by the SHA-256 from the manifest, because parsing hundreds of
+megabytes dominates a notebook run otherwise. Compact files are cached per
+split, so the test file is never even parsed unless asked for.
 """
 
 from __future__ import annotations
 
+import csv
+import gzip
 import json
 import math
 from dataclasses import dataclass, field
@@ -108,7 +112,7 @@ def periods_of(manifest: dict) -> Periods:
     return Periods(*[(_ts(manifest[s]["start"]), _ts(manifest[s]["end"])) for s in SPLITS])
 
 
-def _parse(path: Path) -> dict[str, np.ndarray]:
+def _parse_jsonl(path: Path) -> dict[str, np.ndarray]:
     x, reads, at, split, version, ewma, size = [], [], [], [], [], [], []
     with open(path, encoding="utf-8") as f:
         for line in f:
@@ -126,6 +130,34 @@ def _parse(path: Path) -> dict[str, np.ndarray]:
             version.append(snap["version_id"])
             ewma.append(row["forecast"]["expected_reads"])
             size.append(snap["size_bytes"])
+    return _columns(x, reads, at, split, version, ewma, size)
+
+
+def _parse_compact(path: Path) -> dict[str, np.ndarray]:
+    x, reads, at, split, version, ewma, size = [], [], [], [], [], [], []
+    with gzip.open(path, "rt", encoding="utf-8", newline="") as f:
+        rows = csv.reader(f)
+        col = {name: i for i, name in enumerate(next(rows))}
+        feats = [col[n] for n in FEATURES]
+        c_eligible, c_rules, c_reads = col["eligible"], col["rules_version"], col["label_reads"]
+        c_at, c_split, c_version = col["at"], col["split"], col["version_id"]
+        c_ewma, c_size = col["ewma_forecast"], col["size_bytes"]
+        for r in rows:
+            if r[c_eligible] != "true":
+                continue
+            if r[c_rules] != RULES_VERSION:
+                raise ValueError(f"unexpected rules version {r[c_rules]}")
+            x.append([float(r[i]) if r[i] else math.nan for i in feats])
+            reads.append(float(r[c_reads]))
+            at.append(_ts(r[c_at]))
+            split.append(_SPLIT_CODE[r[c_split]])
+            version.append(r[c_version])
+            ewma.append(float(r[c_ewma]))
+            size.append(int(r[c_size]))
+    return _columns(x, reads, at, split, version, ewma, size)
+
+
+def _columns(x, reads, at, split, version, ewma, size) -> dict[str, np.ndarray]:
     return {
         "x": np.asarray(x, dtype=np.float64).reshape(-1, len(FEATURES)),
         "reads": np.asarray(reads, dtype=np.float64),
@@ -137,6 +169,18 @@ def _parse(path: Path) -> dict[str, np.ndarray]:
     }
 
 
+def _cached(source: Path, name: str, manifest: dict, parse) -> dict[str, np.ndarray]:
+    digest = manifest["sha256"][name]
+    stem = name.split(".")[0]
+    cache = source / f"{stem}.{digest[:16]}.v{_CACHE_FORMAT}.npz"
+    if cache.exists():
+        with np.load(cache) as z:
+            return {k: z[k] for k in z.files}
+    cols = parse(source / name)
+    np.savez(cache, **cols)
+    return cols
+
+
 def load(source: str | Path, *, include_test: bool = False, train_every: int | None = None) -> Slices:
     """Load eligible rows of a dataset directory.
 
@@ -146,14 +190,12 @@ def load(source: str | Path, *, include_test: bool = False, train_every: int | N
     """
     source = Path(source)
     manifest = read_manifest(source)
-    digest = manifest["sha256"]["slices.jsonl"]
-    cache = source / f"slices.{digest[:16]}.v{_CACHE_FORMAT}.npz"
-    if cache.exists():
-        with np.load(cache) as z:
-            cols = {k: z[k] for k in z.files}
+    if manifest.get("format", "jsonl") == "csv.gz":
+        splits = SPLITS if include_test else SPLITS[:2]
+        parts = [_cached(source, f"{s}.csv.gz", manifest, _parse_compact) for s in splits]
+        cols = {k: np.concatenate([p[k] for p in parts]) for k in parts[0]}
     else:
-        cols = _parse(source / "slices.jsonl")
-        np.savez(cache, **cols)
+        cols = _cached(source, "slices.jsonl", manifest, _parse_jsonl)
     periods = periods_of(manifest)
     keep = np.ones(len(cols["reads"]), dtype=bool)
     if not include_test:
