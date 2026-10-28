@@ -123,6 +123,17 @@ func TestSwapStalenessAndRestore(t *testing.T) {
 	importVersion(t, m, d, "C")
 	require.Equal(t, "C", m.Capture(context.Background(), time.Hour).ModelVersion())
 }
+func TestFitOnlyArtifactWithEmptyValidationImports(t *testing.T) {
+	d := deps(t)
+	m := d.manager(t)
+	dir := artifact(t, "fit-only", d.now)
+	mutate(t, dir, "validation_interval", map[string]any{"start": d.now.Add(-time.Hour), "end": d.now.Add(-time.Hour), "rows": 0})
+	v := model.ModelVersion{ModelVersion: m.failureID(), Status: "candidate", Source: "bootstrap", CreatedAt: d.now}
+	require.NoError(t, d.repo.Save(context.Background(), v))
+	require.NoError(t, m.importArtifact(context.Background(), dir, v))
+	require.Equal(t, "fit-only", m.Capture(context.Background(), time.Hour).ModelVersion())
+	require.Equal(t, d.now.Add(-time.Hour), *d.rows["fit-only"].TrainedTo)
+}
 func TestCandidateRejectedKeepsActive(t *testing.T) {
 	for _, tt := range []struct {
 		name   string

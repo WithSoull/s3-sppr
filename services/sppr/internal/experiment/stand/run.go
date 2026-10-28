@@ -173,9 +173,6 @@ func runOne(ctx context.Context, c Config, sc sim.Config, d compose, policy stri
 		retErr = errors.Join(retErr, e)
 	}()
 	services := []string{"gateway", "metadata", "storage-hot", "storage-cold"}
-	if policy != "no-extension" {
-		services = append(services, "sppr")
-	}
 	startup, cancel := context.WithTimeout(ctx, time.Duration(c.StartupSeconds*1e9))
 	defer cancel()
 	if err := kafkaReady(startup, d); err != nil {
@@ -202,6 +199,35 @@ func runOne(ctx context.Context, c Config, sc sim.Config, d compose, policy stri
 	sql := fmt.Sprintf("UPDATE storage_classes SET capacity_bytes=CASE name WHEN 'HOT' THEN %d ELSE %d END,max_utilization=%g WHERE name IN ('HOT','COLD');", sc.HotBytes, sc.ColdBytes, sc.Utilization)
 	if _, err = d.run(startup, "exec", "-T", "postgres-metadata", "psql", "-U", "metadata_user", "-d", "metadata_db", "-v", "ON_ERROR_STOP=1", "-c", sql); err != nil {
 		return out, err
+	}
+	conn, err := grpc.NewClient(md, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return out, err
+	}
+	defer conn.Close()
+	meta := metadata.NewMetadataServiceClient(conn)
+	bucket := "experiment-" + uuid.NewString()
+	if err = retry(startup, func() error {
+		_, e := meta.CreateBucket(startup, &metadata.CreateBucketRequest{Name: bucket, OwnerId: uuid.NewString()})
+		return e
+	}); err != nil {
+		return out, err
+	}
+	lc := c.Load
+	lc.Generator = sc.Generator
+	seedClient := &http.Client{Timeout: time.Duration(lc.RequestTimeoutSeconds * 1e9), CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	defer seedClient.CloseIdleConnections()
+	if err = loadgen.Seed(ctx, seedClient, gateway.base, bucket, lc); err != nil {
+		return out, err
+	}
+	// SPPR starts on the seeded catalogue: the bootstrap model is probed on catalogue
+	// features once, on an empty journal. The Ingestor reads Kafka from the oldest offset.
+	startup, cancelSPPR := context.WithTimeout(ctx, time.Duration(c.StartupSeconds*1e9))
+	defer cancelSPPR()
+	if policy != "no-extension" {
+		if _, err = d.run(startup, "up", "-d", "--build", "sppr"); err != nil {
+			return out, err
+		}
 	}
 	var a api
 	var container string
@@ -252,26 +278,6 @@ func runOne(ctx context.Context, c Config, sc sim.Config, d compose, policy stri
 	}
 	manifest := runManifest{Project: d.project, Policy: policy, GitSHA: git, Config: sc, StandConfig: c, Images: jsonArray(images), Containers: jsonArray(containers), Quota: map[string]any{"cpus": 2, "memory_bytes": int64(2 << 30), "present": policy != "no-extension"}, Inputs: inputs}
 	if err = writeJSON(filepath.Join(dir, "manifest.json"), manifest); err != nil {
-		return out, err
-	}
-	conn, err := grpc.NewClient(md, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return out, err
-	}
-	defer conn.Close()
-	meta := metadata.NewMetadataServiceClient(conn)
-	bucket := "experiment-" + uuid.NewString()
-	if err = retry(startup, func() error {
-		_, e := meta.CreateBucket(startup, &metadata.CreateBucketRequest{Name: bucket, OwnerId: uuid.NewString()})
-		return e
-	}); err != nil {
-		return out, err
-	}
-	lc := c.Load
-	lc.Generator = sc.Generator
-	seedClient := &http.Client{Timeout: time.Duration(lc.RequestTimeoutSeconds * 1e9), CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
-	defer seedClient.CloseIdleConnections()
-	if err = loadgen.Seed(ctx, seedClient, gateway.base, bucket, lc); err != nil {
 		return out, err
 	}
 	if policy != "no-extension" {

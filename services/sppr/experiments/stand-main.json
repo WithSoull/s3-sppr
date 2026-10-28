@@ -78,14 +78,14 @@
         "lifecycle": false
       },
       "schedule": "synthetic",
-      "duration_seconds": 10800,
+      "duration_seconds": 7200,
       "warmup_seconds": 0,
       "time_compression": 1,
       "slots": 8,
       "request_timeout_seconds": 300,
       "shift_at_seconds": [
-        3600,
-        7200
+        2400,
+        4800
       ]
     },
     "compose_file": "docker-compose.yml",
