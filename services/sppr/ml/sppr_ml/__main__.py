@@ -16,7 +16,7 @@ import time
 from dataclasses import asdict
 from pathlib import Path
 
-from . import data, evaluate, export
+from . import data, evaluate, export, model
 
 
 def _clean(value):
@@ -35,6 +35,19 @@ def train(args: argparse.Namespace) -> None:
     source = rows.source
     train_rows, validation = rows.of("train"), rows.of("validation")
     del rows
+    if args.fit_only:
+        if not args.params:
+            raise ValueError("--fit-only requires fixed --params")
+        hurdle = model.fit(train_rows, json.loads(args.params))
+        manifest = export.write(Path(args.out), hurdle, train_rows, validation, {}, [])
+        seconds = time.perf_counter() - started
+        (Path(args.out) / "report.json").write_text(json.dumps({
+            "model_version": manifest["model_version"], "seconds": seconds,
+            "train_rows": len(train_rows), "params": json.loads(args.params),
+            "selection": "fixed before the series; no validation selection",
+        }, indent=2) + "\n", encoding="utf-8")
+        print(f"{source}: {manifest['model_version']} in {seconds:.3f} s")
+        return
     candidates = evaluate.grid()[:1] if args.quick else None
     if args.params:
         candidates = [json.loads(args.params)]
@@ -112,6 +125,7 @@ def main() -> None:
     t.add_argument("--train-every", type=int, default=900, help="keep a train snapshot every N seconds (0: all)")
     t.add_argument("--quick", action="store_true", help="one grid point; for smoke checks only")
     t.add_argument("--params", help="JSON hyperparameters chosen earlier: retrain without the grid search")
+    t.add_argument("--fit-only", action="store_true", help="fit/export fixed --params without validation comparison (simulator updates)")
     t.set_defaults(func=train)
     r = sub.add_parser("report", help="Markdown table of report.json files")
     r.add_argument("reports", nargs="+")

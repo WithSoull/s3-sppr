@@ -1,0 +1,66 @@
+{
+  "mode": "sim",
+  "scenarios": [
+    "stable"
+  ],
+  "seeds": [
+    0
+  ],
+  "workers": 1,
+  "simulation": {
+    "generator": {
+      "scenario": "stable",
+      "seed": 0,
+      "start": "2026-10-01T00:00:00Z",
+      "objects": 10000,
+      "size_bytes": 1048576,
+      "reads_per_second": 20,
+      "snapshot_seconds": 300,
+      "hot_fraction": 0.1,
+      "hot_probability": 0.8,
+      "decay_hours": 24,
+      "period_hours": 24,
+      "burst_at_hours": 100,
+      "burst_duration_hours": 0.5,
+      "shift_every_hours": 24,
+      "lifecycle": false
+    },
+    "budgets_bytes": [
+      67108864,
+      268435456,
+      536870912
+    ],
+    "policies": [
+      "age",
+      "recency",
+      "frequency",
+      "ewma",
+      "lgbm"
+    ],
+    "hot_bytes": 1073741824,
+    "cold_bytes": 12884901888,
+    "utilization": 0.9,
+    "cycle_seconds": 300,
+    "confirm_seconds": 5,
+    "min_interval_seconds": 3600,
+    "slots": 8,
+    "migration_parallelism": 1,
+    "hot_read_ms_per_mib": 10,
+    "cold_read_ms_per_mib": 40,
+    "hot_write_ms_per_mib": 10,
+    "cold_write_ms_per_mib": 40,
+    "min_gain_ms": 0,
+    "penalty_ms_per_mib": 0,
+    "read_fraction": 1,
+    "update_model_24h": false,
+    "params": {
+      "num_leaves": 15,
+      "learning_rate": 0.1,
+      "min_data_in_leaf": 200,
+      "lambda_l2": 1.0
+    },
+    "python": "services/sppr/ml/.venv/bin/python",
+    "ml_dir": "services/sppr/ml",
+    "raw_latencies": false
+  }
+}
