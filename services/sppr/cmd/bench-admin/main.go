@@ -100,6 +100,27 @@ func (c client) request(ctx context.Context, method, path string, body, out any,
 	}
 	return nil
 }
+
+// recommendationPlan prefers the latest ready plan; stands that confirm
+// automatically keep only confirmed plans, whose pages are served the same way.
+func recommendationPlan(plans []plan) *plan {
+	var best *plan
+	for i := range plans {
+		p := &plans[i]
+		switch {
+		case best == nil:
+			best = p
+		case (p.Status == "ready") != (best.Status == "ready"):
+			if p.Status == "ready" {
+				best = p
+			}
+		case p.Revision > best.Revision:
+			best = p
+		}
+	}
+	return best
+}
+
 func (c client) plans(ctx context.Context) ([]plan, error) {
 	var all []plan
 	token := ""
@@ -179,6 +200,7 @@ type result struct {
 	Requests           int         `json:"requests"`
 	Rate               float64     `json:"rate_per_second"`
 	RecommendationPlan string      `json:"recommendation_plan_id"`
+	RecommendationFrom string      `json:"recommendation_plan_status"`
 	Recommendations    *statistics `json:"recommendations_ms"`
 	Command            string      `json:"command"`
 	Paused             bool        `json:"original_paused"`
@@ -202,12 +224,7 @@ func measure(ctx context.Context, c client, n int, rate float64, restart string,
 	}
 	r.Plans = plans
 	var durations []float64
-	var readyRevision int64
 	for _, p := range plans {
-		if p.Status == "ready" && (r.RecommendationPlan == "" || p.Revision > readyRevision) {
-			r.RecommendationPlan = p.ID
-			readyRevision = p.Revision
-		}
 		if p.Finished == nil {
 			r.Unfinished++
 			continue
@@ -218,9 +235,11 @@ func measure(ctx context.Context, c client, n int, rate float64, restart string,
 		durations = append(durations, p.Finished.Sub(p.Created).Seconds()*1000)
 	}
 	r.PlanDurations = summarize(durations)
-	if r.RecommendationPlan == "" {
-		return r, fmt.Errorf("no ready plan in stored plans")
+	best := recommendationPlan(plans)
+	if best == nil {
+		return r, fmt.Errorf("no stored plans")
 	}
+	r.RecommendationPlan, r.RecommendationFrom = best.ID, best.Status
 	recs, err := sample(ctx, n, rate, func() error {
 		return c.request(ctx, "GET", "/api/planner/plans/"+url.PathEscape(r.RecommendationPlan)+"/recommendations?page_size=100", nil, nil, 200)
 	})
