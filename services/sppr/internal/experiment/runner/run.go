@@ -19,30 +19,33 @@ import (
 
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/experiment/dataset"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/experiment/sim"
+	"github.com/alesplll/opens3-rebac/services/sppr/internal/experiment/stand"
 )
 
 type Config struct {
-	Mode       string     `json:"mode"`
-	Scenarios  []string   `json:"scenarios"`
-	Seeds      []uint64   `json:"seeds"`
-	Workers    int        `json:"workers"`
-	Simulation sim.Config `json:"simulation"`
+	Mode       string       `json:"mode"`
+	Scenarios  []string     `json:"scenarios"`
+	Seeds      []uint64     `json:"seeds"`
+	Workers    int          `json:"workers"`
+	Simulation sim.Config   `json:"simulation"`
+	Stand      stand.Config `json:"stand"`
 }
 type Manifest struct {
-	Version   string            `json:"version"`
-	Config    Config            `json:"config"`
-	ConfigSHA string            `json:"config_sha256"`
-	GitSHA    string            `json:"git_sha"`
-	Dirty     bool              `json:"dirty"`
-	Command   []string          `json:"command"`
-	Started   time.Time         `json:"started"`
-	Finished  *time.Time        `json:"finished,omitempty"`
-	BinarySHA string            `json:"binary_sha256"`
-	SHA256    map[string]string `json:"sha256,omitempty"`
+	Version   string                       `json:"version"`
+	Config    Config                       `json:"config"`
+	ConfigSHA string                       `json:"config_sha256"`
+	GitSHA    string                       `json:"git_sha"`
+	Dirty     bool                         `json:"dirty"`
+	Command   []string                     `json:"command"`
+	Started   time.Time                    `json:"started"`
+	Finished  *time.Time                   `json:"finished,omitempty"`
+	BinarySHA string                       `json:"binary_sha256"`
+	SHA256    map[string]string            `json:"sha256,omitempty"`
+	Inputs    map[string]map[string]string `json:"input_sha256,omitempty"`
 }
 
 func Load(path string) (Config, error) {
-	c := Config{Mode: "sim", Workers: 1, Simulation: sim.DefaultConfig()}
+	c := Config{Mode: "sim", Workers: 1, Simulation: sim.DefaultConfig(), Stand: stand.DefaultConfig()}
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return c, err
@@ -58,8 +61,19 @@ func Load(path string) (Config, error) {
 	return c, c.Validate()
 }
 func (c Config) Validate() error {
-	if c.Mode != "sim" {
-		return fmt.Errorf("mode %q is unavailable: stand is stage 10b", c.Mode)
+	if c.Mode != "sim" && c.Mode != "stand" {
+		return fmt.Errorf("unknown mode %q", c.Mode)
+	}
+	if c.Mode == "stand" {
+		if c.Stand.Overhead && len(c.Scenarios) != 1 {
+			return fmt.Errorf("overhead requires exactly one scenario")
+		}
+		if c.Workers != 1 {
+			return fmt.Errorf("stand runs must be serial (workers=1)")
+		}
+		if err := c.Stand.Validate(c.Simulation); err != nil {
+			return err
+		}
 	}
 	if c.Workers < 1 || c.Workers > 2 || len(c.Scenarios) == 0 || len(c.Seeds) == 0 {
 		return fmt.Errorf("invalid matrix/workers (1 or 2)")
@@ -72,6 +86,15 @@ func (c Config) Validate() error {
 		seen[s] = true
 		sc := c.Simulation
 		sc.Generator.Scenario = s
+		if c.Mode == "stand" {
+			sc.Generator = c.Stand.Load.Generator
+			sc.Generator.Scenario = s
+			lc := c.Stand.Load
+			lc.Generator = sc.Generator
+			if err := lc.Validate(); err != nil {
+				return err
+			}
+		}
 		if err := sc.Validate(); err != nil {
 			return err
 		}
@@ -152,7 +175,22 @@ func Run(ctx context.Context, c Config, out string, resume bool) error {
 	git, dirty := Revision()
 	exe, _ := os.Executable()
 	binary, _ := dataset.HashFile(exe)
-	m := Manifest{Version: sim.Version, Config: c, ConfigSHA: sha, GitSHA: git, Dirty: dirty, Command: os.Args, Started: time.Now().UTC(), BinarySHA: binary}
+	version := sim.Version
+	var inputs map[string]map[string]string
+	if c.Mode == "stand" {
+		inputs = map[string]map[string]string{}
+		version = stand.Version
+		for _, scenario := range c.Scenarios {
+			for _, seed := range c.Seeds {
+				h, err := stand.InputHashes(c.Stand, c.Simulation, scenario, seed)
+				if err != nil {
+					return err
+				}
+				inputs[fmt.Sprintf("%s-%d", scenario, seed)] = h
+			}
+		}
+	}
+	m := Manifest{Inputs: inputs, Version: version, Config: c, ConfigSHA: sha, GitSHA: git, Dirty: dirty, Command: os.Args, Started: time.Now().UTC(), BinarySHA: binary}
 	if resume {
 		raw, err := os.ReadFile(filepath.Join(out, "manifest.json"))
 		if err != nil {
@@ -162,7 +200,7 @@ func Run(ctx context.Context, c Config, out string, resume bool) error {
 		if err := json.Unmarshal(raw, &old); err != nil {
 			return err
 		}
-		if old.ConfigSHA != sha || old.GitSHA != git || old.Version != sim.Version || old.BinarySHA != binary {
+		if old.ConfigSHA != sha || old.GitSHA != git || old.Version != version || old.BinarySHA != binary || !reflect.DeepEqual(old.Inputs, m.Inputs) {
 			return fmt.Errorf("resume requires same configuration, revision and executable")
 		}
 		m = old
@@ -236,18 +274,25 @@ func Run(ctx context.Context, c Config, out string, resume bool) error {
 				err := os.Mkdir(tmp, 0755)
 				if err == nil {
 					sc := c.Simulation
+					if c.Mode == "stand" {
+						sc.Generator = c.Stand.Load.Generator
+					}
 					sc.Generator.Scenario, sc.Generator.Seed = p.s, p.seed
 					t := time.Now()
-					_, err = sim.Prepare(ctx, sc, filepath.Join(tmp, "cache"))
-					if err == nil {
-						var results []sim.Result
-						results, err = sim.Replay(ctx, sc, filepath.Join(tmp, "cache"))
+					if c.Mode == "stand" {
+						err = stand.RunPair(ctx, c.Stand, sc, tmp, git)
+					} else {
+						_, err = sim.Prepare(ctx, sc, filepath.Join(tmp, "cache"))
 						if err == nil {
-							err = sim.WriteResults(filepath.Join(tmp, "results"), results, git)
-						}
-						if err == nil {
-							for _, r := range results {
-								fmt.Printf("%s %s budget=%d MiB reads=%d mean=%.4f ms p95=%.4f ms HOT=%.4f moved=%d violations=%d\n", name, r.Policy, r.Budget/(1<<20), r.Latency.Reads, r.Latency.MeanMs, r.Latency.P95Ms, r.HotShare, r.Migrations, r.Violations)
+							var results []sim.Result
+							results, err = sim.Replay(ctx, sc, filepath.Join(tmp, "cache"))
+							if err == nil {
+								err = sim.WriteResults(filepath.Join(tmp, "results"), results, git)
+							}
+							if err == nil {
+								for _, r := range results {
+									fmt.Printf("%s %s budget=%d MiB reads=%d mean=%.4f ms p95=%.4f ms HOT=%.4f moved=%d violations=%d\n", name, r.Policy, r.Budget/(1<<20), r.Latency.Reads, r.Latency.MeanMs, r.Latency.P95Ms, r.HotShare, r.Migrations, r.Violations)
+								}
 							}
 						}
 					}
