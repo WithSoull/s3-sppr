@@ -369,3 +369,29 @@ stand-experiment: build/bin/experiment
 	build/bin/experiment -config $(STAND_CONFIG) -out $(STAND_OUT) $(EXPERIMENT_ARGS)
 overhead: build/bin/experiment
 	build/bin/experiment -config $(OVERHEAD_CONFIG) -out $(OVERHEAD_OUT) $(EXPERIMENT_ARGS)
+
+# Stage 11 final TEST evaluation; parameters are fixed before the series.
+FQ_SCENARIO ?= stable
+FQ_SEEDS ?= 0 1 2
+FQ_PARAMS ?= $(shell python3 -c 'import json; print(json.dumps(json.load(open("services/sppr/experiments/main.json"))["simulation"]["params"]))')
+FQ_OUT ?= build/forecast-quality
+FQ_CONFIG ?= services/sppr/examples/data/acceptance.json
+.PHONY: forecast-quality
+build/bin/dataset: FORCE
+	mkdir -p build/bin
+	go build -o $@ ./services/sppr/cmd/dataset
+forecast-quality: build/bin/dataset
+	@set -eu; \
+	mkdir -p "$$(dirname "$(FQ_OUT)")"; mkdir "$(FQ_OUT)"; \
+	dataset_tmp=$$(mktemp -d "$(FQ_OUT)/.datasets.XXXXXX"); \
+	trap 'rm -rf "$$dataset_tmp"' EXIT; trap 'exit 130' INT; trap 'exit 143' TERM HUP; \
+	set --; \
+	for seed in $(FQ_SEEDS); do \
+		case "$$seed" in ''|*[!0-9]*) echo "FQ_SEEDS must contain nonnegative integers" >&2; exit 1;; esac; \
+		result="$(FQ_OUT)/$(FQ_SCENARIO)-$$seed"; \
+		build/bin/dataset -config "$(FQ_CONFIG)" -scenario "$(FQ_SCENARIO)" -seed "$$seed" -format csv.gz -train-every 15m -out "$$dataset_tmp/data"; \
+		PYTHONPATH=$(SPPR_ML) $(SPPR_ML_PY) -m sppr_ml evaluate --data "$$dataset_tmp/data" --params '$(FQ_PARAMS)' --out "$$result"; \
+		rm -rf "$$dataset_tmp/data"; \
+		set -- "$$@" "$$result"; \
+	done; \
+	PYTHONPATH=$(SPPR_ML) $(SPPR_ML_PY) -m sppr_ml evaluate-report "$$@"

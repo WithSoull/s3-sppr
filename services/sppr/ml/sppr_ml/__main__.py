@@ -1,8 +1,9 @@
-"""Command line: `python -m sppr_ml train|report`.
+"""Command line: `python -m sppr_ml train|report|evaluate|evaluate-report|experiment`.
 
 train  — load one dataset directory, tune on validation, compare with
          baselines, write the model directory and report.json.
 report — print a Markdown table of report.json files.
+evaluate/evaluate-report — stage 11 fixed-parameter TEST evaluation and seed table.
 """
 
 from __future__ import annotations
@@ -131,6 +132,15 @@ def main() -> None:
     r.add_argument("reports", nargs="+")
     r.add_argument("--summary", action="store_true", help="only the paired difference with the best baseline")
     r.set_defaults(func=report)
+    from . import final_evaluation
+    f = sub.add_parser("evaluate", help="stage 11: train-only fixed fit, final TEST metrics")
+    f.add_argument("--data", required=True, help="dataset directory from cmd/dataset")
+    f.add_argument("--params", required=True, help="fixed JSON parameters; no test tuning")
+    f.add_argument("--out", required=True, help="new directory for evaluate.json")
+    f.set_defaults(func=final_evaluation.command)
+    fr = sub.add_parser("evaluate-report", help="mean and min–max TEST metrics over seed directories")
+    fr.add_argument("dirs", nargs="+")
+    fr.set_defaults(func=final_evaluation.report)
     from .experiment import command
     e = sub.add_parser("experiment", help="paired seed bootstrap and placement tables")
     e.add_argument("results", help="completed cmd/experiment series directory")

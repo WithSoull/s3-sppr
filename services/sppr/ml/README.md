@@ -41,6 +41,7 @@ Runbook реестра, таймаута и расписания — [README SPP
 | `experiment.py` | обработка завершённой матрицы размещения: парные seed, 10 000 bootstrap, критерий, Markdown/JSON |
 | `metrics.py` | PR-AUC, Brier, `Cov_K`, пуассоновское отклонение, bootstrap по моментам среза |
 | `evaluate.py` | сетка гиперпараметров на validation, сравнение, парная разность с лучшей базовой оценкой, проверка на ещё не читанные объекты |
+| `final_evaluation.py` | этап 11: фиксированный train-only fit, TEST-метрики ML/EWMA и среднее/min–max по seed |
 | `export.py` | `classifier.txt`, `regressor.txt`, `manifest.json`, `parity.json` по «Схеме файлов экспорта v1» |
 | `scripts/build_notebook.py` | исходник notebook; правьте его, а не `.ipynb` |
 
@@ -49,7 +50,7 @@ Runbook реестра, таймаута и расписания — [README SPP
 - Гиперпараметры выбираются по validation (`Cov_K`, при равенстве Brier); число
   деревьев — по хвосту train. Validation не участвует в обучении деревьев.
 - Монотонные отображения базовых оценок подбираются на train.
-- Test не загружается: `data.load` без `include_test=True` его отбрасывает.
+- В этапе 8 test не загружается: `data.load` без `include_test=True` его отбрасывает.
 - `Cov_K` — отношение сумм по всем моментам среза; равные прогнозы упорядочиваются
   случайно с фиксированным seed, чтобы базовая оценка с массой нулей не выигрывала
   от порядка строк.
@@ -106,3 +107,21 @@ PYTHONPATH=services/sppr/ml services/sppr/ml/.venv/bin/python -m sppr_ml experim
 
 `SPPR_ML_PY` переопределяет Python для make (включая `make test-sppr-ml`), например
 `make test-sppr-ml SPPR_ML_PY=build/experiment-venv/bin/python`.
+
+## Итоговое качество прогноза (этап 11)
+
+`make forecast-quality` из корня создаёт и удаляет по одному временному dataset
+на seed, оставляя только `evaluate.json`. Параметры по умолчанию берутся из
+`experiments/main.json` (simulation.params), без подбора на TEST. Отдельные CLI:
+
+```bash
+python -m sppr_ml evaluate --data <dataset-dir> --params '<fixed-json>' --out <new-dir>
+python -m sppr_ml evaluate-report <seed-dir> <seed-dir> ...
+```
+
+Обучение использует `model.fit` как `train --fit-only`, train раз в 15 мин;
+TEST читается после fit, validation не участвует. Метрики: PR-AUC (average
+precision), Brier, MAE в чтениях на объект в час, Cov_K с HOT_SHARE=0.0921,
+число строк. EWMA p=1−exp(−λ), λ — ожидаемые чтения за горизонт из dataset.
+Результаты не экспортируются как модель. Подробности, параметры Make и границы
+измерений — [runbook этапа 11](../README.md#измерения-для-вкр-этап-11).

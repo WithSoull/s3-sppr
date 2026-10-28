@@ -250,26 +250,32 @@ def _cache(source: Path, name: str, manifest: dict, rows) -> Path:
     return cache
 
 
-def load(source: str | Path, *, include_test: bool = False, train_every: int | None = None) -> Slices:
+def load(source: str | Path, *, include_test: bool = False, train_every: int | None = None,
+         splits: tuple[str, ...] | None = None) -> Slices:
     """Load eligible rows of a dataset directory.
 
     Test rows stay out unless include_test is set: stage 8 selects and reports
     on validation only. train_every thins train snapshots to every N seconds
-    (from the train start); validation keeps every snapshot.
+    (from the train start); validation keeps every snapshot. Explicit splits
+    avoid holding train and test in memory together during final evaluation;
+    selecting test still requires include_test=True.
     """
     source = Path(source)
+    if splits is None:
+        splits = SPLITS if include_test else SPLITS[:2]
+    if not splits or any(s not in SPLITS for s in splits):
+        raise ValueError("splits must be nonempty and contain only train/validation/test")
+    if "test" in splits and not include_test:
+        raise TestSplitLocked("test requires include_test=True (final evaluation only)")
     manifest = read_manifest(source)
     if manifest.get("format", "jsonl") == "csv.gz":
         digest = hashlib.sha256((source / "manifest.json").read_bytes()).hexdigest()
-        splits = SPLITS if include_test else SPLITS[:2]
         cols = _read([_cache(source, f"{s}.csv.gz", manifest, _compact_rows) for s in splits])
     else:
         cols = _read([_cache(source, "slices.jsonl", manifest, _jsonl_rows)])
         digest = manifest["sha256"]["slices.jsonl"]
     periods = periods_of(manifest)
-    keep = np.ones(len(cols["reads"]), dtype=bool)
-    if not include_test:
-        keep &= cols["split"] != _SPLIT_CODE["test"]
+    keep = np.isin(cols["split"], [_SPLIT_CODE[s] for s in splits])
     if train_every:
         offset = cols["at"] - periods.train[0]
         keep &= (cols["split"] != _SPLIT_CODE["train"]) | (offset % train_every == 0)
