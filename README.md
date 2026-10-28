@@ -235,8 +235,8 @@ PostgreSQL из `e2e/`. Для генерации нужен `protoc`, зате�
 S3-совместимости, производительности или production availability.
 
 Полнота истории обращений: heartbeat Gateway → общая W в SPPR → Planner на W.
-Конфигурация и проверка шести сценариев `make smoke-history-local` (выделенный
-стенд, останавливает Kafka/Gateway) — в [SPPR README](services/sppr/README.md#полнота-истории-и-smoke-history).
+Конфигурация и проверка семи сценариев `make smoke-history-local` (выделенный
+стенд, останавливает Kafka/Gateway и ставит Gateway на паузу) — в [SPPR README](services/sppr/README.md#полнота-истории-и-smoke-history).
 
 Стендовые серии с реальными сервисами: `make stand-smoke`, `make stand-experiment`,
 `make overhead`. Runner создаёт отдельные Compose-проекты и удаляет их тома;

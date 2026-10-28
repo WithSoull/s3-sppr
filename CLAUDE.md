@@ -160,7 +160,8 @@ SPPR самостоятельно читает Kafka и сохраняет ис�
 Полнота этапа 5: Gateway публикует heartbeat каждого топика под mutex потока,
 включая closing после HTTP/buffer drain. SPPR различает события по Kafka header,
 атомарно сохраняет heartbeat/progress/gaps и закрывает потерянные потоки фоновой
-проверкой с управляемыми часами. `repository/history.Coverage` — источник общей W;
+проверкой с управляемыми часами. Lost-check допускает атомарное возобновление того же stream_id (graceful closing — нет); только непрерывность удаляет текущий lost gap, см. восстановление в SPPR README.
+`repository/history.Coverage` — источник общей W;
 Planner считает на W, исключает будущие события до SQL-группировки и останавливает
 план при чрезмерном lag. Отсутствие чтений и неполная история различаются в
 status/admin. Протокол: `docs/history-completeness-spec.md`; конфигурация,

@@ -46,6 +46,20 @@ func TestIngest(t *testing.T) {
 			tx.ReadCommittedMock.Set(func(c context.Context, f db.Handler) error { return f(c) })
 			return r, tx
 		}},
+		{name: "resumed event is reported after commit", args: args{event, delivery}, want: model.IngestResult{Resumed: true}, build: func(mc *minimock.Controller, a args) (*mocks.EventRepositoryMock, *mocks.TxManagerMock) {
+			r := mocks.NewEventRepositoryMock(mc)
+			r.StoreMock.Expect(ctx, a.event, a.delivery).Return(model.IngestResult{Resumed: true}, nil)
+			tx := mocks.NewTxManagerMock(mc)
+			tx.ReadCommittedMock.Set(func(c context.Context, f db.Handler) error { return f(c) })
+			return r, tx
+		}},
+		{name: "resume commit failure hides outcome", args: args{event, delivery}, wantErr: commitErr, build: func(mc *minimock.Controller, a args) (*mocks.EventRepositoryMock, *mocks.TxManagerMock) {
+			r := mocks.NewEventRepositoryMock(mc)
+			r.StoreMock.Expect(ctx, a.event, a.delivery).Return(model.IngestResult{Resumed: true}, nil)
+			tx := mocks.NewTxManagerMock(mc)
+			tx.ReadCommittedMock.Set(func(c context.Context, f db.Handler) error { require.NoError(t, f(c)); return commitErr })
+			return r, tx
+		}},
 		{name: "repository failure", args: args{event, delivery}, wantErr: repoErr, build: func(mc *minimock.Controller, a args) (*mocks.EventRepositoryMock, *mocks.TxManagerMock) {
 			r := mocks.NewEventRepositoryMock(mc)
 			r.StoreMock.Expect(ctx, a.event, a.delivery).Return(model.IngestResult{}, repoErr)

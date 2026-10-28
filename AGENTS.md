@@ -28,6 +28,7 @@ periodic and closing heartbeats under the event mutex; HTTP never waits for Kafk
 Shutdown drains HTTP, confirms ordinary barriers, confirms closing barriers, then
 closes sarama; consume both results channels. History Coverage owns W across
 observed open/closed/lost streams; never infer it from event traffic or now.
+Lost-check closure can resume atomically on a new non-regressing message; resolve only its marked lost gap on contiguity, preserve graceful closure and replay idempotency (see the SPPR recovery runbook).
 Planner runs at W, gates excessive lag and reads only events strictly before W
 before grouping by minute. Keep gaps conservative and heartbeat replay atomic.
 See `docs/history-completeness-spec.md` and the SPPR README for env and recovery.

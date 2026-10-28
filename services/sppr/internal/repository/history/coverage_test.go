@@ -13,11 +13,11 @@ func TestCoverageWatermark(t *testing.T) {
 	mid := at.Add(-time.Minute)
 	future := at.Add(time.Hour)
 	for _, tt := range []struct {
-		name               string
-		streams            []streamProgress
-		known              bool
-		w                  time.Time
-		open, closed, lost int64
+		name                        string
+		streams                     []streamProgress
+		known                       bool
+		w                           time.Time
+		open, closed, lost, resumed int64
 	}{
 		{name: "no streams"},
 		{name: "event alone is not completeness", streams: []streamProgress{{First: &old, Created: old}}, open: 1},
@@ -26,6 +26,7 @@ func TestCoverageWatermark(t *testing.T) {
 		{name: "closed does not hold open", streams: []streamProgress{{First: &old, Heartbeat: &at, Complete: &at}, {First: &old, Heartbeat: &mid, Complete: &mid, Closed: &mid}}, known: true, w: at, open: 1, closed: 1},
 		{name: "closed maximum", streams: []streamProgress{{First: &old, Heartbeat: &at, Complete: &at, Closed: &at}, {First: &old, Heartbeat: &mid, Complete: &mid, Closed: &at}}, known: true, w: at, closed: 2},
 		{name: "lost retains barrier", streams: []streamProgress{{First: &old, Heartbeat: &mid, Complete: &mid, Closed: &at, Lost: &at}}, known: true, w: mid, closed: 1, lost: 1},
+		{name: "resumed stream holds W again", streams: []streamProgress{{First: &old, Heartbeat: &at, Complete: &at}, {First: &old, Heartbeat: &mid, Complete: &mid, ResumedCount: 2}}, known: true, w: mid, open: 2, resumed: 2},
 		{name: "closed cap", streams: []streamProgress{{First: &old, Heartbeat: &future, Complete: &future, Closed: &at}}, known: true, w: at, closed: 1},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
@@ -35,6 +36,7 @@ func TestCoverageWatermark(t *testing.T) {
 			require.Equal(t, tt.open, c.OpenStreams)
 			require.Equal(t, tt.closed, c.ClosedStreams)
 			require.Equal(t, tt.lost, c.LostStreams)
+			require.Equal(t, tt.resumed, c.ResumedCount)
 		})
 	}
 }
