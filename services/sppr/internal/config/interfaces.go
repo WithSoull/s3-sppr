@@ -76,6 +76,7 @@ type MigrationConfig interface {
 }
 
 type PlannerConfig interface {
+	BaselineMap() string
 	ModelRegistry() string
 	ModelMaxAge() time.Duration
 	ModelUpdateEvery() time.Duration

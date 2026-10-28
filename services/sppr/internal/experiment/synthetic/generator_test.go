@@ -111,3 +111,23 @@ func TestNextLifecycleAndEnd(t *testing.T) {
 	_, err = New(c)
 	require.Error(t, err)
 }
+
+func TestExplicitShiftBoundaries(t *testing.T) {
+	c := config()
+	c.Scenario = "shift"
+	c.ReadsPerSecond = 1.0 / 3600
+	c.HotProbability = 1
+	c.ShiftEveryHours = 1
+	regular, err := New(c)
+	require.NoError(t, err)
+	// Equal boundaries must preserve the original generator byte for byte.
+	explicit, err := NewWithShifts(c, []float64{3600, 7200, 10800})
+	require.NoError(t, err)
+	for i := 0; i < 4; i++ {
+		a, _ := regular.Next()
+		b, _ := explicit.Next()
+		require.Equal(t, a, b)
+	}
+	_, err = NewWithShifts(c, []float64{3600, 3600})
+	require.Error(t, err)
+}

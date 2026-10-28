@@ -55,6 +55,11 @@ PostgreSQL и мигратор, Kafka и ZooKeeper без остальных п�
 CSV.gz и прореживание train. Перед работой с реальными данными прочтите
 [аудит трасс](docs/traces.md).
 
+Для проверки размещения без сервисов: `make ml-sppr-venv`, `make sim-smoke`,
+`make experiment-report EXPERIMENT_OUT=build/sim-smoke`. Повтор smoke требует
+новый `SIM_SMOKE_OUT`; существующая серия защищена от перезаписи.
+[Конфиги и resume](services/sppr/README.md#эксперимент-по-логическому-времени-этап-10a).
+
 Gateway producer из отдельного [PR #1](https://github.com/WithSoull/s3-sppr/pull/1) уже есть в checkout.
 Для автономной проверки Ingestor используйте integration tests из README; порядок чтения
 кода — в [онбординге SPPR](services/sppr/ONBOARDING.md).
@@ -238,3 +243,7 @@ make generate
 Полнота истории обращений: heartbeat Gateway → общая W в SPPR → Planner на W.
 Конфигурация и проверка семи сценариев `make smoke-history-local` (выделенный
 стенд, останавливает Kafka/Gateway и ставит Gateway на паузу) — в [SPPR README](services/sppr/README.md#полнота-истории-и-smoke-history).
+
+Стендовые серии с реальными сервисами: `make stand-smoke`, `make stand-experiment`,
+`make overhead`. Runner создаёт отдельные Compose-проекты и удаляет их тома;
+предварительный `make up-*` не нужен. [Runbook, входные ML-артефакты и ограничения](services/sppr/README.md#стендовый-генератор-и-накладные-расходы-этап-10b).

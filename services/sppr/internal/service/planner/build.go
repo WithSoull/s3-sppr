@@ -21,19 +21,21 @@ type candidate struct {
 }
 
 type planState struct {
-	params     model.PlannerParams
-	newID      func() string
-	hotUsable  int64
-	coldUsable int64
-	hotUsed    int64
-	coldUsed   int64
-	budget     int64
-	percentile func(float64) float64
-	method     string
-	result     []model.Recommendation
-	rejected   []rejection
-	netGain    float64
-	copyBytes  int64
+	params      model.PlannerParams
+	uniformSize int64
+	hotCursor   int
+	newID       func() string
+	hotUsable   int64
+	coldUsable  int64
+	hotUsed     int64
+	coldUsed    int64
+	budget      int64
+	percentile  func(float64) float64
+	method      string
+	result      []model.Recommendation
+	rejected    []rejection
+	netGain     float64
+	copyBytes   int64
 }
 
 type rejection struct {
@@ -59,6 +61,17 @@ func Build(in model.PlanInput, newID func() string) (model.PlanResult, error) {
 		coldUsed:   in.Cold.UsedBytes,
 		budget:     in.BudgetBytes,
 		method:     in.MethodVersion,
+	}
+	// Equal-sized catalogues need at most one displacement for a feasible HOT
+	// placement. Keep the same greedy decisions while avoiding repeated scans.
+	if len(in.Items) > 0 {
+		s.uniformSize = in.Items[0].SizeBytes
+		for _, it := range in.Items[1:] {
+			if it.SizeBytes != s.uniformSize {
+				s.uniformSize = 0
+				break
+			}
+		}
 	}
 	cands := make([]*candidate, len(in.Items))
 	var demand []float64
@@ -270,6 +283,18 @@ func (s *planState) displacements(hot []*candidate, free, size int64) [][]*candi
 	if free >= size {
 		return [][]*candidate{nil}
 	}
+	if s.uniformSize > 0 && free >= 0 {
+		for s.hotCursor < len(hot) && hot[s.hotCursor].selected {
+			s.hotCursor++
+		}
+		if s.hotCursor == len(hot) {
+			return nil
+		}
+		// Density and absolute gain have the same ordering at equal size. The
+		// general path chooses this exact version for both displacement options,
+		// including the candidate later rejected for an insufficient budget.
+		return [][]*candidate{{hot[s.hotCursor]}}
+	}
 	var out [][]*candidate
 	var byDensity []*candidate
 	var freed int64
@@ -363,6 +388,9 @@ func (s *planState) apply(o *swap) {
 // so one large cold-in-HOT version can be traded for several small hot ones.
 // Each follower must pay for its own copy; the set still faces the threshold.
 func (s *planState) followers(rest []*candidate, space, copyBytes int64) []*candidate {
+	if s.uniformSize > 0 && space < s.uniformSize {
+		return nil
+	}
 	var out []*candidate
 	for _, f := range rest {
 		size := f.item.SizeBytes

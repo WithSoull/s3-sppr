@@ -11,7 +11,8 @@ import (
 // the administrator can change them, and the stored values win over env.
 type plannerEnvConfig struct {
 	MaxHistoryLag     time.Duration `env:"PLANNER_MAX_HISTORY_LAG" envDefault:"60s"`
-	Predictor         string        `env:"PLANNER_PREDICTOR" envDefault:"ewma"`
+	Predictor         string        `env:"PLANNER_PREDICTOR" envDefault:"lgbm"`
+	BaselineMap       string        `env:"PLANNER_BASELINE_MAP"`
 	ModelRegistry     string        `env:"PLANNER_MODEL_REGISTRY" envDefault:"/var/lib/sppr/models"`
 	ModelMaxAge       time.Duration `env:"PLANNER_MODEL_MAX_AGE" envDefault:"72h"`
 	ModelUpdateEvery  time.Duration `env:"PLANNER_MODEL_UPDATE_EVERY" envDefault:"24h"`
@@ -51,8 +52,8 @@ func NewPlannerConfig() (*plannerConfig, error) {
 		return nil, fmt.Errorf("model lifecycle durations must be positive (update interval >= 1s)")
 	case raw.MaxHistoryLag <= 0:
 		return nil, fmt.Errorf("PLANNER_MAX_HISTORY_LAG must be positive")
-	case raw.Predictor != "ewma" && raw.Predictor != "lgbm":
-		return nil, fmt.Errorf("PLANNER_PREDICTOR must be ewma or lgbm")
+	case raw.Predictor != "ewma" && raw.Predictor != "lgbm" && raw.Predictor != "age" && raw.Predictor != "recency" && raw.Predictor != "frequency":
+		return nil, fmt.Errorf("PLANNER_PREDICTOR must be ewma, lgbm, age, recency or frequency")
 	case raw.Interval < time.Second:
 		return nil, fmt.Errorf("PLANNER_INTERVAL must be at least 1s")
 	case raw.KeepPlans < 1:
@@ -88,6 +89,7 @@ func (c *plannerConfig) ColdUtilization() float64 { return c.raw.ColdUtilization
 func (c *plannerConfig) Predictor() string { return c.raw.Predictor }
 func (c *plannerConfig) ModelDir() string  { return c.raw.ModelDir }
 
+func (c *plannerConfig) BaselineMap() string              { return c.raw.BaselineMap }
 func (c *plannerConfig) ModelRegistry() string            { return c.raw.ModelRegistry }
 func (c *plannerConfig) ModelMaxAge() time.Duration       { return c.raw.ModelMaxAge }
 func (c *plannerConfig) ModelUpdateEvery() time.Duration  { return c.raw.ModelUpdateEvery }

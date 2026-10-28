@@ -60,14 +60,29 @@ type Generator struct {
 	catalog  []model.Version
 	sequence int64
 	hot      int
+	shifts   []float64
 	order    []int
 }
 
-func New(c Config) (*Generator, error) {
+func New(c Config) (*Generator, error) { return NewWithShifts(c, nil) }
+
+// NewWithShifts retains the same random stream while allowing finite stand shift boundaries.
+func NewWithShifts(c Config, shifts []float64) (*Generator, error) {
+	last := 0.0
+	for _, v := range shifts {
+		if math.IsNaN(v) || math.IsInf(v, 0) || v <= last || v >= 7*86400 {
+			return nil, fmt.Errorf("invalid shift boundaries")
+		}
+		last = v
+	}
+	if len(shifts) > 0 && c.Scenario != "shift" {
+		return nil, fmt.Errorf("shift boundaries require shift scenario")
+	}
 	if err := c.Validate(); err != nil {
 		return nil, err
 	}
 	g := &Generator{cfg: c, rng: rand.New(rand.NewPCG(c.Seed, c.Seed^0x9e3779b97f4a7c15)), hot: max(1, int(float64(c.Objects)*c.HotFraction))}
+	g.shifts = append([]float64(nil), shifts...)
 	g.order = g.rng.Perm(c.Objects)
 	for i := 0; i < c.Objects; i++ {
 		v := model.Version{VersionRef: model.VersionRef{Bucket: fmt.Sprintf("bucket-%02d", i%4), ObjectKey: fmt.Sprintf("object-%05d", i), VersionID: fmt.Sprintf("v-%05d", i)}, SizeBytes: c.SizeBytes, CreatedAt: c.Start}
@@ -108,6 +123,15 @@ func (g *Generator) Next() (model.AccessEvent, bool) {
 		}
 	case "shift":
 		group = int(math.Floor(hours/c.ShiftEveryHours)) % (c.Objects / g.hot)
+		if len(g.shifts) > 0 {
+			group = 0
+			for _, boundary := range g.shifts {
+				if hours*3600 >= boundary {
+					group++
+				}
+			}
+			group %= c.Objects / g.hot
+		}
 	case "uniform":
 		p = 0
 	}

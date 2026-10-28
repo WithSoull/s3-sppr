@@ -16,7 +16,7 @@
 | Storage | blob bytes и multipart | [README](../services/storage/README.md) |
 | Quota | резервирование и учёт квот | [README](../services/quota/README.md) |
 | Gateway | локальный HTTP PUT/GET/HEAD/DELETE | [README](../services/gateway/README.md) |
-| SPPR | Kafka Ingestor, история и агрегаты спроса; исполнитель переносов HOT/COLD, очистка, smoke и проверки сбоев; признаки и EWMA; Planner, ревизии и команды администратора ([ТЗ этапа 7](planner-spec.md)) | [README](../services/sppr/README.md), [онбординг](../services/sppr/ONBOARDING.md), [шаг 6](sppr-step6.md) |
+| SPPR | Kafka Ingestor, история и агрегаты спроса; исполнитель переносов HOT/COLD, очистка, smoke и проверки сбоев; признаки и EWMA; Planner, ревизии и команды администратора ([ТЗ этапа 7](planner-spec.md)); автономный симулятор и runner ([ТЗ этапа 10](experiment-spec.md)) | [README](../services/sppr/README.md), [онбординг](../services/sppr/ONBOARDING.md), [шаг 6](sppr-step6.md), [проверка 10a](experiment-sim-report.md) |
 
 У всех сервисных README одинаковый порядок: назначение → архитектура → структура →
 API → данные/сценарии → конфигурация → запуск → примеры → диагностика → разработка/тесты →

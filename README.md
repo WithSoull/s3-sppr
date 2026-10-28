@@ -62,6 +62,11 @@ make down-volumes  # удаляет локальные данные volumes
 make generate
 ```
 
+Автономный эксперимент размещения СППР: `make ml-sppr-venv`, затем
+`make sim-smoke` и `make experiment-report EXPERIMENT_OUT=build/sim-smoke`.
+Для него нужны Go/Python; сервисы и Docker не требуются. Матрица, resume и
+параметры модели времени — [в README СППР](services/sppr/README.md#эксперимент-по-логическому-времени-этап-10a).
+
 ## Реализованные границы сервисов
 
 ### Auth
@@ -232,3 +237,7 @@ S3-совместимости, производительности или produ
 Полнота истории обращений: heartbeat Gateway → общая W в SPPR → Planner на W.
 Конфигурация и проверка семи сценариев `make smoke-history-local` (выделенный
 стенд, останавливает Kafka/Gateway и ставит Gateway на паузу) — в [SPPR README](services/sppr/README.md#полнота-истории-и-smoke-history).
+
+Стендовые серии с реальными сервисами: `make stand-smoke`, `make stand-experiment`,
+`make overhead`. Runner создаёт отдельные Compose-проекты и удаляет их тома;
+предварительный `make up-*` не нужен. [Runbook, входные ML-артефакты и ограничения](services/sppr/README.md#стендовый-генератор-и-накладные-расходы-этап-10b).

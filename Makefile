@@ -217,7 +217,7 @@ ml-sppr-notebook:
 	cd $(SPPR_ML)/notebooks && PYTHONPATH=$(CURDIR)/$(SPPR_ML) ../.venv/bin/jupyter nbconvert --to notebook --execute --inplace stage8.ipynb
 
 test-sppr-ml:
-	cd $(SPPR_ML) && .venv/bin/python -m pytest -q tests
+	cd $(SPPR_ML) && $(abspath $(SPPR_ML_PY)) -m pytest -q tests
 
 test-sppr:
 	go test -race ./services/sppr/... -count=1
@@ -330,6 +330,23 @@ smoke-ml-update-local:
 	PLANNER_HORIZON=2m PLANNER_MODEL_MIN_HISTORY=1m PLANNER_MODEL_TRAIN_WINDOW=140m PLANNER_MODEL_DIR= GATEWAY_MAX_READ_DURATION=2s MIGRATION_SOURCE_CLEANUP_DELAY=5s METADATA_DELETE_CLEANUP_DELAY=5s MIGRATION_CLEANUP_INTERVAL=250ms MIGRATION_MIN_INTERVAL=0s $(MAKE) up-sppr-planner
 	GATEWAY_MAX_READ_DURATION=2s MIGRATION_SOURCE_CLEANUP_DELAY=5s METADATA_DELETE_CLEANUP_DELAY=5s MIGRATION_CLEANUP_INTERVAL=250ms MIGRATION_MIN_INTERVAL=0s $(MAKE) smoke-ml-update
 
+# Logical-time experiments (stage 10a); each output directory is a new series.
+CONFIG ?= services/sppr/experiments/main.json
+EXPERIMENT_OUT ?= build/experiment-main
+SIM_SMOKE_OUT ?= build/sim-smoke
+.PHONY: sim-smoke experiment experiment-report
+build/bin/experiment: FORCE
+	mkdir -p build/bin
+	go build -o $@ ./services/sppr/cmd/experiment
+sim-smoke: build/bin/experiment
+	GOMAXPROCS=2 build/bin/experiment -config services/sppr/experiments/smoke.json -out $(SIM_SMOKE_OUT) -python $(abspath $(SPPR_ML_PY))
+experiment: build/bin/experiment
+	GOMAXPROCS=2 build/bin/experiment -config $(CONFIG) -out $(EXPERIMENT_OUT) -python $(abspath $(SPPR_ML_PY)) $(EXPERIMENT_ARGS)
+experiment-report:
+	PYTHONPATH=$(SPPR_ML) $(SPPR_ML_PY) -m sppr_ml experiment $(EXPERIMENT_OUT)
+.PHONY: FORCE
+FORCE:
+
 .PHONY: smoke-history smoke-history-local
 # Disruptive: dedicated stand only; stops Kafka and kills/stops Gateway.
 smoke-history:
@@ -338,3 +355,17 @@ smoke-history:
 smoke-history-local:
 	ACCESS_EVENTS_ENABLED=true ADMIN_AUTH_ENABLED=false ACCESS_HEARTBEAT_INTERVAL=1s INGEST_STREAM_LOST_AFTER=30s $(MAKE) up-sppr-planner
 	$(MAKE) smoke-history
+
+# Disposable real-service stands; always run from the repository root.
+STAND_CONFIG ?= services/sppr/experiments/stand-shift.json
+STAND_OUT ?= build/stand-shift
+STAND_SMOKE_OUT ?= build/stand-smoke
+OVERHEAD_CONFIG ?= services/sppr/experiments/overhead.json
+OVERHEAD_OUT ?= build/overhead
+.PHONY: stand-smoke stand-experiment overhead
+stand-smoke: build/bin/experiment
+	build/bin/experiment -config services/sppr/experiments/stand-smoke.json -out $(STAND_SMOKE_OUT) $(EXPERIMENT_ARGS)
+stand-experiment: build/bin/experiment
+	build/bin/experiment -config $(STAND_CONFIG) -out $(STAND_OUT) $(EXPERIMENT_ARGS)
+overhead: build/bin/experiment
+	build/bin/experiment -config $(OVERHEAD_CONFIG) -out $(OVERHEAD_OUT) $(EXPERIMENT_ARGS)
