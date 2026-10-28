@@ -47,6 +47,7 @@ type Delivery struct {
 }
 
 type IngestResult struct {
+	Resumed   bool
 	Duplicate bool
 	Missing   int64
 }

@@ -3,14 +3,15 @@ package ingestor_test
 import (
 	"context"
 	"errors"
+	"testing"
+	"time"
+
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/model"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/service/ingestor"
 	"github.com/alesplll/opens3-rebac/services/sppr/pkg/mocks"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/client/db"
 	"github.com/gojuno/minimock/v3"
 	"github.com/stretchr/testify/require"
-	"testing"
-	"time"
 )
 
 func TestHeartbeat(t *testing.T) {
@@ -25,7 +26,14 @@ func TestHeartbeat(t *testing.T) {
 		repoErr, commitErr error
 		invalid            bool
 	}{
-		{name: "zero sequence before any event"}, {name: "tail gap", sequence: 4, result: model.IngestResult{Missing: 3}}, {name: "replay", sequence: 4, result: model.IngestResult{Duplicate: true}}, {name: "database failure", repoErr: down}, {name: "commit failure", result: model.IngestResult{Missing: 3}, commitErr: commit}, {name: "validation does not call repository", sequence: -1, invalid: true},
+		{name: "zero sequence before any event"},
+		{name: "lost stream resumed", sequence: 4, result: model.IngestResult{Resumed: true}},
+		{name: "resume commit failure", result: model.IngestResult{Resumed: true}, commitErr: commit},
+		{name: "tail gap", sequence: 4, result: model.IngestResult{Missing: 3}},
+		{name: "replay", sequence: 4, result: model.IngestResult{Duplicate: true}},
+		{name: "database failure", repoErr: down},
+		{name: "commit failure", result: model.IngestResult{Missing: 3}, commitErr: commit},
+		{name: "validation does not call repository", sequence: -1, invalid: true},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			mc := minimock.NewController(t)

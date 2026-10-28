@@ -117,6 +117,8 @@ func TestStreamWithoutAnyHeartbeatExpiresFromRegistration(t *testing.T) {
 	require.NoError(t, s.CheckLostStreams(ctx, registered.Add(30*time.Second+time.Microsecond), 30*time.Second))
 	require.Equal(t, int64(1), scalar(t, client, "SELECT count(*) FROM ingestion_gaps WHERE last_sequence IS NULL"))
 	require.True(t, deliver(t, s, accessEvent(2), 1).Duplicate)
-	_, err := ingest(s, accessEvent(3), model.Delivery{Topic: "access", Offset: 2})
-	require.ErrorIs(t, err, model.ErrRejected)
+	result, err := ingest(s, accessEvent(3), model.Delivery{Topic: "access", Offset: 2})
+	require.NoError(t, err)
+	require.True(t, result.Resumed)
+	require.Equal(t, int64(0), scalar(t, client, "SELECT count(*) FROM ingestion_gaps"))
 }

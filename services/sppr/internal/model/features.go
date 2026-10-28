@@ -30,6 +30,7 @@ type Interval struct {
 }
 
 type Coverage struct {
+	ResumedCount  int64      `json:"resumed_count"`
 	OpenStreams   int64      `json:"open_streams"`
 	ClosedStreams int64      `json:"closed_streams"`
 	LostStreams   int64      `json:"lost_streams"`

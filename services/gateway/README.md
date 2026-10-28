@@ -407,10 +407,12 @@ pending-версии и отдельная фиксация в Metadata. Пос�
 
 SPPR отмечает хвостовой gap по heartbeat; при kill Gateway фоновая проверка
 закрывает поток с gap неизвестного размера. После долгого отказа Kafka поток
-может быть уже объявлен потерянным: рестарт Gateway создаёт новые stream_id.
+может быть уже объявлен потерянным. При возвращении того же процесса SPPR
+возобновляет поток; непрерывный номер удаляет только текущий lost gap. Рестарт
+Gateway создаёт новые stream_id. Восстановление описано в [SPPR README](../sppr/README.md#восстановление-потерянного-потока).
 Durable outbox, trace context в Kafka и восстановление gaps пока не реализованы.
 Стендовая проверка: `make smoke-history-local` из корня, на отдельном стенде;
-она останавливает Kafka и делает kill/stop Gateway. См. [SPPR README](../sppr/README.md#полнота-истории-и-smoke-history).
+она останавливает Kafka и делает pause/unpause, kill/stop Gateway. См. [SPPR README](../sppr/README.md#полнота-истории-и-smoke-history).
 
 ## Связанные документы
 

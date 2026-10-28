@@ -1,4 +1,4 @@
-// smoke-history deliberately stops Kafka and kills/stops Gateway on a dedicated
+// smoke-history deliberately stops Kafka and pauses/kills/stops Gateway on a dedicated
 // Compose stand. It leaves the services running again, including on failure.
 package main
 
@@ -207,6 +207,9 @@ func (s *stand) run(ctx context.Context, md string) error {
 			fmt.Fprintln(os.Stderr, "restore stand:", err)
 		}
 	}()
+	if err = s.pauseResume(ctx, gateway, stream, bucket, object); err != nil {
+		return fmt.Errorf("scenario 7 pause/resume: %w", err)
+	}
 	var before int64
 	if err = s.db.QueryRow(ctx, `SELECT count(*) FROM ingestion_gaps WHERE gateway_id=$1 AND stream_id=$2`, gateway, stream).Scan(&before); err != nil {
 		return err
@@ -370,4 +373,102 @@ func (s *stand) replay(ctx context.Context, partition int32, offset int64) error
 		}
 		return block.Offset > replayOffset, nil
 	})
+}
+
+// Pause the process until the database has actually declared its streams lost;
+// this follows the stand's timeout without assuming a particular env value.
+func (s *stand) pauseResume(ctx context.Context, gateway, readStream, bucket, object string) (err error) {
+	if err = wait(ctx, func() (bool, error) {
+		var n int64
+		err := s.db.QueryRow(ctx, `SELECT count(*) FROM ingestion_streams WHERE gateway_id=$1 AND closed_at IS NULL`, gateway).Scan(&n)
+		return n >= 2, err
+	}); err != nil {
+		return err
+	}
+	rows, err := s.db.Query(ctx, `SELECT stream_id,resumed_count FROM ingestion_streams WHERE gateway_id=$1 AND closed_at IS NULL`, gateway)
+	if err != nil {
+		return err
+	}
+	var streams []string
+	var resumedBefore int64
+	for rows.Next() {
+		var stream string
+		var resumed int64
+		if err = rows.Scan(&stream, &resumed); err != nil {
+			rows.Close()
+			return err
+		}
+		streams = append(streams, stream)
+		resumedBefore += resumed
+	}
+	rows.Close()
+	if err = rows.Err(); err != nil {
+		return err
+	}
+	var demandBefore int64
+	if err = s.db.QueryRow(ctx, `SELECT COALESCE(sum(reads),0)::bigint FROM read_aggregates WHERE bucket=$1`, bucket).Scan(&demandBefore); err != nil {
+		return err
+	}
+	paused := true
+	defer func() {
+		if paused {
+			restore, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+			err = errors.Join(err, s.compose(restore, "unpause", "gateway"))
+		}
+	}()
+	if err = s.compose(ctx, "pause", "gateway"); err != nil {
+		return err
+	}
+	if err = wait(ctx, func() (bool, error) {
+		var n int64
+		err := s.db.QueryRow(ctx, `SELECT count(*) FROM ingestion_streams s WHERE gateway_id=$1 AND stream_id=ANY($2)
+   AND lost_at IS NOT NULL AND closed_at=lost_at AND EXISTS (
+    SELECT 1 FROM ingestion_gaps g WHERE g.gateway_id=s.gateway_id AND g.stream_id=s.stream_id
+    AND g.is_lost AND g.last_sequence IS NULL AND g.before_time=s.lost_at)`, gateway, streams).Scan(&n)
+		return n == int64(len(streams)), err
+	}); err != nil {
+		return err
+	}
+	w, err := s.watermark(ctx)
+	if err != nil {
+		return err
+	}
+	if err = s.compose(ctx, "unpause", "gateway"); err != nil {
+		return err
+	}
+	paused = false
+	if err = wait(ctx, func() (bool, error) {
+		var open, resumed, gaps int64
+		err := s.db.QueryRow(ctx, `SELECT count(*) FILTER (WHERE closed_at IS NULL AND lost_at IS NULL),sum(resumed_count),
+   (SELECT count(*) FROM ingestion_gaps WHERE gateway_id=$1 AND stream_id=ANY($2))
+   FROM ingestion_streams WHERE gateway_id=$1 AND stream_id=ANY($2)`, gateway, streams).Scan(&open, &resumed, &gaps)
+		return open == int64(len(streams)) && resumed == resumedBefore+int64(len(streams)) && gaps == 0, err
+	}); err != nil {
+		return fmt.Errorf("same streams did not resume without gaps: %w", err)
+	}
+	if err = wait(ctx, func() (bool, error) { next, err := s.watermark(ctx); return next.After(w), err }); err != nil {
+		return err
+	}
+	// Prove another advance after recovery, rather than accepting a stale W.
+	w, err = s.watermark(ctx)
+	if err != nil {
+		return err
+	}
+	if err = wait(ctx, func() (bool, error) { next, err := s.watermark(ctx); return next.After(w), err }); err != nil {
+		return err
+	}
+	if _, err = s.request(ctx, "GET", object, nil); err != nil {
+		return err
+	}
+	if err = wait(ctx, func() (bool, error) {
+		var demand, events int64
+		err := s.db.QueryRow(ctx, `SELECT (SELECT COALESCE(sum(reads),0)::bigint FROM read_aggregates WHERE bucket=$1),
+   count(*) FROM access_events WHERE bucket=$1 AND operation='read' AND gateway_id=$2 AND stream_id=$3`, bucket, gateway, readStream).Scan(&demand, &events)
+		return demand == demandBefore+1 && events == demand, err
+	}); err != nil {
+		return fmt.Errorf("GET demand after resume: %w", err)
+	}
+	fmt.Println("PASS 7: paused Gateway streams lost then resumed with same IDs; gaps removed, W grows, GET counted")
+	return nil
 }
