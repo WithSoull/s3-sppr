@@ -436,7 +436,14 @@ readLoop:
 	defer func() {
 		cleanup, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 		defer cancel()
-		result = errors.Join(result, restart(cleanup, restore))
+		if err := restart(cleanup, restore); err != nil {
+			result = errors.Join(result, err)
+			return
+		}
+		// The deferred settings restore runs next and needs the recreated SPPR.
+		result = errors.Join(result, wait(cleanup, func() (bool, error) {
+			return s.json(cleanup, "GET", "/api/planner/status", nil, nil, 200) == nil, nil
+		}))
 	}()
 	if err := restart(ctx, fail); err != nil {
 		return err
