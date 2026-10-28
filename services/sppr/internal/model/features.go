@@ -30,10 +30,14 @@ type Interval struct {
 }
 
 type Coverage struct {
-	Known     bool       `json:"known"`
-	Start     time.Time  `json:"start"`
-	Watermark time.Time  `json:"watermark"`
-	Gaps      []Interval `json:"gaps,omitempty"`
+	OpenStreams   int64      `json:"open_streams"`
+	ClosedStreams int64      `json:"closed_streams"`
+	LostStreams   int64      `json:"lost_streams"`
+	Gaps24h       int64      `json:"gaps_24h"`
+	Known         bool       `json:"known"`
+	Start         time.Time  `json:"start"`
+	Watermark     time.Time  `json:"watermark"`
+	Gaps          []Interval `json:"gaps,omitempty"`
 }
 
 type DataQuality struct {

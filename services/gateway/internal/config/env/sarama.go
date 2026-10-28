@@ -21,7 +21,7 @@ func (cfg *saramaConfig) Config() *sarama.Config {
 	config.Producer.Idempotent = true
 	config.Producer.RequiredAcks = sarama.WaitForAll
 	config.Net.MaxOpenRequests = 1
-	config.Producer.Return.Successes = false
+	config.Producer.Return.Successes = true
 	config.Producer.Return.Errors = true
 	config.ChannelBufferSize = 1024
 	config.Producer.Retry.Max = 5

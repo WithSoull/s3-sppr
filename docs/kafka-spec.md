@@ -125,11 +125,10 @@ func LogErrors(ap sarama.AsyncProducer, logger Logger, onError func(topic string
   долгом отказе Kafka, когда буферы заполнены, каждый GET/PUT ждёт около 1 мс.
 - Один `sarama.AsyncProducer` на процесс, по одному `kafka.Producer` на топик —
   как `SyncProducer` в эталоне.
-- `Return.Successes = false` — канал успехов не читаем.
+- `Return.Successes = true`: `LogResults` читает успехи и ошибки; подтверждения нужны только при shutdown, HTTP их не ждёт.
 - Окончательная ошибка доставки (ретраи исчерпаны) приходит в `Errors()`: событие
   потеряно, а SPPR увидит пропуск по номерам.
-- Graceful shutdown — `ap.Close()` через `closer` с таймаутом: sarama дотправит
-  буфер.
+- Graceful shutdown: HTTP drain → остановка периодических heartbeat → подтверждённые обычные heartbeat обоих потоков (барьеры дотправки буфера) → подтверждённые closing heartbeat → `ap.Close()` через closer. При ошибке/таймауте закрытие не объявляется успешным.
 
 ### 4.2 `middleware/kafka/` — middleware consumer'а
 
@@ -248,6 +247,9 @@ services/sppr/internal/
 | `KAFKA_OBJECT_WRITTEN_TOPIC` | ✓ | ✓ | `object-written` |
 | `KAFKA_CONSUMER_GROUP_ID` | — | ✓ | `sppr` |
 | `KAFKA_RETRY_INTERVAL` | — | ✓ | `1s` |
+| `ACCESS_HEARTBEAT_INTERVAL` | ✓ | — | `5s` |
+| `INGEST_STREAM_LOST_AFTER` | — | ✓ | `30s` |
+| `PLANNER_MAX_HISTORY_LAG` | — | ✓ | `60s` |
 
 Параметры sarama — константы в `config/env/sarama.go`, не env:
 
@@ -256,7 +258,7 @@ services/sppr/internal/
 | `Producer.Idempotent` | `true` | ретраи без дублей и перестановок |
 | `Producer.RequiredAcks` | `WaitForAll` | требование idempotent |
 | `Net.MaxOpenRequests` | `1` | требование idempotent, порядок |
-| `Producer.Return.Successes` / `Errors` | `false` / `true` | успехи не читаем, ошибки логируем |
+| `Producer.Return.Successes` / `Errors` | `true` / `true` | оба канала читает `LogResults`, shutdown ждёт барьеры |
 | `ChannelBufferSize` | `1024` | объём буфера до первой потери |
 | `Producer.Retry.Max`, `Retry.Backoff` | `5`, `200ms` | переживаем короткую недоступность Kafka |
 | `Version` | `V2_8_0_0` | idempotent producer |
@@ -277,10 +279,64 @@ services/sppr/internal/
 | Дубли (ретрай producer, redelivery) | спрос не растёт | inbox по `(stream, sequence)` + `payload_hash` |
 | Отклонённое событие | partition не блокируется, потеря видна как пропуск | классификация ошибок (5.2) |
 
-**Известное ограничение — хвост потока.** Если Gateway упал, а события
-`N+1…M` остались в его буфере, SPPR не узнает о них: следующее событие придёт
-уже в новом потоке. Закрывается heartbeat'ом — периодическим сообщением с
-текущим `sequence` потока (следующий шаг, не входит в переписывание).
+### Полнота истории и хвост потока (этап 5)
+
+`events.v1.StreamHeartbeat{position, at, closing}` идёт в тот же топик с тем же
+ключом `{gateway_id}/{stream_id}` и заголовком `event-type: heartbeat`.
+`position.sequence` — последний выданный номер, включая потери; heartbeat номер
+не тратит. События без заголовка сохраняют прежний контракт. Неизвестный
+`event-type` и некорректный heartbeat отклоняются с commit offset; ошибка БД
+удерживает partition через Retry. Нумерация, timestamp, marshal и Send событий и
+heartbeat сериализованы одним mutex потока.
+
+После commit heartbeat Ingestor атомарно сохраняет прогресс, receipt с hash
+исходных байтов и хвостовой gap `last_sequence+1 … heartbeat.sequence` при наличии
+потери. Его `after_time` — последнее событие, `before_time` — время heartbeat.
+Повтор тех же байтов (включая новый Kafka offset) не меняет прогресс и gaps.
+Новый offset с другим содержимым, обратное время/номер и продолжение закрытого
+потока отклоняются; точные повторы старых событий продолжают дедуплицироваться.
+
+В `ingestion_streams` хранятся `complete_until`, первый/последний heartbeat,
+`closed_at`, `lost_at` и время регистрации. Для потока без потерянных номеров
+`complete_until = heartbeat.at`; если потеряны номера — время последнего события.
+Если ни одного события не доставлено при положительном номере, граница остаётся
+неизвестной. Простое продвижение heartbeat не объявляет потерянные номера
+полученными. При graceful stop closing закрывает поток без дополнительного gap.
+
+Открытый поток без heartbeat **дольше** `INGEST_STREAM_LOST_AFTER` объявляется
+потерянным фоновой проверкой (период timeout/6). Потоки без единого heartbeat
+отсчитываются от времени регистрации; трафик событий этот срок не продлевает.
+В одной транзакции поток закрывается и добавляется gap
+`[complete_until, lost_at)` с `last_sequence = NULL` (число потерь неизвестно).
+Если граница ещё неизвестна, нижняя граница берётся консервативно от первого
+события/регистрации. Закрытый поток не открывается поздними сообщениями: после
+длительной недоступности Kafka понадобится рестарт Gateway с новым stream_id.
+
+`repository/history.Coverage` вычисляет W как минимум `complete_until` открытых
+потоков. Открытый поток с неизвестной границей делает W неизвестной. Если открытых
+нет, берётся максимум границ закрытых, ограниченный моментом последнего закрытия.
+Без потоков полнота неизвестна. Закрытые с неизвестной границей не дают значения
+W, но их gaps остаются видны; потерянные входят также в число закрытых.
+`last_event_at` одного потока не является общей W.
+
+Planner считает признаки на W. Чтения ограничены `occurred_at < W` **до**
+группировки по минутам: текущий минутный агрегат мог уже получить будущие чтения.
+Начало истории по-прежнему расширяется до самой старой версии каталога, но W не
+подменяется текущим временем. При неизвестной W или `now-W >
+PLANNER_MAX_HISTORY_LAG` сохраняется `history_incomplete` без рекомендаций;
+причина отставания содержит величину lag. Gaps делают пересекающие их окна
+непригодными, включая gaps с неизвестным числом событий.
+
+`/api/planner/status` содержит `history` (W, known, streams, gaps_24h),
+`history_lag_seconds` и `objects` с качеством и состояниями «чтений нет» /
+«история неполна». `/admin` показывает эти же значения и карточки объектов,
+включая объекты без готовой рекомендации. Метки обучения используют ту же
+Coverage: пригодны только при W ≥ t+H и отсутствии gaps в окне метки.
+
+Проверка: `make smoke-history-local` запускает отдельный стенд, останавливает
+Kafka, делает kill/stop Gateway и проверяет шесть сценариев
+[спецификации этапа 5](history-completeness-spec.md). Подробности и ограничения
+запуска — в [SPPR README](../services/sppr/README.md#полнота-истории-и-smoke-history).
 
 ## 8. Что уходит из PR
 

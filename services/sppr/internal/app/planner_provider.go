@@ -64,7 +64,7 @@ func (s *serviceProvider) PlannerService(ctx context.Context) (service.PlannerSe
 		logger.Warn(ctx, "planner model load failed; using EWMA", zap.String("fallback_reason", fallback))
 	}
 	s.plannerService = plannerService.NewService(plannerService.Config{
-		FallbackReason: fallback, Interval: cfg.Interval(), KeepPlans: cfg.KeepPlans(), MaxRejectedSaved: cfg.MaxRejectedSaved(),
+		MaxHistoryLag: cfg.MaxHistoryLag(), FallbackReason: fallback, Interval: cfg.Interval(), KeepPlans: cfg.KeepPlans(), MaxRejectedSaved: cfg.MaxRejectedSaved(),
 	}, plans, historyRepository.NewRepository(pgClient), actions, tx, placements, migrations, s.FeatureBuilder(), predictor)
 	return s.plannerService, nil
 }

@@ -24,13 +24,13 @@ func (r *repo) Store(ctx context.Context, e model.AccessEvent, d model.Delivery)
 		return model.IngestResult{}, err
 	}
 	var sequence int64
-	var lastAt *time.Time
+	var lastAt, closedAt, heartbeatAt *time.Time
 	var topic string
 	var partition int32
 	err := r.db.DB().QueryRowContext(ctx, db.Query{Name: "event:lock_stream", QueryRaw: `
-		SELECT last_sequence, last_event_at, topic, partition FROM ingestion_streams
+		SELECT last_sequence, last_event_at, topic, partition, closed_at, last_heartbeat_at FROM ingestion_streams
 		WHERE gateway_id=$1 AND stream_id=$2 FOR UPDATE`}, e.GatewayID, e.StreamID).
-		Scan(&sequence, &lastAt, &topic, &partition)
+		Scan(&sequence, &lastAt, &topic, &partition, &closedAt, &heartbeatAt)
 	if err != nil {
 		return model.IngestResult{}, err
 	}
@@ -53,6 +53,12 @@ func (r *repo) Store(ctx context.Context, e model.AccessEvent, d model.Delivery)
 			return model.IngestResult{}, fmt.Errorf("%w: event identity reused with different payload", model.ErrRejected)
 		}
 		return model.IngestResult{Duplicate: true}, nil
+	}
+	if closedAt != nil {
+		return model.IngestResult{}, fmt.Errorf("%w: closed stream", model.ErrRejected)
+	}
+	if heartbeatAt != nil && e.OccurredAt.Before(*heartbeatAt) {
+		return model.IngestResult{}, fmt.Errorf("%w: event before heartbeat", model.ErrRejected)
 	}
 	if lastAt != nil && e.OccurredAt.Before(*lastAt) {
 		return model.IngestResult{}, fmt.Errorf("%w: event time regressed within stream", model.ErrRejected)

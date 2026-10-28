@@ -8,6 +8,8 @@ import (
 )
 
 type Ingestor interface {
+	Heartbeat(context.Context, model.StreamHeartbeat, model.Delivery) (model.IngestResult, error)
+	CheckLostStreams(context.Context, time.Time, time.Duration) error
 	Ingest(context.Context, model.AccessEvent, model.Delivery) (model.IngestResult, error)
 }
 

@@ -98,6 +98,7 @@ func TestPredictorStatus(t *testing.T) {
 			plans := mocks.NewPlanRepositoryMock(mc)
 			actions := mocks.NewActionRepositoryMock(mc)
 			placements.ListStorageClassesMock.Return(nil, nil)
+			placements.ListCatalogMock.Return(nil, nil)
 			history.CoverageMock.Return(model.Coverage{}, nil)
 			migrations.GetSettingsMock.Return(model.MigrationSettings{}, nil)
 			migrations.GetBudgetMock.Return(model.BudgetStatus{}, nil)

@@ -35,3 +35,10 @@ message ObjectWritten {
   int64 bytes = 6;
   Origin origin = 7;
 }
+
+// Completeness barrier in the same ordered topic stream; consumes no sequence.
+message StreamHeartbeat {
+  StreamPosition position = 1;
+  google.protobuf.Timestamp at = 2;
+  bool closing = 3;
+}

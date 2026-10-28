@@ -10,6 +10,8 @@ import (
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/service"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/validator"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/client/db"
+	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/logger"
+	"go.uber.org/zap"
 )
 
 type ingestor struct {
@@ -40,4 +42,49 @@ func (s *ingestor) Ingest(ctx context.Context, event model.AccessEvent, delivery
 		return model.IngestResult{}, fmt.Errorf("persist access event: %w", err)
 	}
 	return result, nil
+}
+
+func (s *ingestor) Heartbeat(ctx context.Context, h model.StreamHeartbeat, d model.Delivery) (model.IngestResult, error) {
+	if err := validator.Heartbeat(h); err != nil {
+		return model.IngestResult{}, fmt.Errorf("%w: %w", model.ErrRejected, err)
+	}
+	if d.Topic == "" || d.Partition < 0 || d.Offset < 0 {
+		return model.IngestResult{}, fmt.Errorf("%w: invalid Kafka delivery coordinates", model.ErrRejected)
+	}
+	h.At = h.At.UTC().Truncate(time.Microsecond)
+	var result model.IngestResult
+	err := s.tx.ReadCommitted(ctx, func(ctx context.Context) error {
+		var err error
+		result, err = s.repo.StoreHeartbeat(ctx, h, d)
+		return err
+	})
+	if err != nil {
+		return model.IngestResult{}, err
+	}
+	return result, nil
+}
+func (s *ingestor) CheckLostStreams(ctx context.Context, now time.Time, after time.Duration) error {
+	return s.tx.ReadCommitted(ctx, func(ctx context.Context) error {
+		return s.repo.CloseLostStreams(ctx, now.UTC().Truncate(time.Microsecond), after)
+	})
+}
+
+// RunLostCheck uses an injected clock; database errors are retried on the next tick.
+func RunLostCheck(ctx context.Context, s service.Ingestor, after time.Duration, now func() time.Time) {
+	interval := after / 6
+	if interval <= 0 {
+		interval = time.Millisecond
+	}
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		if err := s.CheckLostStreams(ctx, now(), after); err != nil && ctx.Err() == nil {
+			logger.Error(ctx, "lost stream check failed", zap.Error(err))
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+		}
+	}
 }

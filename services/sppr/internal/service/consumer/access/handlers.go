@@ -3,12 +3,15 @@ package access
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/model"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/kafka"
 	"github.com/alesplll/opens3-rebac/shared/pkg/go-kit/logger"
+	events "github.com/alesplll/opens3-rebac/shared/pkg/go/events/v1"
 	"go.uber.org/zap"
+	"google.golang.org/protobuf/proto"
 )
 
 const (
@@ -31,13 +34,36 @@ func (s *accessConsumerService) ObjectWrittenHandler(ctx context.Context, msg ka
 // Retry, so the partition waits instead of committing past an unstored event.
 func (s *accessConsumerService) handle(ctx context.Context, msg kafka.Message, decode func([]byte) (model.AccessEvent, error)) error {
 	start := time.Now()
-	event, err := decode(msg.Value)
-	if err != nil {
-		s.reject(ctx, msg, start, err)
+	var result model.IngestResult
+	var err error
+	delivery := model.Delivery{Topic: msg.Topic, Partition: msg.Partition, Offset: msg.Offset}
+	switch string(msg.Headers["event-type"]) {
+	case "heartbeat":
+		var h events.StreamHeartbeat
+		err = proto.Unmarshal(msg.Value, &h)
+		if err == nil {
+			if h.Position == nil || h.At == nil || h.At.CheckValid() != nil {
+				err = fmt.Errorf("invalid heartbeat")
+			}
+		}
+		if err != nil {
+			s.reject(ctx, msg, start, err)
+			return nil
+		}
+		result, err = s.ingestor.Heartbeat(ctx, model.StreamHeartbeat{GatewayID: h.Position.GatewayId, StreamID: h.Position.StreamId, Sequence: h.Position.Sequence, At: h.At.AsTime(), Closing: h.Closing, Payload: msg.Value}, delivery)
+	case "":
+		event, decodeErr := decode(msg.Value)
+		err = decodeErr
+		if err != nil {
+			s.reject(ctx, msg, start, err)
+			return nil
+		}
+
+		result, err = s.ingestor.Ingest(ctx, event, delivery)
+	default:
+		s.reject(ctx, msg, start, fmt.Errorf("unknown event-type"))
 		return nil
 	}
-
-	result, err := s.ingestor.Ingest(ctx, event, model.Delivery{Topic: msg.Topic, Partition: msg.Partition, Offset: msg.Offset})
 	if errors.Is(err, model.ErrRejected) {
 		s.reject(ctx, msg, start, err)
 		return nil

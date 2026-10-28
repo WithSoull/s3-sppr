@@ -239,3 +239,7 @@ make generate
    end-to-end проверкой записи объекта.
 
 [Карта документации](docs/README.md) связывает сервисы, архитектурные планы и аудиты.
+
+Полнота истории обращений: heartbeat Gateway → общая W в SPPR → Planner на W.
+Конфигурация и проверка шести сценариев `make smoke-history-local` (выделенный
+стенд, останавливает Kafka/Gateway) — в [SPPR README](services/sppr/README.md#полнота-истории-и-smoke-history).

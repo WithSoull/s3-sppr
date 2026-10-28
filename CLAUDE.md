@@ -133,6 +133,14 @@ Runbook, соглашения о записи/очистке и обучение
 ## Service boundaries
 
 SPPR самостоятельно читает Kafka и сохраняет историю, gaps и минутный спрос.
+Полнота этапа 5: Gateway публикует heartbeat каждого топика под mutex потока,
+включая closing после HTTP/buffer drain. SPPR различает события по Kafka header,
+атомарно сохраняет heartbeat/progress/gaps и закрывает потерянные потоки фоновой
+проверкой с управляемыми часами. `repository/history.Coverage` — источник общей W;
+Planner считает на W, исключает будущие события до SQL-группировки и останавливает
+план при чрезмерном lag. Отсутствие чтений и неполная история различаются в
+status/admin. Протокол: `docs/history-completeness-spec.md`; конфигурация,
+восстановление и disruptive `smoke-history` — в SPPR README.
 Runbook — [README](services/sppr/README.md), маршрут чтения —
 [онбординг](services/sppr/ONBOARDING.md). Gateway producer из отдельного
 [PR #1](https://github.com/WithSoull/s3-sppr/pull/1) уже есть в checkout;
