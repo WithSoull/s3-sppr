@@ -128,7 +128,7 @@ func TestModelJournalAtomicActivation(t *testing.T) {
 	require.NoError(t, e)
 	require.Equal(t, req, stored.CommandRequest)
 	// Roll back the migration after removing its rows and ensure the old command constraint is restored.
-	sql, e := os.ReadFile("../../../migrations/20261101000000_model_versions.down.sql")
+	sql, e := os.ReadFile("../../../migrations/20261102000000_model_versions.down.sql")
 	require.NoError(t, e)
 	_, e = client.DB().ExecContext(ctx, db.Query{Name: "test:down", QueryRaw: string(sql)})
 	require.NoError(t, e)
