@@ -64,7 +64,8 @@ def paired(ml: list[dict], baseline: list[dict], name: str, *, seed: int = 0) ->
     draws = rng.integers(0, len(seeds), size=(ROUNDS, len(seeds)))
     low, high = np.percentile(reductions[draws].mean(axis=1), [2.5, 97.5])
     p95 = (av[:, 1] - bv[:, 1]) / bv[:, 1]
-    ok = all(r.get("violations") == 0 and r["latency"].get("errors") == 0
+    # A stand run with history gaps had unusable features around them.
+    ok = all(r.get("violations") == 0 and r["latency"].get("errors") == 0 and not r.get("history_gaps")
              for r in [*a.values(), *b.values()])
     passed = len(seeds) >= 2 and low >= .05 - 1e-12 and p95.mean() <= .05 + 1e-12 and ok
     return Comparison(name, seeds, reductions.tolist(), float(reductions.mean()), float(low), float(high),

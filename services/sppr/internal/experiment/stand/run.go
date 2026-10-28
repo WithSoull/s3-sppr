@@ -39,6 +39,9 @@ type Outcome struct {
 	// prove preservation or all transient capacity/budget states.
 	Violations         *int `json:"violations"`
 	InvariantsVerified bool `json:"invariants_verified"`
+	// HistoryGaps is gaps_24h of the SPPR status after the run; a gap makes the
+	// features around it unusable, so a run with gaps is not a fair comparison.
+	HistoryGaps *int `json:"history_gaps"`
 }
 type runManifest struct {
 	Project     string            `json:"compose_project_name"`
@@ -175,6 +178,9 @@ func runOne(ctx context.Context, c Config, sc sim.Config, d compose, policy stri
 	}
 	startup, cancel := context.WithTimeout(ctx, time.Duration(c.StartupSeconds*1e9))
 	defer cancel()
+	if err := kafkaReady(startup, d); err != nil {
+		return out, err
+	}
 	if _, err := d.run(startup, append([]string{"up", "-d", "--build"}, services...)...); err != nil {
 		return out, err
 	}
@@ -318,6 +324,14 @@ func runOne(ctx context.Context, c Config, sc sim.Config, d compose, policy stri
 	out = Outcome{Result: r, Scenario: sc.Generator.Scenario, Seed: sc.Generator.Seed, Policy: policy, Budget: budget, Config: sc, StandConfig: c, Versions: map[string]string{"git_sha": git, "generator": "synthetic-v1"}}
 	if policy != "no-extension" {
 		runErr = errors.Join(runErr, a.snapshot(ctx, filepath.Join(dir, "after")))
+		var st struct {
+			History struct {
+				Gaps *int `json:"gaps_24h"`
+			} `json:"history"`
+		}
+		if b, e := os.ReadFile(filepath.Join(dir, "after", "status.json")); e == nil && json.Unmarshal(b, &st) == nil {
+			out.HistoryGaps = st.History.Gaps
+		}
 	}
 	// Even failed runs retain accounted load, before cleanup and before returning.
 	runErr = errors.Join(runErr, writeJSON(filepath.Join(dir, "load-result.json"), out))
@@ -406,4 +420,53 @@ func jsonArray(b []byte) json.RawMessage {
 	}
 	out, _ := json.Marshal(items)
 	return out
+}
+
+// accessTopics are created before Gateway starts: auto-creation elects a leader
+// while the first events arrive, the producer buffer overflows and the history
+// starts with gaps that make every feature window of the run unusable.
+var accessTopics = []string{"object-read", "object-written"}
+
+func kafkaReady(ctx context.Context, d compose) error {
+	if _, err := d.run(ctx, "up", "-d", "--wait", "kafka"); err != nil {
+		return err
+	}
+	for _, topic := range accessTopics {
+		kafka := []string{"exec", "-T", "kafka", "kafka-topics", "--bootstrap-server", "localhost:9092", "--topic", topic}
+		if err := retry(ctx, func() error {
+			_, e := d.run(ctx, append(kafka, "--create", "--if-not-exists", "--partitions", "1", "--replication-factor", "1")...)
+			return e
+		}); err != nil {
+			return err
+		}
+		if err := retry(ctx, func() error {
+			b, e := d.run(ctx, append(kafka, "--describe")...)
+			if e != nil {
+				return e
+			}
+			return leaderElected(string(b))
+		}); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func leaderElected(describe string) error {
+	partitions := 0
+	for _, line := range strings.Split(describe, "\n") {
+		i := strings.Index(line, "Leader:")
+		if i < 0 {
+			continue
+		}
+		partitions++
+		f := strings.Fields(line[i+len("Leader:"):])
+		if len(f) == 0 || f[0] == "-1" || f[0] == "none" {
+			return fmt.Errorf("partition without leader: %s", strings.TrimSpace(line))
+		}
+	}
+	if partitions == 0 {
+		return fmt.Errorf("no partitions described")
+	}
+	return nil
 }

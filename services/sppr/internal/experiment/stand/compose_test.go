@@ -139,3 +139,11 @@ func TestJSONArrayAcceptsComposeOutputStyles(t *testing.T) {
 	require.JSONEq(t, `[{"a":1},{"b":2}]`, string(jsonArray([]byte("{\"a\":1}\n{\"b\":2}\n"))))
 	require.JSONEq(t, `[{"a":1}]`, string(jsonArray([]byte(`[{"a":1}]`))))
 }
+
+func TestLeaderElected(t *testing.T) {
+	ok := "Topic: object-read\tTopicId: x\tPartitionCount: 1\nTopic: object-read\tPartition: 0\tLeader: 1\tReplicas: 1\tIsr: 1\n"
+	require.NoError(t, leaderElected(ok))
+	require.Error(t, leaderElected("Topic: object-read\tPartition: 0\tLeader: none\tReplicas: 1\n"))
+	require.Error(t, leaderElected("Topic: object-read\tPartition: 0\tLeader: -1\tReplicas: 1\n"))
+	require.Error(t, leaderElected(""))
+}
