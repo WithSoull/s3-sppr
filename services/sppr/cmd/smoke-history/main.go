@@ -219,6 +219,9 @@ func (s *stand) run(ctx context.Context, md string) error {
 		if _, err = s.request(ctx, "GET", object, nil); err != nil {
 			return fmt.Errorf("scenario 3 GET while Kafka down: %w", err)
 		}
+		// 20 reads/s, the methodology rate; an unpaced loop trips Metadata's
+		// rate limiter (RATE_LIMITER_LIMIT=100/s), which is not what we test.
+		time.Sleep(50 * time.Millisecond)
 	}
 	if err = s.compose(ctx, "start", "kafka"); err != nil {
 		return err
