@@ -43,7 +43,7 @@ func (r *repo) ReadsSince(ctx context.Context, from, until time.Time) ([]model.M
 func (r *repo) Coverage(ctx context.Context, since time.Time) (model.Coverage, error) {
 
 	var streams []streamProgress
-	if err := r.db.DB().ScanAllContext(ctx, &streams, db.Query{Name: "history:coverage", QueryRaw: `SELECT first_event_at,first_heartbeat_at,last_heartbeat_at,complete_until,closed_at,lost_at,created_at FROM ingestion_streams`}); err != nil {
+	if err := r.db.DB().ScanAllContext(ctx, &streams, db.Query{Name: "history:coverage", QueryRaw: `SELECT first_event_at,first_heartbeat_at,last_heartbeat_at,complete_until,closed_at,lost_at,created_at,resumed_count FROM ingestion_streams`}); err != nil {
 		return model.Coverage{}, err
 	}
 	c := coverageOf(streams)
@@ -76,6 +76,7 @@ func (r *repo) Coverage(ctx context.Context, since time.Time) (model.Coverage, e
 }
 
 type streamProgress struct {
+	ResumedCount   int64      `db:"resumed_count"`
 	FirstHeartbeat *time.Time `db:"first_heartbeat_at"`
 	First          *time.Time `db:"first_event_at"`
 	Heartbeat      *time.Time `db:"last_heartbeat_at"`
@@ -90,6 +91,7 @@ func coverageOf(streams []streamProgress) model.Coverage {
 	var openMin, closedMax, lastClosed time.Time
 	unknownOpen := false
 	for _, s := range streams {
+		c.ResumedCount += s.ResumedCount
 		start := s.Created
 		if s.First != nil {
 			start = *s.First
