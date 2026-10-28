@@ -13,21 +13,29 @@ make ml-sppr-venv          # .venv с версиями из requirements.txt
 make ml-sppr-train-all     # 6 синтетических сценариев (1000 объектов) → build/ml-models
 make ml-sppr-report        # таблица метрик и разность с лучшей базовой оценкой
 make ml-sppr-notebook      # пересобрать и выполнить notebooks/stage8.ipynb
+make ml-sppr-traces        # наборы по трассам → build/ml-traces (входы — см. ниже)
 make test-sppr-ml
 ```
 
 Одна модель: `make ml-sppr-train SPPR_ML_DATA=<каталог cmd/dataset> SPPR_ML_OUT=<новый каталог>`.
+Переобучение без перебора сетки, с выбранными ранее гиперпараметрами:
+`python -m sppr_ml train --data … --out … --params '{"num_leaves": 15, …}'`.
+
+`make ml-sppr-traces` ищет архивы IBM в `SPPR_TRACE_DOWNLOADS` (по умолчанию
+`~/home/98_Downloads`) и неделю Meta CDN в `SPPR_META_TRACE`; где их взять —
+[docs/traces.md](../../../docs/traces.md). Доля ключей, шаг среза и периоды каждой
+трассы зафиксированы в `scripts/trace_datasets.py` до обучения.
 Подключение к SPPR: `PLANNER_PREDICTOR=lgbm PLANNER_MODEL_DIR=<каталог модели>`.
 
 ## Что внутри
 
 | Модуль | Назначение |
 |---|---|
-| `data.py` | срезы `slices.jsonl` → столбцы numpy, кеш `.npz`, прореживание train, test закрыт без явного флага |
+| `data.py` | срезы `slices.jsonl` или `<split>.csv.gz` → столбцы numpy; кеш — сырой файл на столбец, читается сразу в итоговый массив; прореживание train; test закрыт без явного флага |
 | `model.py` | классификатор `binary` и регрессор `poisson` на `N − 1`; ранняя остановка по последним 8 ч train, затем обучение на всём train |
 | `baselines.py` | EWMA, частота, возраст и давность (монотонная функция, подобранная на train) |
 | `metrics.py` | PR-AUC, Brier, `Cov_K`, пуассоновское отклонение, bootstrap по моментам среза |
-| `evaluate.py` | сетка гиперпараметров на validation, сравнение, парная разность с лучшей базовой оценкой |
+| `evaluate.py` | сетка гиперпараметров на validation, сравнение, парная разность с лучшей базовой оценкой, проверка на ещё не читанные объекты |
 | `export.py` | `classifier.txt`, `regressor.txt`, `manifest.json`, `parity.json` по «Схеме файлов экспорта v1» |
 | `scripts/build_notebook.py` | исходник notebook; правьте его, а не `.ipynb` |
 
