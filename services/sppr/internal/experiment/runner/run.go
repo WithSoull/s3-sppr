@@ -28,7 +28,8 @@ type Config struct {
 	Seeds     []uint64 `json:"seeds"`
 	Workers   int      `json:"workers"`
 	// DropCache removes the large replay caches of a finished pair before it is
-	// hashed; models, baseline maps and logs stay for the stand series.
+	// hashed; models, baseline maps, logs and the first (train-only) dataset stay
+	// for the stand and overhead series.
 	DropCache  bool         `json:"drop_cache"`
 	Simulation sim.Config   `json:"simulation"`
 	Stand      stand.Config `json:"stand"`
@@ -364,9 +365,15 @@ func dropCache(dir string) error {
 	if err != nil {
 		return err
 	}
+	first := ""
+	for _, e := range entries {
+		if e.IsDir() && strings.HasPrefix(e.Name(), "train-") && (first == "" || e.Name() < first) {
+			first = e.Name()
+		}
+	}
 	for _, e := range entries {
 		n := e.Name()
-		if strings.HasSuffix(n, ".gob") || (e.IsDir() && strings.HasPrefix(n, "train-")) {
+		if strings.HasSuffix(n, ".gob") || (e.IsDir() && strings.HasPrefix(n, "train-") && n != first) {
 			if err := os.RemoveAll(filepath.Join(dir, n)); err != nil {
 				return err
 			}
