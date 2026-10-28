@@ -119,3 +119,18 @@ def test_split_is_a_view_when_contiguous(tmp_path):
     assert s.of("train").reads.tolist() == [1, 2] and s.of("validation").reads.tolist() == [5]
     interleaved = s.take(np.array([2, 0, 1]))
     assert interleaved.of("train").reads.tolist() == [1, 2]
+
+
+def test_manifest_horizon_is_positive_integer(tmp_path):
+    import pytest
+    write_dataset(tmp_path / "d", [])
+    path = tmp_path / "d" / "manifest.json"
+    manifest = json.loads(path.read_text())
+    for horizon in (0, -1, 1.5, True, None):
+        manifest["horizon_seconds"] = horizon
+        path.write_text(json.dumps(manifest))
+        with pytest.raises(ValueError, match="positive integer"):
+            data.read_manifest(path.parent)
+    manifest["horizon_seconds"] = 120
+    path.write_text(json.dumps(manifest))
+    assert data.load(path.parent).manifest["horizon_seconds"] == 120

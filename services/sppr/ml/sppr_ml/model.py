@@ -68,7 +68,7 @@ def _rounds(params: dict, objective: str, x: np.ndarray, y: np.ndarray, tail: np
     """Number of trees that early stopping on the last hours of train keeps."""
     if tail.sum() == 0 or (~tail).sum() == 0 or (objective == "poisson" and y[~tail].sum() == 0):
         return 100
-    full = {**BASE_PARAMS, **params, "objective": objective}
+    full = {**BASE_PARAMS, **params, "num_threads": 2, "objective": objective}
     booster = lgb.train(
         full,
         lgb.Dataset(x[~tail], label=y[~tail], feature_name=FEATURES),
@@ -94,13 +94,13 @@ def fit(train: Slices, params: dict) -> Hurdle:
         raise ValueError("no positive rows in train: the regressor cannot be fitted")
 
     cls_rounds = _rounds(params, "binary", x, has_read, tail)
-    classifier = lgb.train({**BASE_PARAMS, **params, "objective": "binary"},
+    classifier = lgb.train({**BASE_PARAMS, **params, "num_threads": 2, "objective": "binary"},
                            lgb.Dataset(x, label=has_read, feature_name=FEATURES), num_boost_round=cls_rounds)
     excess = reads[positive] - 1
     if excess.sum() == 0:
         return Hurdle(classifier, None, params, {"classifier": cls_rounds, "regressor": 0})
     reg_rounds = _rounds(params, "poisson", x[positive], excess, tail[positive])
-    regressor = lgb.train({**BASE_PARAMS, **params, "objective": "poisson"},
+    regressor = lgb.train({**BASE_PARAMS, **params, "num_threads": 2, "objective": "poisson"},
                           lgb.Dataset(x[positive], label=excess, feature_name=FEATURES),
                           num_boost_round=reg_rounds)
     return Hurdle(classifier, regressor, params, {"classifier": cls_rounds, "regressor": reg_rounds})

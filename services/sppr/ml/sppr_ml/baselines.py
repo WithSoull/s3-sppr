@@ -12,7 +12,7 @@ from dataclasses import dataclass
 import numpy as np
 from scipy.stats import spearmanr
 
-from .data import HORIZON_SECONDS, Slices
+from .data import Slices
 
 BINS = 50
 
@@ -27,7 +27,7 @@ def ewma(rows: Slices) -> np.ndarray:
 
 
 def frequency(rows: Slices) -> np.ndarray:
-    return rows.feature("reads_24h") / 24.0 * (HORIZON_SECONDS / 3600.0)
+    return rows.feature("reads_24h") / 24.0 * (rows.manifest["horizon_seconds"] / 3600.0)
 
 
 def _pav(values: np.ndarray, weights: np.ndarray) -> np.ndarray:
