@@ -376,7 +376,7 @@ FQ_SEEDS ?= 0 1 2
 FQ_PARAMS ?= $(shell python3 -c 'import json; print(json.dumps(json.load(open("services/sppr/experiments/main.json"))["simulation"]["params"]))')
 FQ_OUT ?= build/forecast-quality
 FQ_CONFIG ?= services/sppr/examples/data/acceptance.json
-.PHONY: forecast-quality
+.PHONY: forecast-quality bench-admin bench-plan
 build/bin/dataset: FORCE
 	mkdir -p build/bin
 	go build -o $@ ./services/sppr/cmd/dataset
@@ -395,3 +395,7 @@ forecast-quality: build/bin/dataset
 		set -- "$$@" "$$result"; \
 	done; \
 	PYTHONPATH=$(SPPR_ML) $(SPPR_ML_PY) -m sppr_ml evaluate-report "$$@"
+bench-admin:
+	go run ./services/sppr/cmd/bench-admin $(BENCH_ADMIN_ARGS)
+bench-plan:
+	go run ./services/sppr/cmd/bench-plan $(BENCH_PLAN_ARGS)

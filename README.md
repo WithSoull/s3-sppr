@@ -66,6 +66,8 @@ make generate
 `make sim-smoke` и `make experiment-report EXPERIMENT_OUT=build/sim-smoke`.
 Для него нужны Go/Python; сервисы и Docker не требуются. Матрица, resume и
 параметры модели времени — [в README СППР](services/sppr/README.md#эксперимент-по-логическому-времени-этап-10a).
+Итоговые измерения: `make forecast-quality`, `make bench-admin`, `make bench-plan`;
+[запуск и границы замеров](services/sppr/README.md#измерения-для-вкр-этап-11).
 
 ## Реализованные границы сервисов
 

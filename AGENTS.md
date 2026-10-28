@@ -77,6 +77,13 @@ invariants/metrics must stay unknown; snapshots alone never prove zero violation
 `make stand-smoke`, `make stand-experiment`, `make overhead` require Docker;
 never run against an existing project. ML/map/train-only inputs must exist before
 the run and are hashed for resume. See the SPPR README for model assumptions and overrides.
+Stage 11 measurement CLIs: `make forecast-quality` evaluates TEST only with
+fixed params and train-only fitting; each seed dataset/cache is temporary and
+only evaluate.json remains. Stage 8 must still never read TEST. `make bench-admin`
+measures a running dedicated stand, journals no-op pause/resume commands and can
+restart it only when explicitly given -restart-command. `make bench-plan` measures
+production features/predictors/Build in memory; report its timing/heap/RSS scope
+accurately. See the SPPR README before running heavy measurements.
 Baseline predictors register through `PLANNER_PREDICTOR=age|recency|frequency`;
 age/recency need `PLANNER_BASELINE_MAP` (one matching map, trained on train only).
 
