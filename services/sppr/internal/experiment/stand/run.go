@@ -1,6 +1,7 @@
 package stand
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
@@ -243,7 +244,7 @@ func runOne(ctx context.Context, c Config, sc sim.Config, d compose, policy stri
 	if err != nil {
 		return out, err
 	}
-	manifest := runManifest{Project: d.project, Policy: policy, GitSHA: git, Config: sc, StandConfig: c, Images: images, Containers: containers, Quota: map[string]any{"cpus": 2, "memory_bytes": int64(2 << 30), "present": policy != "no-extension"}, Inputs: inputs}
+	manifest := runManifest{Project: d.project, Policy: policy, GitSHA: git, Config: sc, StandConfig: c, Images: jsonArray(images), Containers: jsonArray(containers), Quota: map[string]any{"cpus": 2, "memory_bytes": int64(2 << 30), "present": policy != "no-extension"}, Inputs: inputs}
 	if err = writeJSON(filepath.Join(dir, "manifest.json"), manifest); err != nil {
 		return out, err
 	}
@@ -386,4 +387,23 @@ func training(ctx context.Context, d compose, dir string, c Config, sc sim.Confi
 			return err
 		}
 	}
+}
+
+// jsonArray accepts both output styles of `docker compose --format json`: one
+// array (older Compose) or one object per line.
+func jsonArray(b []byte) json.RawMessage {
+	if json.Valid(b) {
+		return b
+	}
+	var items []json.RawMessage
+	dec := json.NewDecoder(bytes.NewReader(b))
+	for {
+		var v json.RawMessage
+		if dec.Decode(&v) != nil {
+			break
+		}
+		items = append(items, v)
+	}
+	out, _ := json.Marshal(items)
+	return out
 }

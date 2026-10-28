@@ -133,3 +133,8 @@ func TestOutcomeRetainsLoadConfiguration(t *testing.T) {
 	require.Contains(t, decoded, "config")
 	require.Nil(t, decoded["violations"])
 }
+
+func TestJSONArrayAcceptsComposeOutputStyles(t *testing.T) {
+	require.JSONEq(t, `[{"a":1},{"b":2}]`, string(jsonArray([]byte("{\"a\":1}\n{\"b\":2}\n"))))
+	require.JSONEq(t, `[{"a":1}]`, string(jsonArray([]byte(`[{"a":1}]`))))
+}
