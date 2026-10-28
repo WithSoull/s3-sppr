@@ -1,6 +1,7 @@
 package planner
 
 import (
+	"sync"
 	"time"
 
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/client"
@@ -19,6 +20,7 @@ const (
 )
 
 type Config struct {
+	Models           service.ModelLifecycle
 	MaxHistoryLag    time.Duration
 	FallbackReason   string
 	Interval         time.Duration
@@ -27,6 +29,7 @@ type Config struct {
 }
 
 type plannerService struct {
+	commandMu  sync.Mutex
 	cfg        Config
 	plans      repository.PlanRepository
 	history    repository.HistoryRepository

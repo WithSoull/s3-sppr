@@ -40,6 +40,7 @@ nav form { margin-left:auto}
 <a href="/admin">Состояние</a>
 <a href="/admin/settings">Настройки</a>
 <a href="/admin/recommendations">Рекомендации</a>
+<a href="/admin/models">Модели</a>
 <a href="/admin/commands">Команды</a>
 <a href="/admin/migrations">Миграции</a>
 <form action="/admin/logout" method="post">
@@ -57,6 +58,7 @@ nav form { margin-left:auto}
 <p>
 {{if .Authenticated}}<a href="/admin">К состоянию</a> · {{end}}<a href="/admin/login">Войти</a>
 </p>{{end}}
+{{if eq .Page "models"}}{{template "models" .}}{{end}}
 {{if eq .Page "status"}}{{template "status" .}}{{end}}
 {{if eq .Page "settings"}}{{template "settings" .}}{{end}}
 {{if eq .Page "plans"}}{{template "plans" .}}{{end}}

@@ -266,6 +266,7 @@ const (
 	CommandResume        CommandType = "resume"
 	CommandSettings      CommandType = "settings"
 	CommandRecompute     CommandType = "recompute"
+	CommandRetrain       CommandType = "retrain"
 )
 
 type CommandStatus string
@@ -332,6 +333,7 @@ type ObjectHistory struct {
 	Reads24h int64       `json:"reads_24h"`
 }
 type PlannerStatus struct {
+	ModelLifecycle    *ModelLifecycleStatus
 	History           Coverage
 	HistoryLagSeconds float64
 	Objects           []ObjectHistory

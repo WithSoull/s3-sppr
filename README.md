@@ -117,6 +117,10 @@ Storage записывает blob во временный файл, синхро
 
 ### SPPR
 
+Этап 9 добавляет реестр моделей, фоновое переобучение и `/admin/models`.
+Конфигурация, том реестра и smoke обновления — в
+[runbook SPPR](services/sppr/README.md#выбор-предиктора-и-каталог-модели).
+
 Ingestor читает protobuf-события `object-read` и `object-written` из Kafka и одной
 транзакцией сохраняет историю, пропуски, прогресс потока и минутный спрос в PostgreSQL.
 Producer Gateway уже есть в checkout; автономный Ingestor запускается без него.
@@ -143,7 +147,7 @@ EWMA (по умолчанию) или файловой LightGBM с объясн�
 Подробности и известное ограничение повтора recompute — в
 [README SPPR](services/sppr/README.md#доступ-и-html-панель). Выбор предиктора,
 каталог модели и fallback описаны в [разделе Planner](services/sppr/README.md#выбор-предиктора-и-каталог-модели);
-обучение и сравнение качества ML ещё предстоят.
+обучение и сравнение доступны в Python-пакете и [отчёте](docs/ml-report.md).
 Начать чтение кода можно с
 [онбординга SPPR](services/sppr/ONBOARDING.md), продолжить — с
 [разбора шага 6](docs/sppr-step6.md).

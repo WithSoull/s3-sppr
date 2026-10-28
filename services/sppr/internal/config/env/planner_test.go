@@ -8,7 +8,7 @@ import (
 
 func TestPlannerPredictorConfig(t *testing.T) {
 	for _, tt := range []struct{ name, kind, dir, want, wantErr string }{
-		{name: "default", want: "ewma"},
+		{name: "default", want: "lgbm"},
 		{name: "explicit EWMA", kind: "ewma", want: "ewma"},
 		{name: "ML", kind: "lgbm", dir: "/models/run", want: "lgbm"},
 		{name: "ML missing directory is handled by fallback", kind: "lgbm", want: "lgbm"},

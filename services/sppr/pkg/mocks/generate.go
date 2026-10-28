@@ -5,3 +5,5 @@ package mocks
 
 //go:generate go run github.com/gojuno/minimock/v3/cmd/minimock -i github.com/alesplll/opens3-rebac/services/sppr/internal/client/identity.AuthClient,github.com/alesplll/opens3-rebac/services/sppr/internal/client/identity.PermissionClient,github.com/alesplll/opens3-rebac/services/sppr/internal/service.FormCommands,github.com/alesplll/opens3-rebac/services/sppr/internal/handler/access.Authorizer -o . -s _minimock.go
 //go:generate go run github.com/gojuno/minimock/v3/cmd/minimock -i github.com/alesplll/opens3-rebac/shared/pkg/go/auth/v1.AuthV1Client,github.com/alesplll/opens3-rebac/shared/pkg/go/authz/v1.PermissionServiceClient -o . -s _minimock.go
+
+//go:generate go run github.com/gojuno/minimock/v3/cmd/minimock -i github.com/alesplll/opens3-rebac/services/sppr/internal/repository.ModelVersionRepository,github.com/alesplll/opens3-rebac/services/sppr/internal/service.ModelLifecycle,github.com/alesplll/opens3-rebac/services/sppr/internal/service.Predictor -o . -s _minimock.go

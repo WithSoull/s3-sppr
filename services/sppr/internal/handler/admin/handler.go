@@ -1,6 +1,7 @@
 package admin
 
 import (
+	"context"
 	"embed"
 	"errors"
 	"fmt"
@@ -9,6 +10,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/client/identity"
 	"github.com/alesplll/opens3-rebac/services/sppr/internal/handler/access"
@@ -33,6 +35,7 @@ type field struct {
 	Value       any
 }
 type view struct {
+	Models                                 []model.ModelVersion
 	Page                                   string
 	Authenticated                          bool
 	Message, Code                          string
@@ -65,6 +68,7 @@ func NewHandler(p service.PlannerService, m service.MigrationService, forms serv
 	pages.HandleFunc("GET /admin/{$}", h.status)
 	pages.HandleFunc("GET /admin", h.status)
 	pages.HandleFunc("GET /admin/status", h.status)
+	pages.HandleFunc("GET /admin/models", h.models)
 	pages.HandleFunc("GET /admin/settings", h.settings)
 	pages.HandleFunc("POST /admin/settings/{operation}", h.update)
 	pages.HandleFunc("POST /admin/commands/{operation}", h.command)
@@ -271,7 +275,7 @@ func (h *handler) command(w http.ResponseWriter, r *http.Request) {
 			h.fail(w, r, 400, "EMPTY_SELECTION")
 			return
 		}
-	case model.CommandReject, model.CommandCancelPending, model.CommandRecompute, model.CommandPause, model.CommandResume:
+	case model.CommandReject, model.CommandCancelPending, model.CommandRecompute, model.CommandPause, model.CommandResume, model.CommandRetrain:
 	default:
 		h.failure(w, r, model.ErrInvalidArgument)
 		return
@@ -325,7 +329,7 @@ func Help(code string) string {
 		return "План устарел или уже закрыт. Откройте последнюю ревизию, при необходимости рассчитайте новый план и проверьте рекомендации."
 	case "DEPENDENCY_REQUIRED":
 		return "Для выбранного переноса сначала нужно освободить место. Добавьте перечисленные ниже предшествующие действия и подтвердите выбор новой командой."
-	case "HISTORY_INCOMPLETE", "HISTORY_INCOMPLETE_PLAN":
+	case "HISTORY_INCOMPLETE", "HISTORY_INCOMPLETE_PLAN", "INSUFFICIENT_HISTORY", "UNKNOWN_COMPLETENESS", "WATERMARK_BEHIND", "GAP", "UNOBSERVED":
 		return "История неполна. Проверьте Ingestor и пропуски событий, затем рассчитайте план заново."
 	case "ACCESS_DENIED":
 		return "Нет действующего доступа администратора. Войдите с учётной записью с правом ADMIN на system:placement; при отказе обратитесь к администратору."
@@ -333,6 +337,10 @@ func Help(code string) string {
 		return "Бюджет переноса исчерпан. Дождитесь нового окна или увеличьте бюджет и рассчитайте план заново."
 	case "CAPACITY_LIMIT", "HOT_CAPACITY", "COLD_CAPACITY", "NO_CAPACITY":
 		return "Не хватает ёмкости с учётом временных копий. Дождитесь очистки, освободите место или измените допустимую загрузку и пересчитайте план."
+	case "TRAINING_IN_PROGRESS":
+		return "Обучение уже выполняется. Дождитесь результата в журнале моделей; для новой попытки отправьте новую команду."
+	case "HORIZON_NOT_WHOLE_MINUTES":
+		return "Метки из минутных агрегатов требуют горизонта, кратного минуте. Измените горизонт Planner и запустите обучение новой командой."
 	case "MODEL_UNAVAILABLE":
 		return "Прогноз недоступен. Проверьте метод прогноза и повторите расчёт."
 	case "EMPTY_SELECTION":
@@ -358,4 +366,33 @@ func Help(code string) string {
 	default:
 		return "Сервис временно недоступен. Проверьте Auth, AuthZ, Metadata и БД SPPR, затем повторите запрос с тем же command_id."
 	}
+}
+
+func (h *handler) models(w http.ResponseWriter, r *http.Request) {
+	provider, ok := h.planner.(interface {
+		ModelVersions(context.Context, time.Time) ([]model.ModelVersion, error)
+	})
+	if !ok {
+		h.render(w, r, 200, "models", view{})
+		return
+	}
+	var before time.Time
+	if raw := r.URL.Query().Get("before"); raw != "" {
+		var err error
+		before, err = time.Parse(time.RFC3339Nano, raw)
+		if err != nil {
+			h.failure(w, r, model.ErrInvalidArgument)
+			return
+		}
+	}
+	rows, err := provider.ModelVersions(r.Context(), before)
+	if err != nil {
+		h.failure(w, r, err)
+		return
+	}
+	next := ""
+	if len(rows) == 100 {
+		next = "/admin/models?before=" + url.QueryEscape(rows[len(rows)-1].CreatedAt.Format(time.RFC3339Nano))
+	}
+	h.render(w, r, 200, "models", view{Models: rows, Next: next})
 }
