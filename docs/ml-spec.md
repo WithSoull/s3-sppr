@@ -284,3 +284,32 @@ train --fit-only). Validation и test не используются для вы�
 по seed. Это отдельный итоговый результат, не validation_metrics экспорта v1.
 [Команды Make и полные определения](../services/sppr/README.md#измерения-для-вкр-этап-11).
 Правило не открывать test на этапе 8 сохраняется.
+
+### Итоговый TEST моделей трасс этапа 8
+
+`python -m sppr_ml test-eval --data <dataset> --out <new-dir> [--params '<JSON>']`
+воспроизводит `train`: train_every=900 с, полная сетка `evaluate.tune` и выбор
+по validation; `--params` оставляет один фиксированный кандидат. Rounds
+по-прежнему выбираются на хвосте train. Базовые оценки подбираются только на
+train; затем train/validation освобождаются и отдельно загружается TEST
+(`include_test=True, splits=("test",)`). Для изоляции чтения используйте
+компактный trace dataset: JSONL хранит все периоды в одном файле.
+
+`test-report.json`, схема `trace-test-v1`, сохраняет manifest/provenance, SHA
+данных, версии, параметры/rounds/trials и описание «selected on validation
+(stage 8 grid); test opened once after selection» (при `--params` режим одного
+кандидата указан отдельно). В нём TEST-метрики всех базовых оценок и модели,
+парный bootstrap разности с каждой базовой, `never_read` как в этапе 8,
+Brier и MAE чтений/объект/час модели и EWMA через `final_evaluation.scores`,
+сводка TEST labels. Лучшая базовая выбирается по **TEST Cov_K** — консервативное
+сравнение; TEST не меняет модель. ДИ — 95 %, 1000 парных повторов по моментам
+среза, seed 0, без поправки на множественные сравнения.
+
+`test-eval-report <dir>...` печатает таблицу по трассам: Cov_K/разность/ДИ,
+never-read, Brier/MAE и вердикт по знаку границ ДИ. COS 001 всегда помечается
+«не засчитано (утечка каталога)». `make ml-sppr-traces-test` собирает бинарники
+и вызывает `ml/scripts/trace_test.py` с теми же `SPPR_TRACE_DOWNLOADS` и
+`SPPR_META_TRACE`, что `ml-sppr-traces`; скрипт поддерживает `--only NAME` и
+`--keep-datasets`, пропускает готовые результаты в `build/ml-traces/test`,
+по умолчанию удаляет успешно оценённые datasets и сохраняет traces.
+Это отдельный этап 11; результаты этапа 8 в `docs/ml-report.md` не меняются.

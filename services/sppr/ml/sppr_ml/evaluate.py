@@ -57,13 +57,18 @@ def tune(train: Slices, validation: Slices, candidates: list[dict] | None = None
     return best_model, trials
 
 
-def compare(hurdle: model.Hurdle, train: Slices, validation: Slices) -> dict[str, metrics.Scores]:
-    """Validation scores of the model and every baseline fitted on train."""
-    f = hurdle.predict(validation.x)
-    out = {"lgbm": metrics.score(validation.at, validation.reads, f.expected, f.p)}
-    for name, estimate in baselines.fitted(train).items():
-        e = estimate(validation)
-        out[name] = metrics.score(validation.at, validation.reads, e, baselines.probability(e))
+def _baselines(train: Slices | None, fitted_baselines: dict | None) -> dict:
+    return baselines.fitted(train) if fitted_baselines is None else fitted_baselines
+
+
+def compare(hurdle: model.Hurdle, train: Slices | None, rows: Slices, *,
+            fitted_baselines: dict | None = None) -> dict[str, metrics.Scores]:
+    """Scores on any evaluation split, using baselines fitted on train only."""
+    f = hurdle.predict(rows.x)
+    out = {"lgbm": metrics.score(rows.at, rows.reads, f.expected, f.p)}
+    for name, estimate in _baselines(train, fitted_baselines).items():
+        e = estimate(rows)
+        out[name] = metrics.score(rows.at, rows.reads, e, baselines.probability(e))
     return out
 
 
@@ -75,14 +80,24 @@ class Difference:
     high: float
 
 
-def versus_best_baseline(hurdle: model.Hurdle, train: Slices, validation: Slices,
-                         scores: dict[str, metrics.Scores]) -> Difference:
-    """Paired difference in Cov_K between the model and the best baseline on validation."""
+def versus_baselines(hurdle: model.Hurdle, train: Slices | None, rows: Slices, *,
+                     fitted_baselines: dict | None = None) -> dict[str, Difference]:
+    """Paired Cov_K differences on the same snapshot bootstrap samples."""
+    f = hurdle.predict(rows.x)
+    caught_m, _, total = metrics.coverage_parts(rows.at, rows.reads, f.expected)
+    out = {}
+    for name, estimate in _baselines(train, fitted_baselines).items():
+        caught_b, _, _ = metrics.coverage_parts(rows.at, rows.reads, estimate(rows))
+        out[name] = Difference(name, *metrics.paired_difference(caught_m, caught_b, total))
+    return out
+
+
+def versus_best_baseline(hurdle: model.Hurdle, train: Slices | None, rows: Slices,
+                         scores: dict[str, metrics.Scores], *, fitted_baselines: dict | None = None) -> Difference:
+    """Paired Cov_K difference against the best baseline on the evaluation split."""
     best = max((k for k in scores if k != "lgbm"), key=lambda k: scores[k].coverage)
-    f = hurdle.predict(validation.x)
-    caught_m, _, total = metrics.coverage_parts(validation.at, validation.reads, f.expected)
-    caught_b, _, _ = metrics.coverage_parts(validation.at, validation.reads, baselines.fitted(train)[best](validation))
-    return Difference(best, *metrics.paired_difference(caught_m, caught_b, total))
+    estimates = _baselines(train, fitted_baselines)
+    return versus_baselines(hurdle, None, rows, fitted_baselines={best: estimates[best]})[best]
 
 
 @dataclass
@@ -91,7 +106,8 @@ class NeverRead:
     without: Difference
 
 
-def never_read_check(hurdle: model.Hurdle, train: Slices, validation: Slices) -> NeverRead:
+def never_read_check(hurdle: model.Hurdle, train: Slices | None, rows: Slices, *,
+                     fitted_baselines: dict | None = None) -> NeverRead:
     """How much of the result rests on objects never read before the snapshot.
 
     A converter that infers the catalogue from the trace (IBM COS: an object
@@ -99,11 +115,11 @@ def never_read_check(hurdle: model.Hurdle, train: Slices, validation: Slices) ->
     catalogue because it will be touched — a leak a real catalogue lacks. Every
     estimate is zeroed on never-read rows and the paired difference recomputed.
     """
-    never = np.isnan(validation.feature("last_read_seconds"))
-    reads = validation.reads
-    estimates = {"lgbm": hurdle.predict(validation.x).expected,
-                 **{k: f(validation) for k, f in baselines.fitted(train).items()}}
-    parts = {k: metrics.coverage_parts(validation.at, reads, np.where(never, 0.0, e)) for k, e in estimates.items()}
+    never = np.isnan(rows.feature("last_read_seconds"))
+    reads = rows.reads
+    estimates = {"lgbm": hurdle.predict(rows.x).expected,
+                 **{k: f(rows) for k, f in _baselines(train, fitted_baselines).items()}}
+    parts = {k: metrics.coverage_parts(rows.at, reads, np.where(never, 0.0, e)) for k, e in estimates.items()}
     best = max((k for k in parts if k != "lgbm"), key=lambda k: parts[k][0].sum())
     total = parts["lgbm"][2]
     return NeverRead(float(reads[never].sum() / reads.sum()) if reads.sum() else 0.0,

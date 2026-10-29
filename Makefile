@@ -200,6 +200,13 @@ ml-sppr-traces:
 	go build -o build/bin/dataset ./services/sppr/cmd/dataset
 	$(SPPR_ML_PY) $(SPPR_ML)/scripts/trace_datasets.py --downloads "$(SPPR_TRACE_DOWNLOADS)" --meta "$(SPPR_META_TRACE)"
 
+.PHONY: ml-sppr-traces-test
+ml-sppr-traces-test:
+	mkdir -p build/bin
+	go build -o build/bin/trace-convert ./services/sppr/cmd/trace-convert
+	go build -o build/bin/dataset ./services/sppr/cmd/dataset
+	$(SPPR_ML_PY) $(SPPR_ML)/scripts/trace_test.py --downloads "$(SPPR_TRACE_DOWNLOADS)" --meta "$(SPPR_META_TRACE)"
+
 ml-sppr-train:
 	PYTHONPATH=$(SPPR_ML) $(SPPR_ML_PY) -m sppr_ml train --data $(SPPR_ML_DATA) --out $(SPPR_ML_OUT)
 
