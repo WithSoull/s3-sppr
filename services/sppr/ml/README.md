@@ -41,6 +41,7 @@ Runbook реестра, таймаута и расписания — [README SPP
 | `experiment.py` | обработка завершённой матрицы размещения: парные seed, 10 000 bootstrap, критерий, Markdown/JSON |
 | `metrics.py` | PR-AUC, Brier, `Cov_K`, пуассоновское отклонение, bootstrap по моментам среза |
 | `evaluate.py` | сетка гиперпараметров на validation, сравнение, парная разность с лучшей базовой оценкой, проверка на ещё не читанные объекты |
+| `trace_test.py` | этап 11: воспроизведение выбора этапа 8, TEST всех базовых оценок и таблица по трассам |
 | `final_evaluation.py` | этап 11: фиксированный train-only fit, TEST-метрики ML/EWMA и среднее/min–max по seed |
 | `export.py` | `classifier.txt`, `regressor.txt`, `manifest.json`, `parity.json` по «Схеме файлов экспорта v1» |
 | `scripts/build_notebook.py` | исходник notebook; правьте его, а не `.ipynb` |
@@ -125,3 +126,48 @@ precision), Brier, MAE в чтениях на объект в час, Cov_K с H
 число строк. EWMA p=1−exp(−λ), λ — ожидаемые чтения за горизонт из dataset.
 Результаты не экспортируются как модель. Подробности, параметры Make и границы
 измерений — [runbook этапа 11](../README.md#измерения-для-вкр-этап-11).
+
+### TEST моделей трасс после выбора этапа 8
+
+```bash
+# Полный прогон всех трасс; тяжёлая команда, нужна локальная копия исходников:
+make ml-sppr-traces-test SPPR_TRACE_DOWNLOADS=<IBM-dir> SPPR_META_TRACE=<Meta-file>
+# Одна трасса или сохранение dataset (из корня репозитория):
+services/sppr/ml/.venv/bin/python services/sppr/ml/scripts/trace_test.py \
+  --downloads <IBM-dir> --meta <Meta-file> --only meta-eag --keep-datasets
+# Уже подготовленный dataset:
+PYTHONPATH=services/sppr/ml services/sppr/ml/.venv/bin/python -m sppr_ml test-eval \
+  --data build/ml-traces/datasets/meta-eag --out build/ml-traces/test/meta-eag
+PYTHONPATH=services/sppr/ml services/sppr/ml/.venv/bin/python -m sppr_ml test-eval-report \
+  build/ml-traces/test/meta-eag
+```
+
+`test-eval` воспроизводит `train`: train раз в 900 с (`--train-every`), полная
+сетка этапа 8, выбор по validation с прежним правилом равенства и early stopping
+на train-tail. `--params '<JSON>'` заменяет сетку одним фиксированным кандидатом,
+как у `train --params`. После выбора и подбора базовых оценок на train матрицы
+train/validation освобождаются; TEST загружается отдельно и не прореживается.
+Для трасс используйте компактные split-файлы: JSONL — единый файл, загрузчик
+читает его целиком, хотя возвращает только запрошенные splits.
+
+Новый каталог содержит только `test-report.json` (`trace-test-v1`): выбранные
+параметры, rounds и trials, manifest/происхождение/хеш данных/версии, TEST labels,
+метрики всех методов с ДИ Cov_K, парные разности с каждой базовой оценкой,
+проверку `never_read`, Brier и MAE в чтениях/объект/час для модели и EWMA
+(p=1−exp(−λ)). Лучшая базовая **выбирается по TEST Cov_K**: это консервативное
+сравнение, не выбор модели. Интервалы — 95 %, 1000 парных bootstrap по моментам
+среза, seed 0; они не учитывают множественность сравнений. «Без never-read»
+повторяет этап 8: обнуляет прогнозы всех методов на этих строках, сохраняя
+каталог, K и метки, затем заново выбирает лучшую базовую. Колонка objects —
+число версий каталога из source manifest; `test_objects` отдельно считает
+версии с eligible TEST-строками. Без счётчика каталога таблица показывает «—».
+Вердикт: нижняя граница ДИ >0 — «лучше», верхняя <0 — «хуже», иначе «не доказано».
+IBM COS 001 всегда «не засчитано (утечка каталога)».
+
+Скрипт повторно использует `trace_datasets.build` и прежние доли ключей/периоды.
+Результаты — `build/ml-traces/test/<name>`; существующий каталог пропускается
+(отсутствие `test-report.json` в нём — ошибка). После успеха dataset вместе с
+кешами удаляется, если не задан `--keep-datasets`; конвертированные traces
+сохраняются. При ошибке dataset остаётся для повторного запуска. Отчёт
+публикуется целиком после оценки. Повторная таблица не открывает TEST.
+Результаты validation в `docs/ml-report.md` эта команда не меняет.

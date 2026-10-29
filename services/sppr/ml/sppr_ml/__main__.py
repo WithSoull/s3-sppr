@@ -1,4 +1,4 @@
-"""Command line: `python -m sppr_ml train|report|evaluate|evaluate-report|experiment`.
+"""Command line: `python -m sppr_ml train|report|test-eval|test-eval-report|evaluate|evaluate-report|experiment`.
 
 train  — load one dataset directory, tune on validation, compare with
          baselines, write the model directory and report.json.
@@ -132,6 +132,16 @@ def main() -> None:
     r.add_argument("reports", nargs="+")
     r.add_argument("--summary", action="store_true", help="only the paired difference with the best baseline")
     r.set_defaults(func=report)
+    from . import trace_test
+    tt = sub.add_parser("test-eval", help="stage 11: reproduce stage 8 validation selection, then evaluate TEST")
+    tt.add_argument("--data", required=True, help="dataset directory from cmd/dataset")
+    tt.add_argument("--out", required=True, help="new directory for test-report.json")
+    tt.add_argument("--params", help="fixed JSON hyperparameters; one validation trial instead of the full grid")
+    tt.add_argument("--train-every", type=int, default=900, help="same train thinning as train (seconds; 0: all)")
+    tt.set_defaults(func=trace_test.command)
+    tr = sub.add_parser("test-eval-report", help="Markdown TEST table per trace")
+    tr.add_argument("dirs", nargs="+")
+    tr.set_defaults(func=trace_test.report)
     from . import final_evaluation
     f = sub.add_parser("evaluate", help="stage 11: train-only fixed fit, final TEST metrics")
     f.add_argument("--data", required=True, help="dataset directory from cmd/dataset")

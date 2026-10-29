@@ -79,7 +79,10 @@ never run against an existing project. ML/map/train-only inputs must exist befor
 the run and are hashed for resume. See the SPPR README for model assumptions and overrides.
 Stage 11 measurement CLIs: `make forecast-quality` evaluates TEST only with
 fixed params and train-only fitting; each seed dataset/cache is temporary and
-only evaluate.json remains. Stage 8 must still never read TEST. `make bench-admin`
+only evaluate.json remains. Stage 8 must still never read TEST. `make ml-sppr-traces-test` reproduces stage-8
+validation grid selection before opening TEST, preserves converted traces and
+deletes evaluated datasets unless `--keep-datasets` is passed to the script.
+See the ML README; COS 001 remains invalid due to catalogue leakage. `make bench-admin`
 measures a running dedicated stand, journals no-op pause/resume commands and can
 restart it only when explicitly given -restart-command. `make bench-plan` measures
 production features/predictors/Build in memory; report its timing/heap/RSS scope
