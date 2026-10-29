@@ -161,3 +161,26 @@ func TestRecoveryCancelled(t *testing.T) {
 	err := (client{api: "http://127.0.0.1:1", http: &http.Client{}}).recovery(ctx, "saved", time.Millisecond)
 	require.True(t, errors.Is(err, context.Canceled))
 }
+
+func TestRecommendationPlan(t *testing.T) {
+	tests := []struct {
+		name  string
+		plans []plan
+		want  string
+	}{
+		{"none", nil, ""},
+		{"ready preferred over newer confirmed", []plan{{ID: "r", Revision: 1, Status: "ready"}, {ID: "c", Revision: 2, Status: "confirmed"}}, "r"},
+		{"latest ready", []plan{{ID: "r1", Revision: 1, Status: "ready"}, {ID: "r2", Revision: 3, Status: "ready"}}, "r2"},
+		{"latest confirmed without ready", []plan{{ID: "c1", Revision: 4, Status: "confirmed"}, {ID: "c2", Revision: 7, Status: "confirmed"}}, "c2"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := recommendationPlan(tt.plans)
+			if tt.want == "" {
+				require.Nil(t, got)
+				return
+			}
+			require.Equal(t, tt.want, got.ID)
+		})
+	}
+}
