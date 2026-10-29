@@ -805,8 +805,8 @@ Docker: `-source docker -zone syd01 -input <tar.gz> -out <new-dir>`;
 Bucket по умолчанию `docker-<zone>`, key — digest с дедупликацией между repo;
 размер — max полного GET 200, demand — GET blobs 200/206. Inferred-success opt-in
 не нужен. Сортировка на диске через `/usr/bin/sort` требует временного места
-пропорционально выбранным GET. Лицензия данных: `not stated; permission requested
-from authors`. Go-конвертер Meta использует уже имеющийся zstd, Python/requirements
+пропорционально выбранным GET. Лицензия данных: `not stated; used with the authors'
+permission`. Go-конвертер Meta использует уже имеющийся zstd, Python/requirements
 не нужны. Подтверждённые счётчики / политики конфликтов — в аудите трасс.
 
 CLI `cmd/dataset` принимает `-catalog`, `-events`, `-start`, `-end` вместо

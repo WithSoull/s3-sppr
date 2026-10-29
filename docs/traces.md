@@ -9,7 +9,7 @@ SNIA Trace Data Files Download License. Конвертер ничего не с�
 |---|---|---|---|---|
 | Meta CDN, март 2023 | Публичный [S3 CacheMon](https://cache-datasets.s3.amazonaws.com/?list-type=2&prefix=cache_dataset_txt/2023_metaCDN/), без регистрации; три файла ниже | zstd CSV с заголовком: timestamp (Unix ms), cacheKey, OpType, objectSize, responseSize, responseHeaderSize, rangeStart/End, TTL, SamplingRate, cache_hit, item_value, RequestHandler, cdn_content_type_id, vip_type | [Оригинал CacheLib](https://cachelib.org/docs/Cache_Library_User_Guides/Cachebench_FB_HW_eval/) разрешает свободное скачивание под лицензией CacheLib ([Apache-2.0](https://github.com/facebook/CacheLib/blob/main/LICENSE)); [коллекция CacheMon](https://github.com/cacheMon/cache_dataset#license) объявляет CC BY 4.0, требует attribution, ссылку и описание изменений | Доступна; конвертер ниже. HTTP status отсутствует — успех GET не доказуем напрямую |
 | IBM Cloud Object Storage, HotStorage 2020 | [SNIA IOTTA 36305](https://iotta.snia.org/traces/key-value/36305); локальные 000/001/002 | Подтверждено из файлов: несмотря на `.tgz`, Unix compress → tar → CRLF text. `relative_ms REST.OP.OBJECT object_id size [start end]`; DELETE может не иметь size | [SNIA Download License](https://iotta.snia.org/repository/download_license), принята поставщиком файлов | Потоковый `-source ibm-cos`; полный 001/002, 000 с key-share 0.1 проверены; статус успеха отсутствует |
-| IBM Docker Registry, FAST 2018 | [DRTP](https://dssl.cs.vt.edu/drtp/) → [архив](https://drive.google.com/file/d/1FjgyCJ8YayOKeMlxtbznhsiXGPYC9yP8/view), 1 662 385 619 байт | Подтверждён tar.gz: 7 zone directories, 23 075 133 724 байта JSON; pretty-printed arrays, flat dotted field names, UTC timestamps; имена в syd01 имеют prefix `prod-syd01-logstash-...` | `not stated; permission requested from authors`; лицензия replayer не лицензирует данные | Потоковый `-source docker -zone syd01`, полный syd01 проверен; HTTP status присутствует |
+| IBM Docker Registry, FAST 2018 | [DRTP](https://dssl.cs.vt.edu/drtp/) → [архив](https://drive.google.com/file/d/1FjgyCJ8YayOKeMlxtbznhsiXGPYC9yP8/view), 1 662 385 619 байт | Подтверждён tar.gz: 7 zone directories, 23 075 133 724 байта JSON; pretty-printed arrays, flat dotted field names, UTC timestamps; имена в syd01 имеют prefix `prod-syd01-logstash-...` | `not stated; used with the authors' permission`; лицензия replayer не лицензирует данные | Потоковый `-source docker -zone syd01`, полный syd01 проверен; HTTP status присутствует |
 
 CacheMon README заявляет IBM Docker, но ведёт на общий prefix. В проверенных
 листингах `cache_dataset_txt/`, `cache_dataset_oracleGeneral/` (включая `other/`)
@@ -202,8 +202,9 @@ Mapping и решения:
 | Peak RSS, MiB, getrusage (та же оговорка о sysctl, что выше) | 41.42 |
 
 Лицензия самих данных на [странице DRTP](https://dssl.cs.vt.edu/drtp/) не указана.
-Manifest сохраняет ровно `not stated; permission requested from authors`.
-Это статус разрешения, сообщённый автором задачи; конвертер не отправляет писем.
+Manifest сохраняет ровно `not stated; used with the authors' permission`.
+Это статус разрешения, сообщённый автором задачи (письменное разрешение авторов);
+конвертер не отправляет писем.
 Открытая лицензия кода replayer не переносится на трассы.
 
 ```bash

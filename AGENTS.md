@@ -20,7 +20,7 @@ the source manifest, deterministic key sampling and row policies. Docker Registr
 (`-source docker -zone <zone>`, optional filename `-from`/`-to` days) streams tar.gz
 JSON arrays and externally sorts selected reads using `/usr/bin/sort`; one bucket
 per zone, digest keys, full GET 200 size, GET 200/206 demand. Data license is
-not stated; permission requested from authors. See `docs/traces.md`. See the service README for profiles.
+not stated; used with the authors' permission. See `docs/traces.md`. See the service README for profiles.
 Use its service provider and shared go-kit clients. Preserve commit-before-ack,
 stream deduplication and atomic event/progress/gap/aggregate updates.
 Stage 5 uses same-stream `StreamHeartbeat` barriers (Kafka `event-type: heartbeat`),
