@@ -182,6 +182,13 @@ def test_stand_subset_compares_only_present_baselines(tmp_path):
     assert not cell["passed"]
 
 
+def test_stand_subset_markdown_marks_absent_policies(tmp_path):
+    from sppr_ml.experiment import markdown, process
+    stand_series(tmp_path, policies=["ewma", "lgbm"])
+    row = markdown(process(tmp_path)).splitlines()[2]
+    assert row.count("н/д") == 3
+
+
 def test_stand_demand_and_error_accounting():
     from sppr_ml.experiment import validate_demand
     a = dict(outcome(0), offered=100, completed=100, errors_by_kind={}, schedule_sha256="same")

@@ -169,7 +169,9 @@ def markdown(report: dict) -> str:
     lines = ["| Сценарий | Бюджет, МиБ | Возраст, мс | Давность, мс | Частота, мс | EWMA, мс | ML, мс | Критерий |",
              "|---|---:|---:|---:|---:|---:|---:|---|"]
     for cell in report["cells"]:
-        values = " | ".join(f"{cell['policies'][p]['mean_ms']:.4f}" for p in (*BASELINES, "lgbm"))
+        # A stand series may run only some baselines; absent policies are н/д.
+        values = " | ".join(f"{cell['policies'][p]['mean_ms']:.4f}" if p in cell["policies"] else "н/д"
+                            for p in (*BASELINES, "lgbm"))
         lines.append(f"| {cell['scenario']} | {cell['budget_bytes'] / 2**20:g} | {values} | "
                      f"{'выполнен' if cell['passed'] else 'не выполнен'} |")
     lines += ["", "| Сценарий | Бюджет, МиБ | ML против | Уменьшение среднего | 95 % ДИ | Изменение p95 | Критерий пары |",
