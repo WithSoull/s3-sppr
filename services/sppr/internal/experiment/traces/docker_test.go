@@ -40,7 +40,7 @@ func TestDockerPolicies(t *testing.T) {
 	require.Equal(t, int64(20), es[0].Bytes, "206 before full 200 must retain one read")
 	require.Equal(t, es[0].VersionID, es[1].VersionID, "digest shared across repos is one immutable version")
 	require.Equal(t, int64(0), es[4].Bytes)
-	require.Contains(t, m.License["data"], "not stated; permission requested from authors")
+	require.Equal(t, "not stated", m.License["data"])
 }
 func TestDockerFilterAndFailures(t *testing.T) {
 	for _, tt := range []struct {
